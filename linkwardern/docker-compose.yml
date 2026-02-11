@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:17
+    container_name: Linkwarden-DB
+    hostname: linkwarden-db
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "linkwarden", "-U", "linkwardenuser"]
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    volumes:
+      - /volume2/docker/linkwarden/db:/var/lib/postgresql/data:rw
+    environment:
+      POSTGRES_DB: linkwarden
+      POSTGRES_USER: linkwardenuser
+      POSTGRES_PASSWORD: linkwardenpass
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+  linkwarden:
+    image: ghcr.io/linkwarden/linkwarden:latest
+    container_name: Linkwarden
+    healthcheck:
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/3000' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    hostname: linkwarden
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /volume2/docker/linkwarden/data:/data/data:rw
+    environment:
+      DATABASE_URL: postgres://linkwardenuser:linkwardenpass@linkwarden-db:5432/linkwarden
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: https://linkwarden.nicolkrit.ch
+      NEXT_PUBLIC_DISABLE_REGISTRATION: true
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
