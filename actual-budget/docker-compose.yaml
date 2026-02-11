@@ -1,0 +1,24 @@
+services:
+  actual-ical:
+    image: ghcr.io/matheusvellone/actual-ical:latest
+    container_name: actual-ical
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - TZ=Europe/Zurich
+      - ACTUAL_SERVER=http://ActualBudget:5006
+      - ACTUAL_MAIN_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_SYNC_PASSWORD=${ACTUAL_ENCRYPTION_PASSWORD}
+      - ACTUAL_SYNC_ID=${ACTUAL_SYNC_ID}
+      - SYNC_ID_AS_URL=true
+      - CURRENCY=CHF
+    volumes:
+      - /volume2/docker/actualical:/app/.actual-cache
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
