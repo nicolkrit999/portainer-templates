@@ -1,0 +1,51 @@
+services:
+  glance:
+    container_name: glance
+    image: glanceapp/glance
+    restart: unless-stopped
+
+    group_add:
+      - "121"
+
+    # Used for the community widget. Comment out the one not in use
+    # https://github.com/glanceapp/community-widgets/tree/main
+    environment:
+
+      - UPTIME_KUMA_URL=http://uptime-kuma:3001
+      - UPTIME_KUMA_PUBLIC_URL=http://uptime-kuma.nicolkrit.ch
+      - UPTIME_KUMA_STATUS_SLUG=nicol-nas
+
+      - IMMICH_URL=immich_server:2283
+      - IMMICH_API_KEY=${IMMICH_API_KEY}
+
+      - BESZEL_URL=beszel:8090
+      - BESZEL_TOKEN=${BESZEL_TOKEN}
+
+      - JELLYFIN_URL=http://jellyfin:8096
+      - JELLYFIN_PUBLIC_URL=http://jellyfin.nicolkrit.ch
+      - JELLYFIN_KEY=${JELLYFIN_KEY}
+
+      - KAVITA_URL=http://kavita:5000
+      - KAVITA_PUBLIC_URL=http://kavita.nicolkrit.ch
+      - KAVITA_KEY=${KAVITA_KEY}
+
+      - AUDIOBOOKSHELF_URL=http://audiobookshelf:80
+      - AUDIOBOOKSHELF_PUBLIC_URL=http://audiobooks.nicolkrit.ch
+      - AUDIOBOOKSHELF_KEY=${AUDIOBOOKSHELF_KEY}
+
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REFRESH_TOKEN=${GOOGLE_REFRESH_TOKEN}
+
+    volumes:
+      - /volume2/docker/glance/config:/app/config
+      - /volume2/docker/glance/assets:/app/assets
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    external: true
+    name: cloudflare-web
