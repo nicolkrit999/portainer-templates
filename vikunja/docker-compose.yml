@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:18
+    container_name: Vikunja-DB
+    hostname: vikunja-db
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vikunja
+      POSTGRES_USER: vikunjauser
+      POSTGRES_PASSWORD: vikunjapass
+    volumes:
+      - /volume2/docker/vikunja/db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d vikunja -U vikunjauser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vikunja:
+    image: vikunja/vikunja:latest
+    container_name: Vikunja
+    hostname: vikunja
+    security_opt:
+      - no-new-privileges:true
+    user: 1000:10
+    restart: unless-stopped
+    ports:
+      - 3456:3456
+    environment:
+      VIKUNJA_MAILER_ENABLED: "true"
+      VIKUNJA_MAILER_HOST: smtp.gmail.com
+      VIKUNJA_MAILER_PORT: 587
+      VIKUNJA_MAILER_SKIPTLSVERIFY: "false"
+      VIKUNJA_MAILER_AUTHTYPE: login
+      VIKUNJA_MAILER_USERNAME: ${VIKUNJA_MAILER_USERNAME}
+      VIKUNJA_MAILER_PASSWORD: ${VIKUNJA_MAILER_PASSWORD}
+      VIKUNJA_MAILER_FROMEMAIL: ${VIKUNJA_MAILER_FROMEMAIL}
+      VIKUNJA_DATABASE_HOST: vikunja-db
+      VIKUNJA_DATABASE_PASSWORD: vikunjapass
+      VIKUNJA_DATABASE_TYPE: postgres
+      VIKUNJA_DATABASE_USER: vikunjauser
+      VIKUNJA_DATABASE_DATABASE: vikunja
+      VIKUNJA_SERVICE_JWTSECRET: ${VIKUNJA_SERVICE_JWTSECRET}
+      VIKUNJA_SERVICE_TIMEZONE: ${TZ}
+      VIKUNJA_SERVICE_PUBLICURL: ${VIKUNJA_SERVICE_PUBLICURL}
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: "false"
+      HOME: /app/vikunja/files
+    volumes:
+      - /volume2/docker/vikunja/files:/app/vikunja/files:rw
+    networks:
+      - default
+      - cloudflare_web_network
+    depends_on:
+      - db
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
