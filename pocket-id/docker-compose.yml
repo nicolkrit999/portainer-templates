@@ -1,0 +1,32 @@
+services:
+  pocket-id:
+    container_name: pocket-id
+    image: ghcr.io/pocket-id/pocket-id:v1
+    restart: unless-stopped
+
+    environment:
+      APP_URL: ${APP_URL}
+      TRUST_PROXY: ${TRUST_PROXY}
+      PUID: ${PUID}
+      PGID: ${PGID}
+
+    ports:
+      - "1411:1411"
+
+    volumes:
+      - /volume2/docker/pocket-id:/app/data:rw
+
+    healthcheck:
+      test: [ "CMD", "/app/pocket-id", "healthcheck" ]
+      interval: 1m30s
+      timeout: 5s
+      retries: 2
+      start_period: 10s
+
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
