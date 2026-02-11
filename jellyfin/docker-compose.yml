@@ -1,0 +1,24 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    user: 1000:10
+    volumes:
+      - /volume2/docker/jellyfin/config:/config
+      - /volume2/docker/jellyfin/cache:/cache
+      - /volume1/Default-volume-1/0001_Docker/jellyfin/movies:/media/movies
+      - /volume1/Default-volume-1/0001_Docker/jellyfin/tv-shows:/media/tvshows
+    restart: 'unless-stopped'
+    environment:
+      - TZ=Europe/Zurich
+    networks:
+      - cloudflare_web_network
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri/card0:/dev/dri/card0
+      - /dev/dri:/dev/dri
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
