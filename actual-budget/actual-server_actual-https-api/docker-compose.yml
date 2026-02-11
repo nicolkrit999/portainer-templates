@@ -1,0 +1,33 @@
+services:
+  actual_server:
+    image: actualbudget/actual-server:26.2.0
+    container_name: ActualBudget
+    restart: always
+    environment:
+      - 'TZ=Europe/Zurich'
+    volumes:
+      - /volume2/docker/actual-budget/actual-data:/data
+    networks:
+      - cloudflare_web_network
+    ports:
+      - "5006:5006"
+
+  actual_api:
+    image: jhonderson/actual-http-api:26.2.0
+    container_name: ActualAPI
+    restart: always
+    ports:
+      - "5007:5007"
+    environment:
+      - PORT=5007
+      - ACTUAL_SERVER_URL=http://ActualBudget:5006
+      - ACTUAL_SERVER_PASSWORD=${ACTUAL_SERVER_PASSWORD}
+      - API_KEY=${ACTUAL_API_PASSWORD}
+      - NODE_OPTIONS=--max-old-space-size=4096
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
