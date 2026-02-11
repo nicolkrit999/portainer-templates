@@ -1,0 +1,76 @@
+services:
+  mailpit:
+    image: 'axllent/mailpit:v1.7'
+    hostname: mailpit
+    ports:
+      - "8025:8025"  # Mailpit UI
+      - "1025:1025"  # Mailpit SMTP
+    networks:
+      - cloudflare_web_network
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8025/api/v1/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    hostname: openldap
+    ports:
+      - "389:389"
+      - "636:636"
+    volumes:
+      - /volume2/docker/central-services/openldap/certificates:/container/service/slapd/assets/certs
+      - /volume2/docker/central-services/openldap/slapd/database:/var/lib/ldap
+      - /volume2/docker/central-services/openldap/slapd/config:/etc/ldap/slapd.d
+    environment:
+      - LDAP_ORGANISATION=${LDAP_ORGANISATION}
+      - LDAP_DOMAIN=${LDAP_DOMAIN}
+      - LDAP_ADMIN_USERNAME=${LDAP_ADMIN_USERNAME}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
+      - LDAP_CONFIG_PASSWORD=${LDAP_CONFIG_PASSWORD}
+      - LDAP_BASE_DN=${LDAP_BASE_DN}
+      - LDAP_READONLY_USER=${LDAP_READONLY_USER_ENABLED}
+      - LDAP_READONLY_USER_USERNAME=${LDAP_READONLY_USER_USERNAME}
+      - LDAP_READONLY_USER_PASSWORD=${LDAP_READONLY_USER_PASSWORD}
+    networks:
+      - cloudflare_web_network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost -b \"${LDAP_BASE_DN}\" -D \"cn=admin,${LDAP_BASE_DN}\" -w \"${LDAP_ADMIN_PASSWORD}\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:0.9.0
+    container_name: phpldapadmin
+    hostname: phpldapadmin
+    ports:
+      - "8201:80"
+    # Volume commented out intentionally
+    # volumes:
+    #   - /volume2/docker/central-services/phpldapadmin:/var/www/phpldapadmin
+    environment:
+      - PHPLDAPADMIN_LDAP_HOSTS=openldap
+      - PHPLDAPADMIN_HTTPS=false
+    depends_on:
+      - openldap
+    networks:
+      - cloudflare_web_network
+    restart: always
+
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/80' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
