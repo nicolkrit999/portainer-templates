@@ -1,0 +1,14 @@
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale
+    network_mode: host
+    privileged: true
+    restart: unless-stopped
+    environment:
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_EXTRA_ARGS=--reset
+    volumes:
+      - /volume2/docker/tailscale/state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
