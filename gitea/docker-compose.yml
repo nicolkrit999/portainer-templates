@@ -1,0 +1,28 @@
+services:
+    server:
+        image: docker.gitea.com/gitea:latest
+        container_name: gitea
+        environment:
+            - USER_UID=1000
+            - USER_GID=10
+            - GITEA__server__ROOT_URL=https://gitea.nicolkrit.ch/
+            - GITEA__server__DOMAIN=gitea.nicolkrit.ch
+        restart: unless-stopped
+        volumes:
+            - /volume1/Default-volume-1/0001_Docker/gitea/gitea:/data
+            - /etc/timezone:/etc/timezone:ro
+            - /etc/localtime:/etc/localtime:ro
+        networks:
+            - cloudflare_web_network
+        healthcheck:
+            test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+
+networks:
+
+    cloudflare_web_network:
+        name: cloudflare-web
+        external: true
