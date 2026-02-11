@@ -1,0 +1,144 @@
+services:
+  # -----------------------------------------------------------------------------
+  # REDIS
+  # -----------------------------------------------------------------------------
+  redis:
+    image: redis:7
+    container_name: paperlessngx-redis
+    hostname: paperlessngx-redis.nicolkrit.ch
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --requirepass ${PAPERLESS_REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${PAPERLESS_REDIS_PASSWORD} ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    environment:
+      TZ: Europe/Zurich
+    volumes:
+      - /volume1/Default-volume-1/0001_Docker/paperlessngx/redis:/data:rw
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+  # -----------------------------------------------------------------------------
+  # DATABASE (Postgres)
+  # -----------------------------------------------------------------------------
+  db:
+    image: postgres:16
+    container_name: paperlessngx-db
+    hostname: paperlessngx-db.nicolkrit.ch
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperlessuser -d paperless || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    environment:
+      TZ: Europe/Zurich
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperlessuser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /volume1/Default-volume-1/0001_Docker/paperlessngx/db:/var/lib/postgresql/data:rw
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+  # -----------------------------------------------------------------------------
+  # GOTENBERG (PDF Engine)
+  # -----------------------------------------------------------------------------
+  gotenberg:
+    image: gotenberg/gotenberg:latest
+    container_name: paperlessngx-gotenberg
+    hostname: paperlessngx-gotenberg.nicolkrit.ch
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+  # -----------------------------------------------------------------------------
+  # TIKA (Text Extraction)
+  # -----------------------------------------------------------------------------
+  tika:
+    image: apache/tika:latest
+    container_name: paperlessngx-tika
+    hostname: paperlessngx-tika.nicolkrit.ch
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+  # -----------------------------------------------------------------------------
+  # PAPERLESS-NGX (Main App)
+  # -----------------------------------------------------------------------------
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: paperlessngx
+    hostname: paperlessngx.nicolkrit.ch
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "2", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    environment:
+      # --- Connections ---
+      PAPERLESS_REDIS: redis://:${PAPERLESS_REDIS_PASSWORD}@paperlessngx-redis:6379
+      PAPERLESS_DBENGINE: postgresql
+      PAPERLESS_DBHOST: paperlessngx-db
+      PAPERLESS_DBNAME: paperless
+      PAPERLESS_DBUSER: paperlessuser
+      PAPERLESS_DBPASS: ${PAPERLESS_DBPASS}
+
+      USERMAP_UID: 1000
+      USERMAP_GID: 10
+
+      # --- Settings ---
+      PAPERLESS_TIME_ZONE: Europe/Zurich
+      PAPERLESS_URL: https://paperlessngx.nicolkrit.ch
+      PAPERLESS_CSRF_TRUSTED_ORIGINS: https://paperlessngx.nicolkrit.ch
+      PAPERLESS_ADMIN_USER: krit
+      PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD}
+      PAPERLESS_EMPTY_TRASH_DIR: ../trash
+      PAPERLESS_FILENAME_FORMAT: '{{ created_year }}/{{ correspondent }}/{{ document_type }}/{{ title }}'
+      PAPERLESS_OCR_ROTATE_PAGES_THRESHOLD: 6
+      PAPERLESS_TASK_WORKERS: 1
+      PAPERLESS_OCR_LANGUAGE: ita+eng+deu+fra
+      PAPERLESS_OCR_LANGUAGES: ita fra
+      
+      # --- Tika/Gotenberg ---
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperlessngx-gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://paperlessngx-tika:9998
+    volumes:
+      - /volume1/Default-volume-1/0001_Docker/paperlessngx/data:/usr/src/paperless/data:rw
+      - /volume1/Default-volume-1/0001_Docker/paperlessngx/media:/usr/src/paperless/media:rw
+      - /volume1/Default-volume-1/0001_Docker/paperlessngx/export:/usr/src/paperless/export:rw
+      - /volume1/Default-volume-1/0001_Docker/paperlessngx/consume:/usr/src/paperless/consume:rw
+      - /volume1/Default-volume-1/0001_Docker/paperlessngx/trash:/usr/src/paperless/trash:rw
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
