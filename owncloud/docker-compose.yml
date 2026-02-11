@@ -1,0 +1,107 @@
+services:
+  owncloud:
+    image: owncloud/server:${APP_VERSION}
+    container_name: ${APP_NAME}
+    restart: always
+    privileged: true
+    environment:
+      - OWNCLOUD_DOMAIN=${APP_URL}
+      - OWNCLOUD_DB_TYPE=mysql
+      - OWNCLOUD_DB_NAME=${DB_MARIADB_NAME}
+      - OWNCLOUD_DB_USERNAME=${DB_MARIADB_USER}
+      - OWNCLOUD_DB_PASSWORD=${DB_MARIADB_PASSWORD}
+      - OWNCLOUD_DB_HOST=mariadb
+      - OWNCLOUD_ADMIN_USERNAME=${APP_USER}
+      - OWNCLOUD_ADMIN_PASSWORD=${APP_PASSWORD}
+      - OWNCLOUD_MYSQL_UTF8MB4=true
+      - OWNCLOUD_REDIS_ENABLED=true
+      - OWNCLOUD_REDIS_HOST=owncloud-redis
+      - OWNCLOUD_TRUSTED_PROXIES=*
+    depends_on:
+      mariadb:
+        condition: service_started
+      redis:
+        condition: service_started
+      fix-permissions:
+        condition: service_completed_successfully
+    volumes:
+      - /volume1/Default-volume-1/0001_Docker/owncloud/data:/mnt/data
+    healthcheck:
+      test: ["CMD", "/usr/bin/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - cloudflare_web_network
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: ${APP_NAME}-db
+    restart: always
+    command:
+      - --max-allowed-packet=128M
+      - --innodb-log-file-size=64M
+    environment:
+      - MYSQL_DATABASE=${DB_MARIADB_NAME}
+      - MYSQL_USER=${DB_MARIADB_USER}
+      - MYSQL_PASSWORD=${DB_MARIADB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${DB_MARIADB_PASSWORD}
+    volumes:
+      - /volume2/docker/owncloud/mariadb:/var/lib/mysql
+    depends_on:
+      fix-permissions:
+        condition: service_completed_successfully
+    networks:
+      - cloudflare_web_network
+
+  redis:
+    image: redis:6
+    container_name: ${APP_NAME}-redis
+    restart: always
+
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--stop-writes-on-bgsave-error", "no"]
+    volumes:
+      - /volume2/docker/owncloud/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      fix-permissions:
+        condition: service_completed_successfully
+    networks:
+      - cloudflare_web_network
+
+  fix-permissions:
+    image: alpine:latest
+    container_name: ${APP_NAME}-fix-permissions
+    user: root
+    command: >
+      sh -c "
+      echo 'Fixing Redis permissions to 777 (Open)...' &&
+      chmod -R 777 /fix/redis &&
+
+      echo 'Fixing MariaDB permissions (Strict)...' &&
+      chown -R 999:999 /fix/mariadb &&
+      find /fix/mariadb -type d -exec chmod 750 {} + &&
+      find /fix/mariadb -type f -exec chmod 640 {} + &&
+
+      echo 'Fixing ownCloud Data permissions (Strict)...' &&
+      chown -R 33:33 /fix/data &&
+      find /fix/data -type d -exec chmod 770 {} + &&
+      find /fix/data -type f -exec chmod 660 {} + &&
+      
+      echo 'Permissions fixed. Exiting.'
+      "
+    volumes:
+      - /volume2/docker/owncloud/redis:/fix/redis
+      - /volume2/docker/owncloud/mariadb:/fix/mariadb
+      - /volume1/Default-volume-1/0001_Docker/owncloud/data:/fix/data
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
