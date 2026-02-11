@@ -1,0 +1,14 @@
+services:
+  actualtap:
+    container_name: actualtap
+    image: mattyfaz/actualtap:latest
+    restart: unless-stopped
+
+    network_mode: host
+    environment:
+      - TZ=Europe/Zurich
+      - ACTUAL_URL=http://localhost:5006
+      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
+      - ACTUAL_SYNC_ID=${ACTUAL_SYNC_ID}
+      - API_KEY=${API_KEY}
+      - ACTUAL_ENCRYPTION_PASSWORD=${ACTUAL_ENCRYPTION_PASSWORD}
