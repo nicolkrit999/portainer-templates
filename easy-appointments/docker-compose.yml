@@ -1,0 +1,115 @@
+services:
+  php-fpm:
+    image: easyappointments-php-fpm:latest
+    container_name: php-fpm
+    pull_policy: never
+    working_dir: /var/www/html
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - '/volume2/docker/easyappointments:/var/www/html'
+      - '/volume2/docker/easyappointments/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini'
+    networks:
+      - cloudflare_web_network
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  nginx:
+    image: 'nginx:1.23.3-alpine'
+    working_dir: /var/www/html
+    volumes:
+      - '/volume2/docker/easyappointments:/var/www/html'
+      - '/volume2/docker/easyappointments/docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf'
+    ports:
+      - "${NGINX_PORT}:80"
+    networks:
+      - cloudflare_web_network
+    depends_on:
+      - php-fpm
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  mysql:
+    image: 'mysql:8.0'
+    volumes:
+      - '/volume2/docker/easyappointments/docker/mysql:/var/lib/mysql'
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    networks:
+      - cloudflare_web_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  phpmyadmin:
+    image: 'phpmyadmin:5.2.1'
+    ports:
+      - "${PHPMYADMIN_PORT}:80"
+    environment:
+      - 'PMA_HOST=mysql'
+      - 'UPLOAD_LIMIT=${PMA_UPLOAD_LIMIT}'
+    networks:
+      - cloudflare_web_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  swagger-ui:
+    platform: linux/amd64
+    image: swaggerapi/swagger-ui:v5.10.5
+    ports:
+      - "${SWAGGER_UI_PORT}:8080"
+    volumes:
+      - /volume2/docker/easyappointments/openapi.yml:/usr/share/nginx/html/openapi.yml
+    environment:
+      API_URL: openapi.yml
+    networks:
+      - cloudflare_web_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  baikal:
+    image: easyappointments-baikal:latest
+    pull_policy: never
+    ports:
+        - "${BAIKAL_PORT}:80"
+    volumes:
+        - /volume2/docker/easyappointments/docker/baikal/html:/var/www/html
+        - /volume2/docker/easyappointments/docker/baikal/config:/var/www/baikal/config
+        - /volume2/docker/easyappointments/docker/baikal/data:/var/www/baikal/Specific
+    networks:
+        - cloudflare_web_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:80/ || wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
