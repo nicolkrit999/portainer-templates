@@ -1,0 +1,39 @@
+services:
+  duplicati:
+    image: duplicati/duplicati:canary
+    container_name: duplicati
+    restart: always
+    networks:
+      - cloudflare_web_network
+    user: "0:0"
+    privileged: true
+
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=Europe/Zurich
+      - SETTINGS_ENCRYPTION_KEY=${DUPLICATI_SETTINGS_ENCRYPTION_KEY}
+      - DUPLICATI__WEBSERVICE_PASSWORD=${DUPLICATI_WEBSERVICE_PASSWORD}
+
+      - DUPLICATI__WEBSERVICE_INTERFACE=0.0.0.0
+      - DUPLICATI__WEBSERVICE_ALLOWED_HOSTNAMES=*
+
+    volumes:
+      - /volume2/docker/duplicati/config:/data
+      - /home:/home_ro:ro
+      - /volume1:/source1:ro
+      - /volume2:/source2:ro
+      - /volume1/Momentary-volume-1/duplicati-restore-temporary:/restore_temp:rw
+      - /etc/localtime:/etc/localtime:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/8200' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
