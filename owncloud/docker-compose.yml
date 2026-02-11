@@ -75,7 +75,7 @@ services:
 
   fix-permissions:
     image: alpine:latest
-    container_name: ${APP_NAME}-fix-permissions
+    container_name: ${APP_NAME}-init
     user: root
     command: >
       sh -c "
@@ -91,7 +91,7 @@ services:
       chown -R 33:33 /fix/data &&
       find /fix/data -type d -exec chmod 770 {} + &&
       find /fix/data -type f -exec chmod 660 {} + &&
-      
+
       echo 'Permissions fixed. Exiting.'
       "
     volumes:
