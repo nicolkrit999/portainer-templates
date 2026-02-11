@@ -1,0 +1,27 @@
+services:
+  privatebin:
+    image: privatebin/nginx-fpm-alpine
+    container_name: privatebin
+    restart: unless-stopped
+    user: "1000:10"
+
+    environment:
+      - PHP_POST_MAX_SIZE=10G
+      - PHP_UPLOAD_MAX_FILESIZE=10G
+
+    volumes:
+      - /volume2/docker/privatebin/conf.php:/srv/cfg/conf.php:ro
+
+      - /volume2/docker/privatebin/data:/srv/data
+
+      - /volume2/docker/privatebin/tmp:/tmp
+      - /volume2/docker/privatebin/tmp:/var/lib/nginx/tmp
+      - /volume2/docker/privatebin/tmp:/run
+
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
