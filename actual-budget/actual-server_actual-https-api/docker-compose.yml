@@ -1,6 +1,6 @@
 services:
   actual_server:
-    image: actualbudget/actual-server:26.2.0
+    image: actualbudget/actual-server:26.2.1
     container_name: ActualBudget
     restart: always
     environment:
@@ -13,7 +13,7 @@ services:
       - "5006:5006"
 
   actual_api:
-    image: jhonderson/actual-http-api:26.2.0
+    image: jhonderson/actual-http-api:26.2.1
     container_name: ActualAPI
     restart: always
     ports:
