@@ -42,7 +42,7 @@ networks:
 - Internal-only services (databases, caches) do **not** get this network.
 
 ### Volume Path Conventions
-Two storage pools with distinct purposes:
+Two storage pools on the NAS server (these are server-side paths, not developer machine paths):
 - **`/volume2/docker/<service>/`** — NVMe SSD. For config files, SQLite databases, small fast-access data.
 - **`/volume1/Default-volume-1/0001_Docker/<service>/`** — Bulk storage. For user data, media libraries, large databases.
 
@@ -75,3 +75,12 @@ Always suggest paths and confirm with the user before finalizing.
 - [ ] Image versions pinned
 - [ ] 2-space indentation, no `version:` field
 - [ ] Volume paths confirmed with user
+
+## Personal Configuration
+
+Project conventions belong here. Personal preferences (editor config, personal shortcuts, code style opinions not specific to this project) should go in your **user-level** Claude config, not in this file:
+
+- Linux / macOS: `~/.claude/CLAUDE.md` and `~/.claude/rules/`
+- Windows: `%USERPROFILE%\.claude\CLAUDE.md` and `%USERPROFILE%\.claude\rules\`
+
+This keeps the repo clean and avoids one developer's preferences leaking to others.
