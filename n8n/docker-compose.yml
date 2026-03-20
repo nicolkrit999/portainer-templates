@@ -11,7 +11,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: Europe/Zurich
     volumes:
-      - /volume2/docker/n8n/db:/var/lib/postgresql/data
+      - /volume2/docker/n8n/db:/var/lib/postgresql
+    networks:
+      - cloudflare_web_network
     # healthcheck:
     #   test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
     #   interval: 10s
@@ -64,7 +66,6 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - default
       - cloudflare_web_network
 
 networks:
