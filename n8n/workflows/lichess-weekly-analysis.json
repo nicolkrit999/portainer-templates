@@ -1,0 +1,167 @@
+{
+  "name": "Lichess Weekly AI Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Sunday 20:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://lichess.org/api/user/PASTE_YOUR_LICHESS_USERNAME_HERE/games?max=30&opening=true&pgnInJson=true",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/x-ndjson"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch-games",
+      "name": "Fetch Last 30 Games",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst isError = input.error || input.errorMessage || !input.data;\n\nif (isError) {\n  return [{ json: { noGames: true } }];\n}\n\nconst raw = input.data || input;\n\n// Parse NDJSON\nlet rawText = typeof raw === 'string' ? raw : JSON.stringify(raw);\nlet games = [];\n\ntry {\n  const lines = rawText.split('\\n').filter(l => l.trim());\n  games = lines.map(line => JSON.parse(line));\n} catch(e) {\n  if (typeof raw === 'object' && !Array.isArray(raw)) {\n    games = [raw];\n  }\n}\n\nif (games.length === 0) {\n  return [{ json: { noGames: true } }];\n}\n\nconst username = 'PASTE_YOUR_LICHESS_USERNAME_HERE';\nconst userLower = username.toLowerCase();\n\n// Build a concise summary for Claude\nconst gameSummaries = games.map((game, i) => {\n  const isWhite = game.players?.white?.user?.id?.toLowerCase() === userLower ||\n                  game.players?.white?.user?.name?.toLowerCase() === userLower;\n  const playerColor = isWhite ? 'white' : 'black';\n  const opponent = isWhite ? game.players?.black : game.players?.white;\n  const player = game.players?.[playerColor];\n\n  let result = 'loss';\n  if (game.winner === playerColor) result = 'win';\n  else if (!game.winner) result = 'draw';\n\n  const opening = game.opening?.name || 'Unknown';\n  const speed = game.speed || 'unknown';\n  const rating = player?.rating || '?';\n  const oppRating = opponent?.rating || '?';\n  const pgn = game.pgn || '';\n\n  return `Game ${i+1}: ${result} as ${playerColor} (${rating} vs ${oppRating}) | ${speed} | ${opening}\\nPGN: ${pgn.substring(0, 300)}`;\n}).join('\\n\\n');\n\nconst prompt = `You are a chess coach. Analyse these ${games.length} recent games from a lichess player and identify 2-3 recurring weaknesses or patterns. Be concise, practical, and specific. Focus on actionable advice.\\n\\nGames:\\n${gameSummaries}`;\n\nreturn [{\n  json: {\n    claudeBody: {\n      model: 'claude-sonnet-4-20250514',\n      max_tokens: 1024,\n      messages: [\n        {\n          role: 'user',\n          content: prompt.substring(0, 15000)\n        }\n      ]\n    }\n  }\n}];"
+      },
+      "id": "prepare-prompt",
+      "name": "Prepare Claude Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "PASTE_YOUR_CLAUDE_API_KEY_HERE"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.claudeBody) }}",
+        "options": {}
+      },
+      "id": "claude-api",
+      "name": "Claude Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\n// Handle no games case\nif (response.noGames) {\n  return [{\n    json: {\n      discordBody: {\n        embeds: [{\n          title: '\\u265f\\ufe0f Weekly Chess Analysis',\n          description: 'No games found this week. Go play some chess!',\n          color: 7506394,\n          timestamp: new Date().toISOString()\n        }]\n      }\n    }\n  }];\n}\n\n// Extract Claude's response text\nconst content = response.content || [];\nconst analysisText = content\n  .filter(c => c.type === 'text')\n  .map(c => c.text)\n  .join('\\n') || 'No analysis returned';\n\nreturn [{\n  json: {\n    discordBody: {\n      embeds: [{\n        title: '\\u265f\\ufe0f Weekly Chess Analysis',\n        description: analysisText.substring(0, 2000),\n        color: 10181046,\n        footer: {\n          text: 'Powered by Claude'\n        },\n        timestamp: new Date().toISOString()\n      }]\n    }\n  }\n}];"
+      },
+      "id": "build-embed",
+      "name": "Build Discord Embed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "PASTE_YOUR_DISCORD_WEBHOOK_URL_HERE",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.discordBody) }}",
+        "options": {}
+      },
+      "id": "discord-post",
+      "name": "Post to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 0]
+    }
+  ],
+  "connections": {
+    "Sunday 20:00": {
+      "main": [
+        [
+          { "node": "Fetch Last 30 Games", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch Last 30 Games": {
+      "main": [
+        [
+          { "node": "Prepare Claude Prompt", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Prepare Claude Prompt": {
+      "main": [
+        [
+          { "node": "Claude Analysis", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Claude Analysis": {
+      "main": [
+        [
+          { "node": "Build Discord Embed", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Build Discord Embed": {
+      "main": [
+        [
+          { "node": "Post to Discord", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
