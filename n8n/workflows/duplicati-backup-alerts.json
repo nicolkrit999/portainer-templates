@@ -1,0 +1,72 @@
+{
+  "name": "Duplicati Backup Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "duplicati",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "duplicati"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst body = input.body || input;\nconst data = body.Data || {};\nconst extra = body.Extra || {};\nconst stats = data.BackendStatistics || {};\n\nconst jobName = extra['backup-name'] || extra.OperationName || 'Unknown Job';\nconst status = data.ParsedResult || 'Unknown';\nconst duration = data.Duration || '';\nconst filesExamined = data.ExaminedFiles || 0;\nconst filesAdded = data.AddedFiles || 0;\nconst filesModified = data.ModifiedFiles || 0;\nconst filesDeleted = data.DeletedFiles || 0;\nconst sizeExamined = data.SizeOfExaminedFiles || 0;\nconst bytesUploaded = stats.BytesUploaded || 0;\nconst bytesDownloaded = stats.BytesDownloaded || 0;\nconst errorsCount = data.ErrorsActualLength || 0;\nconst warningsCount = data.WarningsActualLength || 0;\nconst version = data.Version || '';\nconst endTime = data.EndTime || '';\n\nconst isSuccess = status === 'Success' && errorsCount === 0;\nconst isWarning = status === 'Warning' || (warningsCount > 0 && errorsCount === 0);\nconst isError = status === 'Error' || status === 'Fatal' || errorsCount > 0;\n\n// Format bytes to human readable\nfunction formatBytes(bytes) {\n  if (bytes === 0) return '0 B';\n  const k = 1024;\n  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];\n  const i = Math.floor(Math.log(bytes) / Math.log(k));\n  return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];\n}\n\nlet color, emoji;\nif (isError) { color = 15158332; emoji = '\\ud83d\\udd34'; }\nelse if (isWarning) { color = 16776960; emoji = '\\u26a0\\ufe0f'; }\nelse { color = 3066993; emoji = '\\u2705'; }\n\nlet description = `**Status:** ${status}`;\ndescription += `\\n**Duration:** ${duration}`;\ndescription += `\\n**Files examined:** ${filesExamined}`;\nif (filesAdded > 0) description += `\\n**Files added:** ${filesAdded}`;\nif (filesModified > 0) description += `\\n**Files modified:** ${filesModified}`;\nif (filesDeleted > 0) description += `\\n**Files deleted:** ${filesDeleted}`;\ndescription += `\\n**Size examined:** ${formatBytes(sizeExamined)}`;\nif (bytesUploaded > 0) description += `\\n**Uploaded:** ${formatBytes(bytesUploaded)}`;\nif (errorsCount > 0) description += `\\n\\n**Errors:** ${errorsCount}`;\nif (warningsCount > 0) description += `\\n**Warnings:** ${warningsCount}`;\n\nreturn [{\n  json: {\n    isSuccess,\n    isError,\n    isWarning,\n    discordBody: {\n      embeds: [{\n        title: `${emoji} Backup ${status} — ${jobName}`,\n        description: description.substring(0, 2000),\n        color: color,\n        timestamp: endTime || new Date().toISOString()\n      }]\n    }\n  }\n}];"
+      },
+      "id": "parse-result",
+      "name": "Parse Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [250, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "PASTE_YOUR_DISCORD_WEBHOOK_URL_HERE",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.discordBody) }}",
+        "options": {}
+      },
+      "id": "discord-alert",
+      "name": "Post to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "Parse Result", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Parse Result": {
+      "main": [
+        [
+          { "node": "Post to Discord", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
