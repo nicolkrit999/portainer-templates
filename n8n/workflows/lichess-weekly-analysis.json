@@ -49,13 +49,42 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst isError = input.error || input.errorMessage || !input.data;\n\nif (isError) {\n  return [{ json: { noGames: true } }];\n}\n\nconst raw = input.data || input;\n\n// Parse NDJSON\nlet rawText = typeof raw === 'string' ? raw : JSON.stringify(raw);\nlet games = [];\n\ntry {\n  const lines = rawText.split('\\n').filter(l => l.trim());\n  games = lines.map(line => JSON.parse(line));\n} catch(e) {\n  if (typeof raw === 'object' && !Array.isArray(raw)) {\n    games = [raw];\n  }\n}\n\nif (games.length === 0) {\n  return [{ json: { noGames: true } }];\n}\n\nconst username = 'PASTE_YOUR_LICHESS_USERNAME_HERE';\nconst userLower = username.toLowerCase();\n\n// Build a concise summary for Claude\nconst gameSummaries = games.map((game, i) => {\n  const isWhite = game.players?.white?.user?.id?.toLowerCase() === userLower ||\n                  game.players?.white?.user?.name?.toLowerCase() === userLower;\n  const playerColor = isWhite ? 'white' : 'black';\n  const opponent = isWhite ? game.players?.black : game.players?.white;\n  const player = game.players?.[playerColor];\n\n  let result = 'loss';\n  if (game.winner === playerColor) result = 'win';\n  else if (!game.winner) result = 'draw';\n\n  const opening = game.opening?.name || 'Unknown';\n  const speed = game.speed || 'unknown';\n  const rating = player?.rating || '?';\n  const oppRating = opponent?.rating || '?';\n  const pgn = game.pgn || '';\n\n  return `Game ${i+1}: ${result} as ${playerColor} (${rating} vs ${oppRating}) | ${speed} | ${opening}\\nPGN: ${pgn.substring(0, 300)}`;\n}).join('\\n\\n');\n\nconst prompt = `You are a chess coach. Analyse these ${games.length} recent games from a lichess player and identify 2-3 recurring weaknesses or patterns. Be concise, practical, and specific. Focus on actionable advice.\\n\\nGames:\\n${gameSummaries}`;\n\nreturn [{\n  json: {\n    claudeBody: {\n      model: 'claude-sonnet-4-20250514',\n      max_tokens: 1024,\n      messages: [\n        {\n          role: 'user',\n          content: prompt.substring(0, 15000)\n        }\n      ]\n    }\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst isError = input.error || input.errorMessage || !input.data;\n\nif (isError) {\n  return [{ json: { noGames: true } }];\n}\n\nconst raw = input.data || input;\n\nlet rawText = typeof raw === 'string' ? raw : JSON.stringify(raw);\nlet games = [];\n\ntry {\n  const lines = rawText.split('\\n').filter(l => l.trim());\n  games = lines.map(line => JSON.parse(line));\n} catch(e) {\n  if (typeof raw === 'object' && !Array.isArray(raw)) {\n    games = [raw];\n  }\n}\n\nif (games.length === 0) {\n  return [{ json: { noGames: true } }];\n}\n\nconst username = 'PASTE_YOUR_LICHESS_USERNAME_HERE';\nconst userLower = username.toLowerCase();\n\nconst gameSummaries = games.map((game, i) => {\n  const isWhite = game.players?.white?.user?.id?.toLowerCase() === userLower ||\n                  game.players?.white?.user?.name?.toLowerCase() === userLower;\n  const playerColor = isWhite ? 'white' : 'black';\n  const opponent = isWhite ? game.players?.black : game.players?.white;\n  const player = game.players?.[playerColor];\n\n  let result = 'loss';\n  if (game.winner === playerColor) result = 'win';\n  else if (!game.winner) result = 'draw';\n\n  const opening = game.opening?.name || 'Unknown';\n  const speed = game.speed || 'unknown';\n  const rating = player?.rating || '?';\n  const oppRating = opponent?.rating || '?';\n  const pgn = game.pgn || '';\n\n  return `Game ${i+1}: ${result} as ${playerColor} (${rating} vs ${oppRating}) | ${speed} | ${opening}\\nPGN: ${pgn.substring(0, 300)}`;\n}).join('\\n\\n');\n\nconst prompt = `You are a chess coach. Analyse these ${games.length} recent games from a lichess player and identify 2-3 recurring weaknesses or patterns. Be concise, practical, and specific. Focus on actionable advice.\\n\\nGames:\\n${gameSummaries}`;\n\nconst claudeBody = {\n  model: 'claude-sonnet-4-20250514',\n  max_tokens: 1024,\n  messages: [{ role: 'user', content: prompt.substring(0, 15000) }]\n};\n\nreturn [{ json: { noGames: false, claudeBodyStr: JSON.stringify(claudeBody) } }];"
       },
       "id": "prepare-prompt",
       "name": "Prepare Claude Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-games",
+              "leftValue": "={{ $json.noGames }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-games",
+      "name": "Has Games?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [660, 0]
     },
     {
       "parameters": {
@@ -79,25 +108,37 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.claudeBody) }}",
+        "specifyBody": "rawBody",
+        "body": "={{ $json.claudeBodyStr }}",
+        "contentType": "raw",
+        "rawContentType": "application/json",
         "options": {}
       },
       "id": "claude-api",
       "name": "Claude Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 0]
+      "position": [880, -100]
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\n\n// Handle no games case\nif (response.noGames) {\n  return [{\n    json: {\n      discordBody: {\n        embeds: [{\n          title: '\\u265f\\ufe0f Weekly Chess Analysis',\n          description: 'No games found this week. Go play some chess!',\n          color: 7506394,\n          timestamp: new Date().toISOString()\n        }]\n      }\n    }\n  }];\n}\n\n// Extract Claude's response text\nconst content = response.content || [];\nconst analysisText = content\n  .filter(c => c.type === 'text')\n  .map(c => c.text)\n  .join('\\n') || 'No analysis returned';\n\nreturn [{\n  json: {\n    discordBody: {\n      embeds: [{\n        title: '\\u265f\\ufe0f Weekly Chess Analysis',\n        description: analysisText.substring(0, 2000),\n        color: 10181046,\n        footer: {\n          text: 'Powered by Claude'\n        },\n        timestamp: new Date().toISOString()\n      }]\n    }\n  }\n}];"
+        "jsCode": "const response = $input.first().json;\n\nconst content = response.content || [];\nconst analysisText = content\n  .filter(c => c.type === 'text')\n  .map(c => c.text)\n  .join('\\n') || 'No analysis returned';\n\nreturn [{\n  json: {\n    discordBody: {\n      embeds: [{\n        title: '\\u265f\\ufe0f Weekly Chess Analysis',\n        description: analysisText.substring(0, 2000),\n        color: 10181046,\n        footer: { text: 'Powered by Claude' },\n        timestamp: new Date().toISOString()\n      }]\n    }\n  }\n}];"
       },
       "id": "build-embed",
       "name": "Build Discord Embed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [880, 0]
+      "position": [1100, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    discordBody: {\n      embeds: [{\n        title: '\\u265f\\ufe0f Weekly Chess Analysis',\n        description: 'No games found this week. Go play some chess!',\n        color: 7506394,\n        timestamp: new Date().toISOString()\n      }]\n    }\n  }\n}];"
+      },
+      "id": "no-games-embed",
+      "name": "No Games Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 100]
     },
     {
       "parameters": {
@@ -121,7 +162,7 @@
       "name": "Post to Discord",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 0]
+      "position": [1320, 0]
     }
   ],
   "connections": {
@@ -142,7 +183,17 @@
     "Prepare Claude Prompt": {
       "main": [
         [
+          { "node": "Has Games?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Has Games?": {
+      "main": [
+        [
           { "node": "Claude Analysis", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "No Games Message", "type": "main", "index": 0 }
         ]
       ]
     },
@@ -154,6 +205,13 @@
       ]
     },
     "Build Discord Embed": {
+      "main": [
+        [
+          { "node": "Post to Discord", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "No Games Message": {
       "main": [
         [
           { "node": "Post to Discord", "type": "main", "index": 0 }
