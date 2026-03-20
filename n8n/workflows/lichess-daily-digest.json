@@ -1,0 +1,111 @@
+{
+  "name": "Lichess Daily Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 21 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Daily 21:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://lichess.org/api/user/PASTE_YOUR_LICHESS_USERNAME_HERE/games?max=20&opening=true&pgnInJson=true",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/x-ndjson"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch-games",
+      "name": "Fetch Lichess Games",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Check if we got an error (404 = no games) or empty response\nconst isError = input.error || input.errorMessage || !input.data;\n\nif (isError) {\n  // No games found — send \"no games\" message\n  return [{\n    json: {\n      discordBody: {\n        embeds: [{\n          title: '\\u265f\\ufe0f Chess Today',\n          description: 'No games played today. Go play some chess!',\n          color: 7506394,\n          timestamp: new Date().toISOString()\n        }]\n      }\n    }\n  }];\n}\n\nconst raw = input.data || input;\n\n// Parse NDJSON (newline-delimited JSON)\nlet rawText = typeof raw === 'string' ? raw : JSON.stringify(raw);\nlet games = [];\n\ntry {\n  const lines = rawText.split('\\n').filter(l => l.trim());\n  games = lines.map(line => JSON.parse(line));\n} catch(e) {\n  if (typeof raw === 'object' && !Array.isArray(raw)) {\n    games = [raw];\n  }\n}\n\n// Filter to today's games only\nconst now = new Date();\nconst todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();\n\nconst todayGames = games.filter(g => {\n  const gameTime = g.createdAt || g.lastMoveAt || 0;\n  return gameTime >= todayStart;\n});\n\nif (todayGames.length === 0) {\n  return [{\n    json: {\n      discordBody: {\n        embeds: [{\n          title: '\\u265f\\ufe0f Chess Today',\n          description: 'No games played today. Go play some chess!',\n          color: 7506394,\n          timestamp: new Date().toISOString()\n        }]\n      }\n    }\n  }];\n}\n\n// Calculate stats\nconst username = 'PASTE_YOUR_LICHESS_USERNAME_HERE';\nconst userLower = username.toLowerCase();\nlet wins = 0, losses = 0, draws = 0;\nlet ratingStart = null, ratingEnd = null;\nconst openings = {};\nconst timeControls = {};\n\nfor (const game of todayGames) {\n  const isWhite = game.players?.white?.user?.id?.toLowerCase() === userLower ||\n                  game.players?.white?.user?.name?.toLowerCase() === userLower;\n  const playerColor = isWhite ? 'white' : 'black';\n  const player = game.players?.[playerColor];\n  const rating = player?.rating;\n\n  if (ratingStart === null && rating) ratingStart = rating;\n  if (rating) ratingEnd = rating;\n\n  if (game.winner === playerColor) wins++;\n  else if (game.winner) losses++;\n  else if (game.status === 'draw' || game.status === 'stalemate') draws++;\n  else losses++;\n\n  const opening = game.opening?.name || 'Unknown';\n  openings[opening] = (openings[opening] || 0) + 1;\n\n  const speed = game.speed || 'unknown';\n  timeControls[speed] = (timeControls[speed] || 0) + 1;\n}\n\nconst topOpenings = Object.entries(openings)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 5)\n  .map(([name, count]) => `${name} x${count}`)\n  .join('\\n');\n\nconst tcList = Object.entries(timeControls)\n  .map(([tc, count]) => `${tc} x${count}`)\n  .join(', ');\n\nconst ratingChange = (ratingStart && ratingEnd) ? ratingEnd - ratingStart : null;\nconst ratingStr = ratingChange !== null \n  ? (ratingChange >= 0 ? `+${ratingChange}` : `${ratingChange}`) \n  : 'N/A';\n\nlet color = 7506394;\nif (wins > losses) color = 3066993;\nelse if (losses > wins) color = 15158332;\n\nlet description = `**Result:** ${wins}W / ${draws}D / ${losses}L`;\ndescription += `\\n**Rating change:** ${ratingStr}`;\nif (ratingEnd) description += ` (current: ${ratingEnd})`;\ndescription += `\\n**Time controls:** ${tcList}`;\ndescription += `\\n\\n**Openings:**\\n${topOpenings}`;\n\nreturn [{\n  json: {\n    discordBody: {\n      embeds: [{\n        title: `\\u265f\\ufe0f Chess Today \\u2014 ${todayGames.length} game${todayGames.length === 1 ? '' : 's'} played`,\n        description: description.substring(0, 2000),\n        color: color,\n        timestamp: new Date().toISOString()\n      }]\n    }\n  }\n}];"
+      },
+      "id": "parse-games",
+      "name": "Parse & Analyze Games",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "PASTE_YOUR_DISCORD_WEBHOOK_URL_HERE",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.discordBody) }}",
+        "options": {}
+      },
+      "id": "discord-post",
+      "name": "Post to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0]
+    }
+  ],
+  "connections": {
+    "Daily 21:00": {
+      "main": [
+        [
+          { "node": "Fetch Lichess Games", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch Lichess Games": {
+      "main": [
+        [
+          { "node": "Parse & Analyze Games", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Parse & Analyze Games": {
+      "main": [
+        [
+          { "node": "Post to Discord", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
