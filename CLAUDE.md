@@ -23,6 +23,11 @@ For any task involving creating or modifying compose files, use the `docker-comp
 - Use `${VARIABLE_NAME}` syntax. Variables are set inside Portainer, not in `.env` files (`.env` is gitignored anyway).
 - After writing a compose file, list all `${VARIABLE_NAME}` references so the user knows what to configure in Portainer.
 
+### Nas Ips
+The following are additional information about the nas Ips addresses when needed
+- Local IP: 192.168.1.98
+- Docker gataway IP: 192.168.48.1
+
 ### Networking (Cloudflare Tunnel)
 Services that need external access must include this exact configuration:
 
@@ -40,6 +45,10 @@ networks:
 
 - Key is always `cloudflare_web_network`, Docker network name is always `cloudflare-web`, always `external: true`.
 - Internal-only services (databases, caches) do **not** get this network.
+
+
+### Tailscale fallback (last resort)
+Tailscale is available in case is strictly needed, in that case the magic name is "nicol-nas" and the NAS tailscale node ip is "100.101.189.91". But tailscale must always be a last resort (if for any reason cloudflare is impossible to use)
 
 ### Volume Path Conventions
 Two storage pools on the NAS server (these are server-side paths, not developer machine paths):
