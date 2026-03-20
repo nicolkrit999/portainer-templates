@@ -13,7 +13,7 @@
         }
       },
       "id": "schedule-trigger",
-      "name": "Every 6 Hours",
+      "name": "Daily 8AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [0, 0]
@@ -32,26 +32,34 @@
       "parameters": {
         "url": "https://discourse.nixos.org/latest.rss"
       },
-      "id": "rss-reddit",
+      "id": "rss-nixos",
       "name": "RSS NixOS Discourse",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1.1,
       "position": [220, 100]
     },
     {
+      "parameters": {},
+      "id": "merge-node",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [440, 0]
+    },
+    {
       "parameters": {
-        "jsCode": "// Merge items from both RSS feeds and deduplicate\nconst allItems = $input.all();\n\n// Get previously seen GUIDs from static workflow data\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.seenGuids) {\n  staticData.seenGuids = [];\n}\n\nconst seenGuids = new Set(staticData.seenGuids);\nconst newItems = [];\n\nfor (const item of allItems) {\n  const guid = item.json.guid || item.json.id || item.json.link;\n  if (!guid || seenGuids.has(guid)) continue;\n\n  seenGuids.add(guid);\n  newItems.push({\n    json: {\n      title: item.json.title || 'No title',\n      link: item.json.link || '',\n      source: item.json.creator || item.json['dc:creator'] || (item.json.link?.includes('reddit.com') ? 'r/selfhosted' : 'selfh.st'),\n      description: (item.json.contentSnippet || item.json.content || '').substring(0, 200),\n      pubDate: item.json.pubDate || item.json.isoDate || ''\n    }\n  });\n}\n\n// Keep only last 500 GUIDs to prevent unbounded growth\nconst guidsArray = Array.from(seenGuids);\nstaticData.seenGuids = guidsArray.slice(-500);\n\n// If no new items, return empty to stop the workflow\nif (newItems.length === 0) {\n  return [];\n}\n\nreturn newItems;"
+        "jsCode": "const allItems = $input.all();\n\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.seenGuids) {\n  staticData.seenGuids = [];\n}\n\nconst seenGuids = new Set(staticData.seenGuids);\nconst newItems = [];\n\nfor (const item of allItems) {\n  const guid = item.json.guid || item.json.id || item.json.link;\n  if (!guid || seenGuids.has(guid)) continue;\n\n  seenGuids.add(guid);\n\n  const source = item.json.creator || item.json['dc:creator'] || \n    (item.json.link?.includes('discourse.nixos.org') ? 'NixOS Discourse' : 'selfh.st');\n\n  const title = (item.json.title || 'No title').substring(0, 256);\n  const link = item.json.link || '';\n  const description = (item.json.contentSnippet || item.json.content || '').replace(/<[^>]*>/g, '').substring(0, 200);\n\n  newItems.push({\n    json: {\n      embeds: [\n        {\n          title: title,\n          url: link,\n          description: description,\n          color: 3447003,\n          footer: {\n            text: source\n          }\n        }\n      ]\n    }\n  });\n}\n\nconst guidsArray = Array.from(seenGuids);\nstaticData.seenGuids = guidsArray.slice(-500);\n\nif (newItems.length === 0) {\n  return [];\n}\n\nreturn newItems;"
       },
       "id": "code-dedup",
       "name": "Deduplicate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 0]
+      "position": [660, 0]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "url": "PASTE_YOUR_DISCORD_WEBHOOK_URL_HERE",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -63,7 +71,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"embeds\": [\n    {\n      \"title\": \"{{ $json.title }}\",\n      \"url\": \"{{ $json.link }}\",\n      \"description\": \"{{ $json.description }}\",\n      \"color\": 3447003,\n      \"footer\": {\n        \"text\": \"{{ $json.source }}\"\n      },\n      \"timestamp\": \"{{ $json.pubDate }}\"\n    }\n  ]\n}",
+        "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {
           "batching": {
             "batch": {
@@ -73,27 +81,19 @@
           }
         }
       },
-      "id": "discord-webhook",
+      "id": "discord-post",
       "name": "Post to Discord",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [700, 0]
-    },
-    {
-      "parameters": {},
-      "id": "merge-node",
-      "name": "Merge",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [350, 0]
+      "position": [880, 0]
     }
   ],
   "connections": {
-    "Every 6 Hours": {
+    "Daily 8AM": {
       "main": [
         [
           { "node": "RSS selfh.st", "type": "main", "index": 0 },
-          { "node": "RSS r/selfhosted", "type": "main", "index": 0 }
+          { "node": "RSS NixOS Discourse", "type": "main", "index": 0 }
         ]
       ]
     },
@@ -104,7 +104,7 @@
         ]
       ]
     },
-    "RSS r/selfhosted": {
+    "RSS NixOS Discourse": {
       "main": [
         [
           { "node": "Merge", "type": "main", "index": 1 }
