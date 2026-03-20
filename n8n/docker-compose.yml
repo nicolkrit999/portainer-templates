@@ -12,12 +12,12 @@ services:
       TZ: Europe/Zurich
     volumes:
       - /volume2/docker/n8n/db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    # healthcheck:
+    #   test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 30s
     logging:
       options:
         max-size: "10m"
@@ -30,8 +30,7 @@ services:
     security_opt:
       - no-new-privileges:true
     depends_on:
-      n8n-db:
-        condition: service_healthy
+      - n8n-db
     environment:
       TZ: Europe/Zurich
       NODE_ENV: production
@@ -54,12 +53,12 @@ services:
     volumes:
       - /volume2/docker/n8n/data:/home/node/.n8n
       - /volume1/Default-volume-1/0001_Docker/n8n/files:/files
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+    # healthcheck:
+    #   test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 30s
     logging:
       options:
         max-size: "10m"

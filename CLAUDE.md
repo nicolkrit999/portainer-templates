@@ -29,6 +29,8 @@ The following are additional information about the nas Ips addresses when needed
 - Docker gataway IP: 192.168.48.1
 
 ### Networking (Cloudflare Tunnel)
+**Default hostname convention:** Unless the user specifies a different URL, the public hostname for a service is always `<service-name>.nicolkrit.ch`. Use dashes for multi-word service names (e.g. `n8n.nicolkrit.ch`, `uptime-kuma.nicolkrit.ch`, `actual-budget.nicolkrit.ch`).
+
 Services that need external access must include this exact configuration:
 
 ```yaml
