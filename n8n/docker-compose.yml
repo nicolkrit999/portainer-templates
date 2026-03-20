@@ -52,6 +52,7 @@ services:
       N8N_RUNNERS_ENABLED: true
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true
       N8N_RESTRICT_FILE_ACCESS_TO: /files
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
     volumes:
       - /volume2/docker/n8n/data:/home/node/.n8n
       - /volume1/Default-volume-1/0001_Docker/n8n/files:/files

@@ -1,0 +1,132 @@
+{
+  "name": "RSS Feeds to Discord",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://selfh.st/rss/"
+      },
+      "id": "rss-selfhst",
+      "name": "RSS selfh.st",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [220, -100]
+    },
+    {
+      "parameters": {
+        "url": "https://discourse.nixos.org/latest.rss"
+      },
+      "id": "rss-reddit",
+      "name": "RSS NixOS Discourse",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [220, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge items from both RSS feeds and deduplicate\nconst allItems = $input.all();\n\n// Get previously seen GUIDs from static workflow data\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.seenGuids) {\n  staticData.seenGuids = [];\n}\n\nconst seenGuids = new Set(staticData.seenGuids);\nconst newItems = [];\n\nfor (const item of allItems) {\n  const guid = item.json.guid || item.json.id || item.json.link;\n  if (!guid || seenGuids.has(guid)) continue;\n\n  seenGuids.add(guid);\n  newItems.push({\n    json: {\n      title: item.json.title || 'No title',\n      link: item.json.link || '',\n      source: item.json.creator || item.json['dc:creator'] || (item.json.link?.includes('reddit.com') ? 'r/selfhosted' : 'selfh.st'),\n      description: (item.json.contentSnippet || item.json.content || '').substring(0, 200),\n      pubDate: item.json.pubDate || item.json.isoDate || ''\n    }\n  });\n}\n\n// Keep only last 500 GUIDs to prevent unbounded growth\nconst guidsArray = Array.from(seenGuids);\nstaticData.seenGuids = guidsArray.slice(-500);\n\n// If no new items, return empty to stop the workflow\nif (newItems.length === 0) {\n  return [];\n}\n\nreturn newItems;"
+      },
+      "id": "code-dedup",
+      "name": "Deduplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"embeds\": [\n    {\n      \"title\": \"{{ $json.title }}\",\n      \"url\": \"{{ $json.link }}\",\n      \"description\": \"{{ $json.description }}\",\n      \"color\": 3447003,\n      \"footer\": {\n        \"text\": \"{{ $json.source }}\"\n      },\n      \"timestamp\": \"{{ $json.pubDate }}\"\n    }\n  ]\n}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "id": "discord-webhook",
+      "name": "Post to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 0]
+    },
+    {
+      "parameters": {},
+      "id": "merge-node",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [350, 0]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          { "node": "RSS selfh.st", "type": "main", "index": 0 },
+          { "node": "RSS r/selfhosted", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "RSS selfh.st": {
+      "main": [
+        [
+          { "node": "Merge", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "RSS r/selfhosted": {
+      "main": [
+        [
+          { "node": "Merge", "type": "main", "index": 1 }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          { "node": "Deduplicate", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Deduplicate": {
+      "main": [
+        [
+          { "node": "Post to Discord", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
