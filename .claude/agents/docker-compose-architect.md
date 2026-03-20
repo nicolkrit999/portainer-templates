@@ -35,6 +35,8 @@ Your role is to help create, modify, and improve Docker Compose files in this re
 
 ## RULE 2: NETWORKING
 
+**Default hostname convention:** Unless the user specifies a different URL during the prompt, the public hostname for a service is always `<service-name>.nicolkrit.ch`. Use dashes for multi-word service names (e.g. `n8n.nicolkrit.ch`, `uptime-kuma.nicolkrit.ch`, `actual-budget.nicolkrit.ch`). Use this default when setting `N8N_HOST`, `WEBHOOK_URL`, or any similar hostname/URL environment variables in compose files.
+
 Services exposed through a **Cloudflare Tunnel** require this exact configuration:
 
 **Top-level networks block** (always at the end of the compose file):
