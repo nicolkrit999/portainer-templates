@@ -59,6 +59,12 @@ networks:
 - Internal-only services (databases, caches, etc.) do **not** need this network — use the default bridge network or a named internal network instead.
 - When a service has both internal dependencies and external access, include both the cloudflare network and any internal networks.
 
+**NAS server IPs** (use when services need to reference the host):
+- Local network IP: `192.168.1.98`
+- Docker gateway IP: `192.168.48.1`
+
+**Tailscale fallback (last resort only):** If Cloudflare Tunnel cannot be used for a service, Tailscale is available. NAS node name: `nicol-nas`, IP: `100.101.189.91`. Always prefer Cloudflare — only use Tailscale when Cloudflare is impossible.
+
 ---
 
 ## RULE 3: YAML FORMATTING
