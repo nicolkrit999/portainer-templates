@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/bin/ls /Users/krit/github-repos/personal/portainer-templates/)",
+      "Read(//Users/krit/Downloads/**)",
+      "Bash(ssh-keygen:*)",
+      "Bash(git:*)"
+    ]
+  }
+}
