@@ -1,4 +1,6 @@
 services:
+  # Init container: fixes app perms (uid 33 for php-fpm/nginx) on /data,
+  # then re-fixes mysql data dir to uid 999 (mysql 8 requires it).
   permissions-init:
     image: alpine:3.19
     container_name: easy-appointments-permissions-init
@@ -13,6 +15,7 @@ services:
       if [ -d /data/storage ]; then chmod -R 775 /data/storage; fi &&
       if [ -d /data/application/cache ]; then chmod -R 775 /data/application/cache; fi &&
       if [ -d /data/application/logs ]; then chmod -R 775 /data/application/logs; fi &&
+      if [ -d /data/docker/mysql ]; then chown -R 999:999 /data/docker/mysql && chmod 700 /data/docker/mysql; fi &&
       echo 'permissions-init complete'
       "
 
@@ -73,6 +76,9 @@ services:
       - "${MYSQL_PORT}:3306"
     networks:
       - cloudflare_web_network
+    depends_on:
+      permissions-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
       interval: 30s
