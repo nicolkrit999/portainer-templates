@@ -7,7 +7,7 @@ services:
       - "1025:1025"  # Mailpit SMTP
     networks:
       - cloudflare_web_network
-    restart: always
+    restart: unless_stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8025/api/v1/info"]
       interval: 30s
@@ -37,7 +37,7 @@ services:
       - LDAP_READONLY_USER_PASSWORD=${LDAP_READONLY_USER_PASSWORD}
     networks:
       - cloudflare_web_network
-    restart: always
+    restart: unless_stopped
     healthcheck:
       test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost -b \"${LDAP_BASE_DN}\" -D \"cn=admin,${LDAP_BASE_DN}\" -w \"${LDAP_ADMIN_PASSWORD}\" || exit 1"]
       interval: 30s
@@ -61,7 +61,7 @@ services:
       - openldap
     networks:
       - cloudflare_web_network
-    restart: always
+    restart: unless_stopped
 
     healthcheck:
       test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/80' || exit 1"]
