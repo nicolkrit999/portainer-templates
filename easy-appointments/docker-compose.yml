@@ -1,4 +1,21 @@
 services:
+  permissions-init:
+    image: alpine:3.19
+    container_name: easy-appointments-permissions-init
+    restart: "no"
+    volumes:
+      - '/volume2/docker/easyappointments:/data'
+    command: >
+      sh -c "
+      chown -R 33:33 /data &&
+      find /data -type d -exec chmod 755 {} + &&
+      find /data -type f -exec chmod 644 {} + &&
+      if [ -d /data/storage ]; then chmod -R 775 /data/storage; fi &&
+      if [ -d /data/application/cache ]; then chmod -R 775 /data/application/cache; fi &&
+      if [ -d /data/application/logs ]; then chmod -R 775 /data/application/logs; fi &&
+      echo 'permissions-init complete'
+      "
+
   php-fpm:
     image: easyappointments-php-fpm:latest
     container_name: php-fpm
@@ -11,6 +28,9 @@ services:
       - '/volume2/docker/easyappointments/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini'
     networks:
       - cloudflare_web_network
+    depends_on:
+      permissions-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "php-fpm", "-t"]
       interval: 30s
@@ -29,7 +49,10 @@ services:
     networks:
       - cloudflare_web_network
     depends_on:
-      - php-fpm
+      php-fpm:
+        condition: service_started
+      permissions-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
       interval: 30s
