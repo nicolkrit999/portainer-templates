@@ -1,0 +1,36 @@
+services:
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: WATCHTOWER
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpu_shares: 512
+    security_opt:
+      - no-new-privileges=true
+    read_only: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      TZ: Europe/Zurich
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_REMOVE_VOLUMES: "false"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_SCHEDULE: "0 0 0 * * *"
+      WATCHTOWER_LABEL_ENABLE: "false"
+      WATCHTOWER_ROLLING_RESTART: "true"
+      WATCHTOWER_TIMEOUT: "30s"
+      WATCHTOWER_LOG_FORMAT: "pretty"
+      WATCHTOWER_DISABLE_CONTAINERS: "firefox-app-1,qbittorrent-app-1,homeassistant1-app-1"
+      WATCHTOWER_NOTIFICATIONS: gotify
+      WATCHTOWER_NOTIFICATION_GOTIFY_URL: http://gotify:80/
+      WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN: ${WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN}
+      WATCHTOWER_NOTIFICATIONS_HOSTNAME: watchtower-notification-nicolkrit.ch
+    networks:
+      - cloudflare_web_network 
+    restart: unless-stopped
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

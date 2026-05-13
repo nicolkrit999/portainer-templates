@@ -1,0 +1,20 @@
+services:
+  withoutbg:
+    image: withoutbg/app:latest
+    container_name: WithoutBG
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/80' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    external: true
+    name: cloudflare-web
