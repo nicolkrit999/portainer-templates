@@ -1,0 +1,19 @@
+services:
+  dockpeek:
+    container_name: dockpeek
+    image: ghcr.io/dockpeek/dockpeek:latest
+    environment:
+       SECRET_KEY: ${DOCKPEEK_SECRET_KEY}
+       USERNAME: ${DOCKPEEK_USERNAME}
+       PASSWORD: ${DOCKPEEK_PASSWORD}
+       DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

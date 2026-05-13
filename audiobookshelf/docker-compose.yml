@@ -1,0 +1,25 @@
+services:
+  audiobookshelf:
+    container_name: audiobookshelf
+    image: advplyr/audiobookshelf
+    mem_limit: 2g
+    cpu_shares: 768
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    volumes:
+      - /volume2/docker/audiobookshelf:/config:rw
+      - /volume1/Default-volume-1/0001_Docker/audiobookshelf/audiobooks:/audiobooks:rw
+      - /volume1/Default-volume-1/0001_Docker/audiobookshelf/podcasts:/podcasts:rw
+      - /volume2/docker/audiobookshelf/metadata:/metadata:rw
+    environment:
+      PUID: 1000
+      PGID: 10
+      TZ: Europe/Zurich
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

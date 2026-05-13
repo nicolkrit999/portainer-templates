@@ -1,0 +1,56 @@
+services:
+    db:
+        image: postgres:latest
+        container_name: sosse-db
+        hostname: sosse-db.nicolkrit.ch
+        user: 999:10
+        security_opt:
+            - no-new-privileges:true
+        healthcheck:
+            test: ["CMD", "pg_isready", "-q", "-d", "sosse", "-U", "sosseuser"]
+            timeout: 45s
+            interval: 10s
+            retries: 10
+        environment:
+            POSTGRES_DB: sosse
+            POSTGRES_USER: sosseuser
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        volumes:
+            - /volume1/Default-volume-1/0001_Docker/sosse/db:/var/lib/postgresql
+        restart: unless-stopped
+        networks:
+            - cloudflare_web_network
+
+    sosse:
+        image: biolds/sosse:pip-compose
+        container_name: sosse
+        healthcheck:
+            test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/80' || exit 1
+            interval: 10s
+            timeout: 5s
+            retries: 3
+            start_period: 90s
+        environment:
+            PUID: 10
+            PGID: 1000
+            TZ: Europe/Zurich
+            SOSSE_DB_NAME: sosse
+            SOSSE_DB_USER: sosseuser
+            SOSSE_DB_PASS: ${SOSSE_DB_PASS}
+            SOSSE_DB_HOST: sosse-db
+            SOSSE_ALLOWED_HOST: "*"
+            SOSSE_SECRET_KEY: ${SOSSE_SECRET_KEY}
+            SOSSE_USE_TZ: true
+            SOSSE_TIMEZONE: Europe/Zurich
+        volumes:
+            - /volume1/Default-volume-1/0001_Docker/sosse/app:/var/lib/sosse
+        depends_on:
+            - db
+        restart: unless-stopped
+        networks:
+            - cloudflare_web_network
+
+networks:
+    cloudflare_web_network:
+        name: cloudflare-web
+        external: true

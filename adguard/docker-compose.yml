@@ -1,0 +1,36 @@
+services:
+  adguard:
+    image: adguard/adguardhome
+    container_name: adguard
+    cap_add:
+      - NET_ADMIN
+    networks:
+      adguard_net:
+        ipv4_address: 192.168.1.249
+        priority: 100
+      cloudflare-web:
+        priority: 1000 
+
+    volumes:
+      - /volume2/docker/adguard/work:/opt/adguardhome/work
+      - /volume2/docker/adguard/conf:/opt/adguardhome/conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  adguard_net:
+    driver: macvlan
+    driver_opts:
+      parent: bond0
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.1
+          ip_range: 192.168.1.249/32
+  cloudflare-web:
+    external: true
