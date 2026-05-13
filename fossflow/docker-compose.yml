@@ -1,0 +1,25 @@
+services:
+    fossflow:
+        image: stnsmith/fossflow:latest
+        container_name: fossflow
+        healthcheck:
+            test: ["CMD-SHELL", "nc -z 127.0.0.1 80 || exit 1"]
+            interval: 10s
+            timeout: 5s
+            retries: 3
+            start_period: 90s
+        environment:
+            NODE_ENV: production
+            ENABLE_SERVER_STORAGE: true
+            STORAGE_PATH: /data/diagrams
+            ENABLE_GIT_BACKUP: false
+        volumes:
+            - /volume2/docker/fossflow:/data/diagrams:rw
+        restart: unless-stopped
+        networks:
+            - cloudflare_web_network
+
+networks:
+    cloudflare_web_network:
+        name: cloudflare-web
+        external: true

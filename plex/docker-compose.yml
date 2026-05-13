@@ -1,0 +1,22 @@
+services:
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    environment:
+      - PUID=1000
+      - PGID=10
+      - TZ=Europe/Zurich
+      - VERSION=docker
+      - PLEX_CLAIM=${PLEX_CLAIM}
+    volumes:
+      - /volume2/docker/plex/config:/config
+      - /volume1/Default-volume-1/0001_Docker/jellyfin/tv-shows:/tv
+      - /volume1/Default-volume-1/0001_Docker/jellyfin/movies:/movie
+    networks:
+      - cloudflare_web_network
+    restart: unless-stopped
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
