@@ -1,0 +1,16 @@
+services:
+  snappymail:
+    image: djmaze/snappymail:latest
+    container_name: snappymail
+    restart: unless-stopped
+    volumes:
+      - /volume2/docker/snappymail:/var/lib/snappymail
+    environment:
+      - ALLOW_ADMIN_PANEL=1
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
