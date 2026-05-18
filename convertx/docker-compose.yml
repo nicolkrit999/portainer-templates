@@ -6,11 +6,11 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      TZ: Europe/Zurich
-      JWT_SECRET: ${JWT_SECRET}
-      ACCOUNT_REGISTRATION: true
-      HTTP_ALLOWED: true
-      ALLOW_UNAUTHENTICATED: false
+      TZ: "Europe/Zurich"
+      JWT_SECRET: "${JWT_SECRET}"
+      ACCOUNT_REGISTRATION: "true"
+      HTTP_ALLOWED: "true"
+      ALLOW_UNAUTHENTICATED: "false"
     volumes:
       - /volume1/Default-volume-1/0001_Docker/convertx:/app/data:rw
     networks:
