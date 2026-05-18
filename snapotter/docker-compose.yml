@@ -8,8 +8,9 @@ services:
     environment:
       TZ: "Europe/Zurich"
       AUTH_ENABLED: "true"
-      DEFAULT_USERNAME: "krit"
-      DEFAULT_PASSWORD: "${SNAPOTTER_PASSWORD}"
+      # Only needed on first setup to seed the admin account; safe to leave commented after first login.
+      # DEFAULT_USERNAME: "krit"
+      # DEFAULT_PASSWORD: "${SNAPOTTER_PASSWORD}"
       STORAGE_MODE: "local"
     volumes:
       - /volume1/Default-volume-1/0001_Docker/snapotter:/data:rw
