@@ -6,11 +6,11 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      TZ: Europe/Zurich
-      AUTH_ENABLED: true
-      DEFAULT_USERNAME: krit
-      DEFAULT_PASSWORD: ${SNAPOTTER_PASSWORD}
-      STORAGE_MODE: local
+      TZ: "Europe/Zurich"
+      AUTH_ENABLED: "true"
+      DEFAULT_USERNAME: "krit"
+      DEFAULT_PASSWORD: "${SNAPOTTER_PASSWORD}"
+      STORAGE_MODE: "local"
     volumes:
       - /volume1/Default-volume-1/0001_Docker/snapotter:/data:rw
     networks:
