@@ -72,7 +72,7 @@ networks:
 - Use **2-space indentation** consistently throughout.
 - Use the top-level `services:` key — **do not include a `version:` field** (Compose V2 format).
 - Maintain clean, readable YAML with no trailing whitespace.
-- Use consistent quoting style — quote strings that contain special characters or could be ambiguous.
+- **Always quote every value in `environment:` blocks** — including booleans, numbers, and `${VAR}` references. Portainer's stack deployer rejects YAML-bool/number env values with an opaque `[object Object]` UI error. Write `FOO: "true"`, not `FOO: true`; `PORT: "8080"`, not `PORT: 8080`; `KEY: "${MY_SECRET}"`, not `KEY: ${MY_SECRET}`. Exception: `PUID`/`PGID` can stay unquoted since they map to numeric user IDs and Portainer accepts them.
 - Separate logical sections (volumes, networks) with a blank line for readability.
 
 ---
