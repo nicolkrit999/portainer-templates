@@ -103,11 +103,54 @@ networks:
 
 This repository uses two storage pools with distinct purposes:
 
-- **`/volume2/docker/<service>/`** — NVMe SSD. Use for **configuration files, small fast-access data**: app config, SQLite databases, application state.
-- **`/volume1/Default-volume-1/0001_Docker/<service>/`** — Bulk storage. Use for **user data, media libraries, large databases, heavy data**.
+- **`/volume2/docker/<service>/`** — NVMe SSD. Use for **configuration files, small fast-access data, and small composes that benefit from SSD speed**: app config, SQLite databases, application state.
+- **`/volume1/Default-volume-1/0001_Docker/<service>/`** — HDD bulk storage. Use for **user data, media libraries, large databases, heavy/large files**.
+
+**Avoid unnamed (anonymous) and named-only Docker volumes whenever possible.** Every persistent volume should bind-mount to an explicit host path under `/volume2/docker/...` or `/volume1/Default-volume-1/0001_Docker/...`. Do NOT let data end up in the NAS `@docker` directory (the default Docker root) — it is hard to back up and audit. If a service's image insists on a named volume for a specific subpath, still bind-mount the parent or use a host path override.
 
 **Important workflow**: When creating or modifying volume paths, **always suggest specific paths based on these conventions, then ask the user to confirm** before finalizing. Example:
 > "I've suggested `/volume2/docker/gitea/config` for Gitea's configuration and `/volume1/Default-volume-1/0001_Docker/gitea/data` for repository data. Does this match your setup, or would you like different paths?"
+
+---
+
+## RULE 6a: DEFAULT USERNAME AND UID/GID
+
+Unless the user specifies otherwise, the default admin/user account name for any service is **`krit`**. Apply this to any `DEFAULT_USERNAME`, `ADMIN_USER`, `INITIAL_USER`, or similar — replacing any hardcoded sample value from upstream docs (e.g. `admin`, `marius`, etc.). Passwords always go through `${...}` env vars (Rule 1).
+
+**NAS user `krit` IDs** — use these whenever the image supports `PUID`/`PGID` (LinuxServer.io images, *arr stack, etc.) or a `user:` directive is needed for host-path file ownership:
+
+- `PUID=1000`
+- `PGID=10`
+
+Set them directly as literal values in the `environment:` block — they are not secrets and rarely change. Example:
+```yaml
+environment:
+  PUID: 1000
+  PGID: 10
+  TZ: Europe/Zurich
+```
+
+---
+
+## RULE 6: TIMEZONE
+
+Every service that accepts a `TZ` environment variable must have it set to `Europe/Zurich`. Add `TZ: Europe/Zurich` to the `environment:` block by default — do not parameterize it unless the user asks.
+
+---
+
+## RULE 7: CLOUDFLARE CONNECTOR HANDOFF
+
+After writing or modifying any compose file that attaches to `cloudflare_web_network`, **always tell the user the exact connector hostname and port to paste into the Cloudflare Tunnel public-hostname config**. Format:
+
+> Cloudflare Tunnel target: `http://<container_name_or_service>:<internal_port>`
+
+Use the container's service name (or `container_name`) as the hostname — that's what resolves inside the `cloudflare-web` Docker network — and the service's internal port (not any host-mapped port, since we don't expose ports for tunneled services). Mention this on every compose creation/edit that touches the Cloudflare network, not only when asked.
+
+**Exception — services NOT on `cloudflare_web_network`**: If the service is meant to be reached on the host (e.g. Portainer itself, or any compose that only exposes ports to localhost and is not attached to `cloudflare-web`), the Cloudflare connector cannot resolve the container by name. In that case give the target as:
+
+> Cloudflare Tunnel target: `http://host.docker.internal:<host_port>`
+
+Example: the NAS web UI (`nas.nicolkrit.ch`) on host port 9443 → `https://host.docker.internal:9443`. Use the host-mapped port from the `ports:` block, not the internal container port.
 
 ---
 

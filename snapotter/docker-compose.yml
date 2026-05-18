@@ -1,0 +1,26 @@
+services:
+  snapotter:
+    image: snapotter/snapotter:latest
+    container_name: SnapOtter
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: Europe/Zurich
+      AUTH_ENABLED: true
+      DEFAULT_USERNAME: krit
+      DEFAULT_PASSWORD: ${SNAPOTTER_PASSWORD}
+      STORAGE_MODE: local
+    volumes:
+      - /volume1/Default-volume-1/0001_Docker/snapotter:/data:rw
+    networks:
+      - cloudflare_web_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
