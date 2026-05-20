@@ -16,10 +16,10 @@ services:
       - /volume2/docker/claude/data:/home/claude/.claude:rw
       - /volume2/docker/claude/workspace:/workspace:rw
     environment:
-      TZ: Europe/Zurich
+      TZ: "Europe/Zurich"
       PUID: 1000
       PGID: 10
-      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
     logging:
       options:
         max-size: "10m"
