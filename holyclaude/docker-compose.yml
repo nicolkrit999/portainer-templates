@@ -19,7 +19,7 @@ services:
       TZ: Europe/Zurich
       PUID: 1000
       PGID: 10
-      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}  # uncomment + set in .env to fall back to API billing when Pro credits run out — leaving this unset uses the Pro subscription login persisted in the data volume
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     logging:
       options:
         max-size: "10m"
