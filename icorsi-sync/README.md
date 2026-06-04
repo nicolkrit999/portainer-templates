@@ -29,7 +29,7 @@ in the course's real order instead of alphabetically:
 ├── 001 - <section name>/001 - <file.pdf>        a single file
 ├── 002 - <section name>/001 - <folder>/<file…>  a folder (its own subfolders kept, unnumbered)
 ├── 002 - <section name>/002 - <link>.url.txt    an external link
-└── _annunci/<date> <title>.md                   announcements (and _forum/… for other forums)
+└── 000 - Annunci/<date> <title>.md              announcements pinned at the top (and 000 - Forum/… for other forums)
 ```
 
 `_icorsi/` is **tool-owned** — treat it as a faithful mirror. With `PRUNE_ORPHANS` on (below),
