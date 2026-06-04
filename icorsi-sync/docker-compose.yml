@@ -11,16 +11,13 @@ services:
       # NOTE: every value is quoted on purpose — Portainer's stack deployer rejects
       # unquoted YAML booleans/numbers with an opaque "[object Object]" UI error.
       TZ: "Europe/Zurich"
-      # --- iCorsi / Moodle ---
       ICORSI_BASE_URL: "https://www.icorsi.ch"
       ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token
-      # --- ownCloud WebDAV target (reached locally over the shared docker network) ---
       OWNCLOUD_WEBDAV_URL: "${OWNCLOUD_WEBDAV_URL}"         # e.g. http://owncloud:8080/remote.php/dav/files/oc_admin
       OWNCLOUD_USER: "${OWNCLOUD_USER}"
       OWNCLOUD_APP_PASSWORD: "${OWNCLOUD_APP_PASSWORD}"     # secret (ownCloud app password)
       OWNCLOUD_HOST_HEADER: "${OWNCLOUD_HOST_HEADER:-}"     # trusted domain, e.g. owncloud.nicolkrit.ch (avoids HTTP 400)
       OWNCLOUD_BASE_PATH: "${OWNCLOUD_BASE_PATH}"           # e.g. University/Supsi
-      # --- behaviour ---
       SUBFOLDER: "${SUBFOLDER:-_icorsi}"
       INCLUDE_URL_LINKS: "${INCLUDE_URL_LINKS:-true}"      # save url modules as .txt
       SAVE_SECTION_INFO: "${SAVE_SECTION_INFO:-true}"      # labels + section intros -> _info.md
