@@ -7,25 +7,27 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      TZ: Europe/Zurich
+      # NOTE: every value is quoted on purpose — Portainer's stack deployer rejects
+      # unquoted YAML booleans/numbers with an opaque "[object Object]" UI error.
+      TZ: "Europe/Zurich"
       # --- iCorsi / Moodle ---
-      ICORSI_BASE_URL: https://www.icorsi.ch
-      ICORSI_TOKEN: ${ICORSI_TOKEN}                     # secret: Moodle WS token
+      ICORSI_BASE_URL: "https://www.icorsi.ch"
+      ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token
       # --- ownCloud WebDAV target (reached locally over the shared docker network) ---
-      OWNCLOUD_WEBDAV_URL: ${OWNCLOUD_WEBDAV_URL}        # e.g. http://owncloud:8080/remote.php/dav/files/oc_admin
-      OWNCLOUD_USER: ${OWNCLOUD_USER}                    # secret
-      OWNCLOUD_PASS: ${OWNCLOUD_PASS}                    # secret
-      OWNCLOUD_BASE_PATH: ${OWNCLOUD_BASE_PATH}          # e.g. University/Supsi/0002-Bachelor/1-year
+      OWNCLOUD_WEBDAV_URL: "${OWNCLOUD_WEBDAV_URL}"         # e.g. http://owncloud:8080/remote.php/dav/files/oc_admin
+      OWNCLOUD_USER: "${OWNCLOUD_USER}"                     # secret
+      OWNCLOUD_PASS: "${OWNCLOUD_PASS}"                     # secret
+      OWNCLOUD_BASE_PATH: "${OWNCLOUD_BASE_PATH}"           # e.g. University/Supsi
       # --- behaviour ---
-      SUBFOLDER: ${SUBFOLDER:-_icorsi}
-      INCLUDE_URL_LINKS: ${INCLUDE_URL_LINKS:-true}     # save url modules as .txt
-      SAVE_SECTION_INFO: ${SAVE_SECTION_INFO:-true}     # labels + section intros -> _info.md
-      SAVE_FORUMS: ${SAVE_FORUMS:-true}                 # forums/announcements -> .md (read-only)
-      EXCLUDE_MODULES: ${EXCLUDE_MODULES:-}             # optional opt-out filter; empty = fetch from all types
-      SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-21600}   # 6h
-      RUN_ON_START: ${RUN_ON_START:-true}
-      DRY_RUN: ${DRY_RUN:-false}
-      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}      # secret, optional
+      SUBFOLDER: "${SUBFOLDER:-_icorsi}"
+      INCLUDE_URL_LINKS: "${INCLUDE_URL_LINKS:-true}"      # save url modules as .txt
+      SAVE_SECTION_INFO: "${SAVE_SECTION_INFO:-true}"      # labels + section intros -> _info.md
+      SAVE_FORUMS: "${SAVE_FORUMS:-true}"                  # forums/announcements -> .md (read-only)
+      EXCLUDE_MODULES: "${EXCLUDE_MODULES:-}"              # optional opt-out filter; empty = fetch from all types
+      SYNC_INTERVAL_SECONDS: "${SYNC_INTERVAL_SECONDS:-21600}"   # 6h
+      RUN_ON_START: "${RUN_ON_START:-true}"
+      DRY_RUN: "${DRY_RUN:-false}"
+      DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"       # secret, optional
     volumes:
       - /volume2/docker/icorsi-sync/data:/data
     networks:
