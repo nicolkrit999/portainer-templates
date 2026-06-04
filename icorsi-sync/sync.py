@@ -74,6 +74,13 @@ EXCLUDE_MODULES = set(m.strip().lower() for m in env("EXCLUDE_MODULES", "").spli
 # Also capture non-file text content:
 SAVE_SECTION_INFO = env_bool("SAVE_SECTION_INFO", True)   # labels + section intros -> _info.md
 SAVE_FORUMS       = env_bool("SAVE_FORUMS", True)          # forum/announcement posts -> .md (read-only)
+# When true, delete files inside a course's _icorsi/ that are no longer part of the course
+# (renamed/moved/removed on iCorsi) so there's exactly ONE current copy. Strictly confined to
+# _icorsi/, only when the course fetched OK and uploaded with 0 errors. Deletes go to ownCloud trash.
+PRUNE_ORPHANS     = env_bool("PRUNE_ORPHANS", False)
+# Course-level reconcile: re-list ownCloud and retry still-missing files, up to this many
+# passes (a no-progress guard stops earlier). Per-file network retries are HTTP_RETRIES.
+RECON_MAX_PASSES  = int(env("RECON_MAX_PASSES", "5"))
 INTERVAL          = int(env("SYNC_INTERVAL_SECONDS", "21600"))          # 6h
 LOOP              = INTERVAL > 0
 DISCORD_WEBHOOK   = env("DISCORD_WEBHOOK_URL", "")
@@ -134,6 +141,24 @@ def http_retry(url, **kw):
             if attempt < HTTP_RETRIES:
                 time.sleep(2 * attempt)
     raise RuntimeError(f"request failed after {HTTP_RETRIES} attempts ({url}): {last}")
+
+
+def retrying(label, fn):
+    """Run fn() with retries on transient errors (network / timeout / 5xx).
+    Clear client errors (HTTP 4xx) are NOT retried — they won't fix themselves."""
+    last = None
+    for attempt in range(1, HTTP_RETRIES + 1):
+        try:
+            return fn()
+        except urllib.error.HTTPError as e:
+            if 400 <= e.code < 500:
+                raise
+            last = e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            last = e
+        if attempt < HTTP_RETRIES:
+            time.sleep(2 * attempt)
+    raise RuntimeError(f"{label} failed after {HTTP_RETRIES} attempts: {last}")
 
 
 def basic_auth_header(user, pw):
@@ -320,20 +345,33 @@ class WebDav:
         if status not in (200, 201, 204):
             raise RuntimeError(f"PUT {logical_path} -> HTTP {status}")
 
-    def put_file(self, logical_path, fileobj, size):
+    def put_file(self, logical_path, local_path, size):
         parent = "/".join(logical_path.strip("/").split("/")[:-1])
         self.ensure_dir(parent)
         if DRY_RUN:
             return
         hdr = {**self.hdr, "Content-Type": "application/octet-stream",
                "Content-Length": str(size)}
-        req = urllib.request.Request(self._abs(logical_path), data=fileobj, method="PUT")
-        for k, v in hdr.items():
-            req.add_header(k, v)
-        req.add_header("User-Agent", UA)
-        with urllib.request.urlopen(req, timeout=max(HTTP_TIMEOUT, 300)) as r:
-            if r.status not in (200, 201, 204):
-                raise RuntimeError(f"PUT {logical_path} -> HTTP {r.status}")
+
+        def attempt():
+            req = urllib.request.Request(self._abs(logical_path), method="PUT")
+            for k, v in hdr.items():
+                req.add_header(k, v)
+            req.add_header("User-Agent", UA)
+            with open(local_path, "rb") as fh:          # fresh handle each retry
+                req.data = fh
+                with urllib.request.urlopen(req, timeout=max(HTTP_TIMEOUT, 300)) as r:
+                    if r.status not in (200, 201, 204):
+                        raise RuntimeError(f"PUT {logical_path} -> HTTP {r.status}")
+        retrying(f"PUT {logical_path}", attempt)
+
+    def delete(self, logical_path):
+        """DELETE a file (goes to ownCloud trash). Used only by prune, inside _icorsi/."""
+        if DRY_RUN:
+            return
+        status, _, _ = http_retry(self._abs(logical_path), method="DELETE", headers=self.hdr)
+        if status not in (200, 204, 404):
+            log.warning("DELETE %s -> HTTP %s", logical_path, status)
 
 
 # --------------------------------------------------------------------------- #
@@ -379,13 +417,16 @@ def build_expected(course_id, sections):
     'rel' is relative to the course's _icorsi base.
     """
     files, links = [], []
-    for sec in sections:
-        section = clean_name(sec.get("name") or f"section-{sec.get('section', 0)}", "General")
-        for mod in sec.get("modules", []):
+    # Sections and modules come back in course display order; a zero-padded numeric prefix
+    # ("001 - ") makes the filesystem sort in that same order instead of alphabetically.
+    for si, sec in enumerate(sections, 1):
+        section = f"{si:03d} - " + clean_name(sec.get("name") or f"section-{sec.get('section', 0)}", "General")
+        for mi, mod in enumerate(sec.get("modules", []), 1):
             modname = mod.get("modname")
             modtitle = clean_name(mod.get("name"), "module")
             if modname in EXCLUDE_MODULES:
                 continue
+            prefix = f"{mi:03d} - "
             # url modules -> save the external link as a .txt
             if modname == "url":
                 if not INCLUDE_URL_LINKS:
@@ -399,7 +440,7 @@ def build_expected(course_id, sections):
                     target = mod["url"]
                 if target:
                     content = f"{html.unescape(mod.get('name','link'))}\n{target}\n"
-                    links.append({"rel": f"{section}/{modtitle}.url.txt",
+                    links.append({"rel": f"{section}/{prefix}{modtitle}.url.txt",
                                   "content": content.encode("utf-8")})
                 continue
             # every other module type: download whatever real files it exposes.
@@ -409,10 +450,10 @@ def build_expected(course_id, sections):
                     continue
                 fname = clean_name(c.get("filename"), "file")
                 if modname == "resource":
-                    rel_parts = [section, fname]
+                    rel_parts = [section, f"{prefix}{fname}"]
                 else:
                     inner = clean_path(c.get("filepath", "/"))
-                    rel_parts = [section, modtitle] + inner + [fname]
+                    rel_parts = [section, f"{prefix}{modtitle}"] + inner + [fname]
                 files.append({
                     "rel": "/".join(rel_parts),
                     "fileurl": c.get("fileurl"),
@@ -468,8 +509,9 @@ def html_to_text(h):
 def build_section_info(sections):
     """Aggregate each section's intro/summary + label text into one _info.md."""
     texts = []
-    for sec in sections:
-        section = clean_name(sec.get("name") or f"section-{sec.get('section', 0)}", "General")
+    for si, sec in enumerate(sections, 1):
+        raw_section = clean_name(sec.get("name") or f"section-{sec.get('section', 0)}", "General")
+        section = f"{si:03d} - {raw_section}"      # must match build_expected's numbering
         parts = []
         summ = html_to_text(sec.get("summary"))
         if summ:
@@ -481,8 +523,9 @@ def build_section_info(sections):
                     parts.append(t)
         if not parts:
             continue
-        body = f"# {section}\n\n" + "\n\n---\n\n".join(parts) + "\n"
-        texts.append({"rel": f"{section}/_info.md", "content": body.encode("utf-8"), "tm": 0})
+        body = f"# {raw_section}\n\n" + "\n\n---\n\n".join(parts) + "\n"
+        # "000 - " pins the section overview to the top of its section folder
+        texts.append({"rel": f"{section}/000 - _info.md", "content": body.encode("utf-8"), "tm": 0})
     return texts
 
 
@@ -523,33 +566,38 @@ def fetch_forums(course_id):
 
 
 def download(fileurl):
-    """Download a pluginfile to a temp file. Returns (path, size)."""
+    """Download a pluginfile to a temp file (with retries). Returns (path, size)."""
     url = file_download_url(fileurl)
     _assert_icorsi_get(url, "GET")
-    tmp = tempfile.NamedTemporaryFile(delete=False)
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=max(HTTP_TIMEOUT, 300)) as r:
-            size = 0
-            while True:
-                chunk = r.read(1 << 16)
-                if not chunk:
-                    break
-                tmp.write(chunk)
-                size += len(chunk)
-        tmp.close()
-        return tmp.name, size
-    except Exception:
-        tmp.close()
+
+    def attempt():
+        tmp = tempfile.NamedTemporaryFile(delete=False)
         try:
-            os.unlink(tmp.name)
-        except OSError:
-            pass
-        raise
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=max(HTTP_TIMEOUT, 300)) as r:
+                size = 0
+                while True:
+                    chunk = r.read(1 << 16)
+                    if not chunk:
+                        break
+                    tmp.write(chunk)
+                    size += len(chunk)
+            tmp.close()
+            return tmp.name, size
+        except Exception:
+            tmp.close()
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
+            raise
+
+    return retrying(f"GET {url}", attempt)
 
 
 def sync_course(dav, course_id, rel_folder, state):
-    """Sync one course. Returns (downloaded, skipped, errors)."""
+    """Sync one course. Returns (uploaded, skipped, errors, pruned).
+    'errors' is the count of expected files still missing after the reconcile loop."""
     base = "/".join(p for p in [BASE_PATH, rel_folder, SUBFOLDER] if p).strip("/")
     sections = ws("core_course_get_contents", courseid=course_id)
     files, links = build_expected(course_id, sections)
@@ -563,83 +611,125 @@ def sync_course(dav, course_id, rel_folder, state):
         except Exception as e:
             log.warning("forums for course %s skipped: %s", course_id, e)
 
-    existing = {} if DRY_RUN else dav.list_files(base)
     fstate = state.setdefault("files", {})
 
-    downloaded = skipped = errors = 0
+    # one entry per destination path (last wins on the rare same-path collision)
+    file_by = {f"{base}/{f['rel']}": f for f in files}
+    link_by = {f"{base}/{l['rel']}": l for l in links}
+    text_by = {f"{base}/{t['rel']}": t for t in texts}
+    expected = set(file_by) | set(link_by) | set(text_by)
 
-    # regular files
-    for f in files:
-        logical = f"{base}/{f['rel']}"
-        cur_size = existing.get(logical)
+    def do_file(logical, f):
+        path, size = download(f["fileurl"])
+        try:
+            dav.put_file(logical, path, size)
+        finally:
+            os.unlink(path)
+        fstate[logical] = {"tm": f["tm"], "size": size}
+        log.info("uploaded %s (%d B)", logical, size)
+
+    def do_link(logical, l):
+        dav.put_bytes(logical, l["content"])
+        fstate[logical] = {"tm": 0, "size": len(l["content"]), "link": True}
+
+    def do_text(logical, t):
+        dav.put_bytes(logical, t["content"])
+        fstate[logical] = {"tm": t.get("tm", 0), "size": len(t["content"]),
+                           "md5": hashlib.md5(t["content"]).hexdigest()}
+        log.info("wrote %s", logical)
+
+    if DRY_RUN:
+        for logical in list(file_by) + list(link_by) + list(text_by):
+            log.info("[dry] would write %s", logical)
+        return len(expected), 0, 0, 0
+
+    existing = dav.list_files(base)
+    uploaded = skipped = 0
+
+    # ---- first pass: upload new / changed / missing ----
+    for logical, f in file_by.items():
+        cur = existing.get(logical)
         prev = fstate.get(logical, {})
-        up_to_date = (
-            cur_size is not None
-            and (f["size"] == 0 or cur_size == f["size"])
-            and prev.get("tm", -1) >= f["tm"]
-        )
-        if up_to_date:
+        if cur is not None and (f["size"] == 0 or cur == f["size"]) and prev.get("tm", -1) >= f["tm"]:
             skipped += 1
             continue
-        if DRY_RUN:
-            log.info("[dry] would download %s (%d B)", logical, f["size"])
-            downloaded += 1
-            continue
         try:
-            path, size = download(f["fileurl"])
-            try:
-                with open(path, "rb") as fh:
-                    dav.put_file(logical, fh, size)
-            finally:
-                os.unlink(path)
-            fstate[logical] = {"tm": f["tm"], "size": size}
-            downloaded += 1
-            log.info("uploaded %s (%d B)", logical, size)
+            do_file(logical, f); uploaded += 1
         except Exception as e:
-            errors += 1
             log.error("failed %s: %s", logical, e)
 
-    # url -> txt links
-    for l in links:
-        logical = f"{base}/{l['rel']}"
+    for logical, l in link_by.items():
         if existing.get(logical) is not None and logical in fstate:
             skipped += 1
             continue
-        if DRY_RUN:
-            log.info("[dry] would write link %s", logical)
-            downloaded += 1
-            continue
         try:
-            dav.put_bytes(logical, l["content"])
-            fstate[logical] = {"tm": 0, "size": len(l["content"]), "link": True}
-            downloaded += 1
+            do_link(logical, l); uploaded += 1
         except Exception as e:
-            errors += 1
             log.error("failed link %s: %s", logical, e)
 
-    # generated text (section _info.md + forum/announcement .md) — dedup by content hash
-    for t in texts:
-        logical = f"{base}/{t['rel']}"
+    for logical, t in text_by.items():
         digest = hashlib.md5(t["content"]).hexdigest()
-        prev = fstate.get(logical, {})
-        present = DRY_RUN or existing.get(logical) is not None
-        if present and prev.get("md5") == digest:
+        if existing.get(logical) is not None and fstate.get(logical, {}).get("md5") == digest:
             skipped += 1
             continue
-        if DRY_RUN:
-            log.info("[dry] would write %s", logical)
-            downloaded += 1
-            continue
         try:
-            dav.put_bytes(logical, t["content"])
-            fstate[logical] = {"tm": t.get("tm", 0), "size": len(t["content"]), "md5": digest}
-            downloaded += 1
-            log.info("wrote %s", logical)
+            do_text(logical, t); uploaded += 1
         except Exception as e:
-            errors += 1
             log.error("failed text %s: %s", logical, e)
 
-    return downloaded, skipped, errors
+    # ---- reconcile: re-list what's ACTUALLY in ownCloud and retry anything still
+    #      missing/partial, looping until nothing is missing (bounded by max passes
+    #      and a no-progress guard so a genuinely-gone file can't loop forever) ----
+    def find_missing():
+        actual = dav.list_files(base)
+        miss = []
+        for lg, f in file_by.items():
+            cur = actual.get(lg)
+            if cur is None or (f["size"] > 0 and cur != f["size"]):
+                miss.append(lg)
+        for lg in list(link_by) + list(text_by):
+            if actual.get(lg) is None:
+                miss.append(lg)
+        return actual, miss
+
+    actual, missing = find_missing()
+    passes = 0
+    while missing and passes < RECON_MAX_PASSES:
+        passes += 1
+        before = len(missing)
+        log.info("reconcile pass %d for %s: %d missing", passes, course_id, before)
+        for lg in missing:
+            try:
+                if lg in file_by:
+                    do_file(lg, file_by[lg])
+                elif lg in link_by:
+                    do_link(lg, link_by[lg])
+                elif lg in text_by:
+                    do_text(lg, text_by[lg])
+                uploaded += 1
+            except Exception as e:
+                log.error("reconcile failed %s: %s", lg, e)
+        actual, missing = find_missing()
+        if len(missing) >= before:        # no progress -> genuinely unavailable
+            break
+    for lg in missing:
+        log.error("STILL MISSING after %d passes: %s", passes, lg)
+    errors = len(missing)
+
+    # ---- prune orphans (opt-in, safeguarded): exactly one current copy ----
+    pruned = 0
+    if PRUNE_ORPHANS and expected and errors == 0:
+        for lg in sorted(actual):
+            if lg not in expected:
+                try:
+                    dav.delete(lg)
+                    fstate.pop(lg, None)
+                    pruned += 1
+                    log.info("pruned orphan %s", lg)
+                except Exception as e:
+                    log.error("prune failed %s: %s", lg, e)
+
+    return uploaded, skipped, errors, pruned
 
 
 def load_courses():
@@ -698,7 +788,7 @@ def run_once(dav, state):
     known_unmapped -= set(mapped)                 # forget ones now mapped
     known_unmapped -= skipped                     # forget ones now explicitly skipped
 
-    total_dl = total_sk = total_err = 0
+    total_dl = total_sk = total_err = total_pr = 0
     changed_courses = []
 
     for cid, rel in mapped.items():
@@ -710,11 +800,17 @@ def run_once(dav, state):
             continue
         archived.discard(cid)                     # re-enrolled? resume
         try:
-            dl, sk, err = sync_course(dav, cid, rel, state)
-            total_dl += dl; total_sk += sk; total_err += err
-            if dl or err:
-                changed_courses.append(f"[{cid}] {enrolled[cid]}: +{dl}" + (f" ⚠️{err}" if err else ""))
-            log.info("course %s (%s): %d new, %d ok, %d errors", cid, rel, dl, sk, err)
+            dl, sk, err, pr = sync_course(dav, cid, rel, state)
+            total_dl += dl; total_sk += sk; total_err += err; total_pr += pr
+            if dl or err or pr:
+                line = f"[{cid}] {enrolled[cid]}: +{dl}"
+                if pr:
+                    line += f" 🗑️{pr}"
+                if err:
+                    line += f" ⚠️{err} missing"
+                changed_courses.append(line)
+            log.info("course %s (%s): %d new, %d skipped, %d missing, %d pruned",
+                     cid, rel, dl, sk, err, pr)
             save_state(state)                     # checkpoint per course
         except MoodleError as e:
             total_err += 1
@@ -728,10 +824,12 @@ def run_once(dav, state):
     state["last_run"] = time.strftime("%Y-%m-%d %H:%M:%S")
     save_state(state)
 
-    log.info("=== run done: %d downloaded, %d skipped, %d errors ===",
-             total_dl, total_sk, total_err)
-    if total_dl or total_err:
-        summary = (f"✅ icorsi-sync: {total_dl} new file(s), {total_err} error(s).\n"
+    verb = "would write" if DRY_RUN else "uploaded"
+    log.info("=== run done%s: %d %s, %d skipped, %d missing, %d pruned ===",
+             " (DRY RUN — nothing written)" if DRY_RUN else "",
+             total_dl, verb, total_sk, total_err, total_pr)
+    if not DRY_RUN and (total_dl or total_err or total_pr):
+        summary = (f"✅ icorsi-sync: {total_dl} new, {total_pr} pruned, {total_err} missing.\n"
                    + "\n".join(changed_courses[:20]))
         notify(summary)
 

@@ -3,8 +3,8 @@
 Automatically download your **Moodle / iCorsi** course material into **ownCloud**.
 
 It logs into Moodle's API with a personal token, looks at each course you choose, and
-copies the material into ownCloud — keeping the same structure the course uses. It runs
-on a schedule, only fetches what's new or changed, and never deletes anything.
+copies the material into ownCloud — keeping the **same structure and order** the course uses.
+It runs on a schedule, only fetches what's new or changed, and retries until nothing is missing.
 
 What it saves per course:
 - all **files** (PDFs, slides, code, anything in folders/resources/pages/books, …),
@@ -20,16 +20,21 @@ assignment, start a quiz, or mark attendance.
 ## How files end up organised
 
 Everything for a course goes into a `_icorsi/` subfolder inside that course's folder, so it
-never mixes with your own notes:
+never mixes with your own notes. Sections and items are **numbered (`001 - `)** so they sort
+in the course's real order instead of alphabetically:
 
 ```
 <your course folder>/_icorsi/
-├── <section name>/<file.pdf>              a single file
-├── <section name>/<folder>/<file...>      a folder (with its subfolders kept)
-├── <section name>/<link>.url.txt          an external link
-├── <section name>/_info.md                text written on the page
-└── _annunci/<date> <title>.md             announcements
+├── 001 - <section name>/000 - _info.md          text written on the page (pinned on top)
+├── 001 - <section name>/001 - <file.pdf>        a single file
+├── 002 - <section name>/001 - <folder>/<file…>  a folder (its own subfolders kept, unnumbered)
+├── 002 - <section name>/002 - <link>.url.txt    an external link
+└── _annunci/<date> <title>.md                   announcements (and _forum/… for other forums)
 ```
+
+`_icorsi/` is **tool-owned** — treat it as a faithful mirror. With `PRUNE_ORPHANS` on (below),
+anything you put inside it that isn't part of the course will be removed; keep your own edits
+*outside* `_icorsi/`.
 
 ---
 
@@ -90,7 +95,18 @@ Set these where you run the container (e.g. Portainer stack env). Secrets stay h
 
 Optional toggles (sensible defaults, see `.env.example`): `SUBFOLDER` (`_icorsi`),
 `INCLUDE_URL_LINKS`, `SAVE_SECTION_INFO`, `SAVE_FORUMS`, `EXCLUDE_MODULES`,
-`SYNC_INTERVAL_SECONDS` (default 6h), `DRY_RUN`.
+`SYNC_INTERVAL_SECONDS` (default 6h), `RECON_MAX_PASSES` (default 5), `DRY_RUN`, and:
+
+- **`PRUNE_ORPHANS`** (default `false`) — when `true`, files inside a course's `_icorsi/` that
+  are no longer part of the course (renamed / moved / removed on iCorsi) are **deleted**, so you
+  always have exactly **one current copy**. Strictly limited to `_icorsi/`, and only runs for a
+  course that fetched successfully with **0 missing files**. Deletions go to ownCloud's **trash**
+  (recoverable), so they still use quota until you empty it.
+
+**Reliability:** each file download/upload is retried on transient errors, and after uploading
+the tool re-checks what's actually in ownCloud and re-fetches anything still missing — looping
+until nothing is missing (bounded by `RECON_MAX_PASSES`). Anything it truly can't get is
+reported (`⚠️ missing`) and retried on the next scheduled run. It never deletes your own files.
 
 **Tip:** set `DRY_RUN=true` for the first run — it lists what it *would* download and writes
 nothing. When the log looks right, set it back to `false`.
