@@ -55,8 +55,11 @@ ICORSI_HOST   = urllib.parse.urlsplit(ICORSI_BASE).netloc.lower()
 # ownCloud creds aren't needed for a dry run (nothing is written/listed)
 DAV_URL       = (env("OWNCLOUD_WEBDAV_URL", "", required=not DRY_RUN) or "").rstrip("/")
 DAV_USER      = env("OWNCLOUD_USER", "", required=not DRY_RUN)
-DAV_PASS      = env("OWNCLOUD_PASS", "", required=not DRY_RUN)
-BASE_PATH     = env("OWNCLOUD_BASE_PATH", "").strip("/")               # e.g. University/Supsi/0002-Bachelor/1-year
+DAV_PASS      = env("OWNCLOUD_APP_PASSWORD", "", required=not DRY_RUN)
+# When reaching the ownCloud container directly (http://owncloud:8080), send this as the
+# Host header so ownCloud's trusted-domain check passes (otherwise it replies HTTP 400).
+DAV_HOST_HEADER = env("OWNCLOUD_HOST_HEADER", "")                       # e.g. owncloud.nicolkrit.ch
+BASE_PATH     = env("OWNCLOUD_BASE_PATH", "").strip("/")               # e.g. University/Supsi
 SUBFOLDER     = env("SUBFOLDER", "_icorsi").strip("/")
 
 INCLUDE_URL_LINKS = env_bool("INCLUDE_URL_LINKS", True)
@@ -226,9 +229,15 @@ def file_download_url(fileurl):
 # WebDAV (ownCloud)
 # --------------------------------------------------------------------------- #
 class WebDav:
-    def __init__(self, base_url, user, pw):
+    def __init__(self, base_url, user, pw, host_header=""):
         self.base = base_url.rstrip("/")
-        self.auth = basic_auth_header(user, pw)
+        self.hdr = basic_auth_header(user, pw)
+        # ownCloud rejects requests whose Host isn't a trusted domain with HTTP 400.
+        # When we reach the container directly (http://owncloud:8080), send the public
+        # trusted hostname as Host (and X-Forwarded-Host) so the request is accepted.
+        if host_header:
+            self.hdr["Host"] = host_header
+            self.hdr["X-Forwarded-Host"] = host_header
         # path prefix of the dav root, e.g. /remote.php/dav/files/oc_admin
         self.root_path = urllib.parse.urlsplit(self.base).path.rstrip("/")
         self._ensured = set()
@@ -251,7 +260,7 @@ class WebDav:
             if DRY_RUN:
                 self._ensured.add(cur)
                 continue
-            status, _, _ = http_retry(self._abs(cur), method="MKCOL", headers=self.auth)
+            status, _, _ = http_retry(self._abs(cur), method="MKCOL", headers=self.hdr)
             # 201 created, 405 already exists -> both fine
             if status not in (201, 405, 301):
                 log.warning("MKCOL %s -> HTTP %s", cur, status)
@@ -266,7 +275,7 @@ class WebDav:
                 '<d:resourcetype/><d:getcontentlength/></d:prop></d:propfind>')
         while stack:
             d = stack.pop()
-            hdr = {**self.auth, "Depth": "1", "Content-Type": "application/xml"}
+            hdr = {**self.hdr, "Depth": "1", "Content-Type": "application/xml"}
             status, raw, _ = http_retry(self._abs(d), method="PROPFIND",
                                         data=body.encode(), headers=hdr)
             if status == 404:
@@ -307,7 +316,7 @@ class WebDav:
         self.ensure_dir(parent)
         if DRY_RUN:
             return
-        hdr = {**self.auth, "Content-Type": "application/octet-stream"}
+        hdr = {**self.hdr, "Content-Type": "application/octet-stream"}
         status, _, _ = http_retry(self._abs(logical_path), method="PUT", data=data, headers=hdr)
         if status not in (200, 201, 204):
             raise RuntimeError(f"PUT {logical_path} -> HTTP {status}")
@@ -317,7 +326,7 @@ class WebDav:
         self.ensure_dir(parent)
         if DRY_RUN:
             return
-        hdr = {**self.auth, "Content-Type": "application/octet-stream",
+        hdr = {**self.hdr, "Content-Type": "application/octet-stream",
                "Content-Length": str(size)}
         req = urllib.request.Request(self._abs(logical_path), data=fileobj, method="PUT")
         for k, v in hdr.items():
@@ -731,7 +740,7 @@ def run_once(dav, state):
 def main():
     log.info("icorsi-sync starting | base=%s | dav=%s | interval=%ss | dry_run=%s",
              BASE_PATH, DAV_URL, INTERVAL, DRY_RUN)
-    dav = WebDav(DAV_URL, DAV_USER, DAV_PASS)
+    dav = WebDav(DAV_URL, DAV_USER, DAV_PASS, DAV_HOST_HEADER)
     if not RUN_ON_START and LOOP:
         time.sleep(INTERVAL)
     while True:
