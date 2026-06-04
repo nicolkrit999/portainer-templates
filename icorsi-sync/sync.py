@@ -2,19 +2,12 @@
 """
 icorsi-sync — mirror SUPSI iCorsi (Moodle) course material into ownCloud via WebDAV.
 
-Pure stdlib (no pip deps). Talks to Moodle Web Services with a long-lived mobile
-token, walks each mapped course, and uploads `folder`/`resource` files (and,
-optionally, `url` links as .txt) into ownCloud, mirroring the course structure
-under a per-subject `_icorsi/` subfolder.
-
-Design notes:
-- ALLOWLIST: only course IDs present in courses.json (with a non-null path) are synced.
-- AUTO-DISCOVERY only *informs*: new enrolled-but-unmapped courses -> notify once.
-- UNENROLL handling: a mapped course missing from your enrolment list -> notify once,
-  keep files, skip from then on.
-- SELF-HEALING: every run reconciles against what is actually present in ownCloud
-  (size check), re-downloading anything missing/partial/updated (Moodle timemodified).
-- NEVER deletes or moves anything. `_icorsi/` is a faithful mirror.
+Pure stdlib. Reads Moodle Web Services with a long-lived mobile token, walks each
+mapped course, and uploads files (plus url links as .txt, section text and forum
+posts as .md) into ownCloud under a per-subject `_icorsi/` subfolder, mirroring the
+course's structure and order. Allowlist of courses (courses.json); auto-discovery
+only notifies about new/unenrolled courses. Incremental, self-healing, read-only on
+Moodle. Optional prune keeps exactly one current copy.
 """
 
 import os
@@ -27,15 +20,14 @@ import base64
 import hashlib
 import logging
 import tempfile
+import unicodedata
 import urllib.parse
 import urllib.request
 import urllib.error
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 
-# --------------------------------------------------------------------------- #
-# Config (from env)
-# --------------------------------------------------------------------------- #
+
 def env(key, default=None, required=False):
     v = os.environ.get(key, default)
     if required and not v:
@@ -52,36 +44,23 @@ TOKEN         = env("ICORSI_TOKEN", required=True)
 WS_ENDPOINT   = f"{ICORSI_BASE}/webservice/rest/server.php"
 ICORSI_HOST   = urllib.parse.urlsplit(ICORSI_BASE).netloc.lower()
 
-# ownCloud creds aren't needed for a dry run (nothing is written/listed)
 DAV_URL       = (env("OWNCLOUD_WEBDAV_URL", "", required=not DRY_RUN) or "").rstrip("/")
 DAV_USER      = env("OWNCLOUD_USER", "", required=not DRY_RUN)
 DAV_PASS      = env("OWNCLOUD_APP_PASSWORD", "", required=not DRY_RUN)
-# When reaching the ownCloud container directly (http://owncloud:8080), send this as the
-# Host header so ownCloud's trusted-domain check passes (otherwise it replies HTTP 400).
-DAV_HOST_HEADER = env("OWNCLOUD_HOST_HEADER", "")                       # e.g. owncloud.nicolkrit.ch
-BASE_PATH     = env("OWNCLOUD_BASE_PATH", "").strip("/")               # e.g. University/Supsi
+# Sent as the Host header. Reaching the container directly (http://owncloud:8080) would
+# otherwise fail ownCloud's trusted-domain check with HTTP 400.
+DAV_HOST_HEADER = env("OWNCLOUD_HOST_HEADER", "")
+BASE_PATH     = env("OWNCLOUD_BASE_PATH", "").strip("/")
 SUBFOLDER     = env("SUBFOLDER", "_icorsi").strip("/")
 
 INCLUDE_URL_LINKS = env_bool("INCLUDE_URL_LINKS", True)
 RUN_ON_START      = env_bool("RUN_ON_START", True)
-
-# By default, download files from EVERY module type. A static file GET never starts a
-# quiz attempt, submits, or marks an activity viewed — the tool only reads metadata and
-# fetches files — so there's no safety reason to exclude anything (e.g. a PDF inside a
-# quiz intro is fetched too). EXCLUDE_MODULES is an optional opt-in filter; empty = all.
-EXCLUDE_MODULES = set(m.strip().lower() for m in env("EXCLUDE_MODULES", "").split(",") if m.strip())
-
-# Also capture non-file text content:
-SAVE_SECTION_INFO = env_bool("SAVE_SECTION_INFO", True)   # labels + section intros -> _info.md
-SAVE_FORUMS       = env_bool("SAVE_FORUMS", True)          # forum/announcement posts -> .md (read-only)
-# When true, delete files inside a course's _icorsi/ that are no longer part of the course
-# (renamed/moved/removed on iCorsi) so there's exactly ONE current copy. Strictly confined to
-# _icorsi/, only when the course fetched OK and uploaded with 0 errors. Deletes go to ownCloud trash.
+EXCLUDE_MODULES   = set(m.strip().lower() for m in env("EXCLUDE_MODULES", "").split(",") if m.strip())
+SAVE_SECTION_INFO = env_bool("SAVE_SECTION_INFO", True)
+SAVE_FORUMS       = env_bool("SAVE_FORUMS", True)
 PRUNE_ORPHANS     = env_bool("PRUNE_ORPHANS", False)
-# Course-level reconcile: re-list ownCloud and retry still-missing files, up to this many
-# passes (a no-progress guard stops earlier). Per-file network retries are HTTP_RETRIES.
 RECON_MAX_PASSES  = int(env("RECON_MAX_PASSES", "5"))
-INTERVAL          = int(env("SYNC_INTERVAL_SECONDS", "21600"))          # 6h
+INTERVAL          = int(env("SYNC_INTERVAL_SECONDS", "21600"))
 LOOP              = INTERVAL > 0
 DISCORD_WEBHOOK   = env("DISCORD_WEBHOOK_URL", "")
 HTTP_TIMEOUT      = int(env("HTTP_TIMEOUT", "60"))
@@ -91,9 +70,6 @@ STATE_DIR     = env("STATE_DIR", "/data")
 STATE_FILE    = os.path.join(STATE_DIR, "state.json")
 
 def _resolve_courses_file():
-    """Real map is the private /data/courses.json. Fall back to a privately-baked
-    /app/courses.json if someone chooses that. The committed courses.example.json
-    is a template only and is never auto-loaded."""
     here = os.path.dirname(os.path.abspath(__file__))
     for cand in ("/data/courses.json", os.path.join(here, "courses.json")):
         if os.path.exists(cand):
@@ -110,11 +86,7 @@ logging.basicConfig(
 log = logging.getLogger("icorsi-sync")
 
 
-# --------------------------------------------------------------------------- #
-# Small helpers
-# --------------------------------------------------------------------------- #
 def http(url, method="GET", data=None, headers=None, timeout=HTTP_TIMEOUT):
-    """Single HTTP request. Returns (status, body_bytes, resp_headers)."""
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("User-Agent", UA)
     for k, v in (headers or {}).items():
@@ -127,7 +99,6 @@ def http(url, method="GET", data=None, headers=None, timeout=HTTP_TIMEOUT):
 
 
 def http_retry(url, **kw):
-    """HTTP with retries on network errors / 5xx."""
     last = None
     for attempt in range(1, HTTP_RETRIES + 1):
         try:
@@ -144,8 +115,7 @@ def http_retry(url, **kw):
 
 
 def retrying(label, fn):
-    """Run fn() with retries on transient errors (network / timeout / 5xx).
-    Clear client errors (HTTP 4xx) are NOT retried — they won't fix themselves."""
+    """Retry fn() on transient errors; HTTP 4xx are raised immediately (won't self-heal)."""
     last = None
     for attempt in range(1, HTTP_RETRIES + 1):
         try:
@@ -166,36 +136,56 @@ def basic_auth_header(user, pw):
     return {"Authorization": "Basic " + base64.b64encode(raw).decode()}
 
 
+def nfc(s):
+    """Canonical Unicode form. ownCloud stores/returns NFC; Moodle may send NFD. Normalizing
+    both sides keeps the SAME file from looking like two different paths (which would cause
+    endless re-upload and prune delete/recreate churn)."""
+    return unicodedata.normalize("NFC", s)
+
+
 def clean_name(name, fallback="untitled"):
-    """Sanitize a single path segment (NOT a multi-segment path)."""
+    """Sanitize one path segment to a canonical (NFC) form; collapses any '/' in the name."""
     if name is None:
         return fallback
     s = html.unescape(str(name))
     s = s.replace("/", "-").replace("\\", "-")
-    s = "".join(ch for ch in s if ch >= " ")          # drop control chars
-    s = s.strip().rstrip(". ")                          # trailing dot/space unsafe on some FS
+    s = "".join(ch for ch in s if ch >= " ")
+    s = nfc(s).strip().rstrip(". ")
     return s or fallback
 
 
 def clean_path(p):
-    """Sanitize a Moodle 'filepath' (may contain real '/' separators)."""
-    parts = [clean_name(seg) for seg in p.split("/") if seg.strip()]
-    return parts
+    """Split a Moodle 'filepath' into sanitized segments."""
+    return [clean_name(seg) for seg in p.split("/") if seg.strip()]
 
 
-# --------------------------------------------------------------------------- #
-# Moodle Web Services
-# --------------------------------------------------------------------------- #
+def unique_path(path, taken):
+    """Return a path not already in `taken`, inserting ' (2)', ' (3)', … before the extension
+    on collision, then add it to `taken`. Guarantees two distinct items never overwrite each
+    other (same filename in one folder, two same-named forums/discussions, …)."""
+    if path not in taken:
+        taken.add(path)
+        return path
+    stem, dot, ext = path.rpartition(".")
+    if not dot or "/" in ext:        # no real extension (e.g. a directory-like name)
+        stem, dot, ext = path, "", ""
+    i = 2
+    while f"{stem} ({i}){dot}{ext}" in taken:
+        i += 1
+    cand = f"{stem} ({i}){dot}{ext}"
+    taken.add(cand)
+    return cand
+
+
 class MoodleError(Exception):
     def __init__(self, fn, code, msg):
         self.fn, self.code, self.msg = fn, code, msg
         super().__init__(f"{fn}: {code} - {msg}")
 
 
-# SAFETY GUARD #1 (function allowlist, default-deny): the ONLY Moodle WS functions
-# this tool may ever call. All are read-only. Anything not listed — known, unknown, or
-# added by a future Moodle version (e.g. mod_quiz_start_attempt, mod_assign_save_submission,
-# mod_attendance_*, any *_save_* / *_view_*) — is refused here. So writes are impossible.
+# Safety guard 1 — function allowlist (default-deny). The only WS functions this tool may
+# call; all read-only. Anything else (mod_quiz_start_attempt, *_save_*, *_view_*, ...) raises,
+# so it is structurally impossible to submit, start a quiz, mark viewed, or mark attendance.
 WS_READONLY_ALLOWED = {
     "core_webservice_get_site_info",
     "core_enrol_get_users_courses",
@@ -204,10 +194,9 @@ WS_READONLY_ALLOWED = {
     "mod_forum_get_forum_discussions",
 }
 
-# SAFETY GUARD #2 (transport): EVERY request to iCorsi passes through _assert_icorsi_get.
-# It enforces GET-only, the iCorsi host only, and only the WS endpoint or the static file
-# handler. This blocks any POST and any "action" URL (startattempt.php, assignment submit,
-# attendance marking, /mod/*/view.php, ...) from ever being sent — even via a bug.
+# Safety guard 2 — transport. Every iCorsi request passes _assert_icorsi_get: GET-only, the
+# iCorsi host only, and only the WS endpoint or static file handler. Blocks any POST and any
+# /mod/*/view.php action URL from being sent, even via a bug.
 _ICORSI_ALLOWED_PATHS = (
     "/webservice/rest/server.php",
     "/pluginfile.php",
@@ -241,7 +230,6 @@ def ws(fn, **params):
 
 
 def file_download_url(fileurl):
-    """Append the WS token to a pluginfile URL."""
     parts = urllib.parse.urlsplit(fileurl)
     qs = dict(urllib.parse.parse_qsl(parts.query))
     qs["token"] = TOKEN
@@ -250,19 +238,12 @@ def file_download_url(fileurl):
     )
 
 
-# --------------------------------------------------------------------------- #
-# WebDAV (ownCloud)
-# --------------------------------------------------------------------------- #
 class WebDav:
     def __init__(self, base_url, user, pw, host_header=""):
         self.base = base_url.rstrip("/")
         self.hdr = basic_auth_header(user, pw)
-        # ownCloud rejects requests whose Host isn't a trusted domain with HTTP 400.
-        # When we reach the container directly (http://owncloud:8080), send the public
-        # trusted hostname as Host so the request is accepted.
         if host_header:
             self.hdr["Host"] = host_header
-        # path prefix of the dav root, e.g. /remote.php/dav/files/oc_admin
         self.root_path = urllib.parse.urlsplit(self.base).path.rstrip("/")
         self._ensured = set()
 
@@ -271,13 +252,11 @@ class WebDav:
         return f"{self.base}/{enc.lstrip('/')}"
 
     def ensure_dir(self, logical_path):
-        """MKCOL each segment of logical_path (idempotent)."""
         logical_path = logical_path.strip("/")
         if not logical_path or logical_path in self._ensured:
             return
-        segs = logical_path.split("/")
         cur = ""
-        for seg in segs:
+        for seg in logical_path.split("/"):
             cur = f"{cur}/{seg}" if cur else seg
             if cur in self._ensured:
                 continue
@@ -285,13 +264,11 @@ class WebDav:
                 self._ensured.add(cur)
                 continue
             status, _, _ = http_retry(self._abs(cur), method="MKCOL", headers=self.hdr)
-            # 201 created, 405 already exists -> both fine
-            if status not in (201, 405, 301):
+            if status not in (201, 405, 301):     # 405 = already exists
                 log.warning("MKCOL %s -> HTTP %s", cur, status)
             self._ensured.add(cur)
 
     def list_files(self, logical_dir):
-        """Recursively list files under logical_dir. Returns {logical_path: size}."""
         return self._list(logical_dir)[0]
 
     def _list(self, logical_dir):
@@ -307,19 +284,18 @@ class WebDav:
             status, raw, _ = http_retry(self._abs(d), method="PROPFIND",
                                         data=body.encode(), headers=hdr)
             if status == 404:
-                continue                      # dir doesn't exist yet
+                continue
             if status != 207:
                 log.warning("PROPFIND %s -> HTTP %s", d, status)
                 continue
             for href, is_col, size in self._parse_multistatus(raw):
-                rel = href
-                if rel.strip("/") == d.strip("/"):
-                    continue                  # the directory itself
+                if href.strip("/") == d.strip("/"):
+                    continue
                 if is_col:
-                    dirs.add(rel.strip("/"))
-                    stack.append(rel)
+                    dirs.add(href.strip("/"))
+                    stack.append(href)
                 else:
-                    out[rel] = size
+                    out[href] = size
         return out, dirs
 
     def _parse_multistatus(self, raw):
@@ -333,7 +309,7 @@ class WebDav:
             path = urllib.parse.unquote(urllib.parse.urlsplit(href_el.text).path)
             if path.startswith(self.root_path):
                 path = path[len(self.root_path):]
-            path = path.strip("/")
+            path = nfc(path.strip("/"))
             is_col = resp.find(".//d:resourcetype/d:collection", ns) is not None
             size_el = resp.find(".//d:getcontentlength", ns)
             size = int(size_el.text) if (size_el is not None and size_el.text and size_el.text.isdigit()) else 0
@@ -341,8 +317,7 @@ class WebDav:
         return results
 
     def put_bytes(self, logical_path, data):
-        parent = "/".join(logical_path.strip("/").split("/")[:-1])
-        self.ensure_dir(parent)
+        self.ensure_dir("/".join(logical_path.strip("/").split("/")[:-1]))
         if DRY_RUN:
             return
         hdr = {**self.hdr, "Content-Type": "application/octet-stream"}
@@ -351,8 +326,7 @@ class WebDav:
             raise RuntimeError(f"PUT {logical_path} -> HTTP {status}")
 
     def put_file(self, logical_path, local_path, size):
-        parent = "/".join(logical_path.strip("/").split("/")[:-1])
-        self.ensure_dir(parent)
+        self.ensure_dir("/".join(logical_path.strip("/").split("/")[:-1]))
         if DRY_RUN:
             return
         hdr = {**self.hdr, "Content-Type": "application/octet-stream",
@@ -363,7 +337,7 @@ class WebDav:
             for k, v in hdr.items():
                 req.add_header(k, v)
             req.add_header("User-Agent", UA)
-            with open(local_path, "rb") as fh:          # fresh handle each retry
+            with open(local_path, "rb") as fh:      # reopen per retry
                 req.data = fh
                 with urllib.request.urlopen(req, timeout=max(HTTP_TIMEOUT, 300)) as r:
                     if r.status not in (200, 201, 204):
@@ -371,7 +345,7 @@ class WebDav:
         retrying(f"PUT {logical_path}", attempt)
 
     def delete(self, logical_path):
-        """DELETE a file (goes to ownCloud trash). Used only by prune, inside _icorsi/."""
+        """DELETE a file/collection (goes to ownCloud trash). Used only by prune."""
         if DRY_RUN:
             return
         status, _, _ = http_retry(self._abs(logical_path), method="DELETE", headers=self.hdr)
@@ -379,9 +353,6 @@ class WebDav:
             log.warning("DELETE %s -> HTTP %s", logical_path, status)
 
 
-# --------------------------------------------------------------------------- #
-# Notifications (Discord webhook, optional)
-# --------------------------------------------------------------------------- #
 def notify(msg):
     log.info("NOTIFY: %s", msg)
     if not DISCORD_WEBHOOK:
@@ -394,9 +365,6 @@ def notify(msg):
         log.warning("discord notify failed: %s", e)
 
 
-# --------------------------------------------------------------------------- #
-# State
-# --------------------------------------------------------------------------- #
 def load_state():
     try:
         with open(STATE_FILE) as f:
@@ -412,18 +380,11 @@ def save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
-# --------------------------------------------------------------------------- #
-# Core sync
-# --------------------------------------------------------------------------- #
 def build_expected(course_id, sections):
-    """Return (files, links) for a course.
-    files: list of dict {rel, fileurl, tm, size}
-    links: list of dict {rel, content}
-    'rel' is relative to the course's _icorsi base.
-    """
+    """Return (files, links). 'rel' is each item's path under the course's _icorsi base.
+    Sections and modules arrive in course display order, so a zero-padded "001 - " prefix
+    makes the filesystem sort the same way instead of alphabetically."""
     files, links = [], []
-    # Sections and modules come back in course display order; a zero-padded numeric prefix
-    # ("001 - ") makes the filesystem sort in that same order instead of alphabetically.
     for si, sec in enumerate(sections, 1):
         section = f"{si:03d} - " + clean_name(sec.get("name") or f"section-{sec.get('section', 0)}", "General")
         for mi, mod in enumerate(sec.get("modules", []), 1):
@@ -432,7 +393,6 @@ def build_expected(course_id, sections):
             if modname in EXCLUDE_MODULES:
                 continue
             prefix = f"{mi:03d} - "
-            # url modules -> save the external link as a .txt
             if modname == "url":
                 if not INCLUDE_URL_LINKS:
                     continue
@@ -448,8 +408,6 @@ def build_expected(course_id, sections):
                     links.append({"rel": f"{section}/{prefix}{modtitle}.url.txt",
                                   "content": content.encode("utf-8")})
                 continue
-            # every other module type: download whatever real files it exposes.
-            # (a static file GET has no side effects — see WS_READONLY_ALLOWED.)
             for c in mod.get("contents", []):
                 if c.get("type") != "file":
                     continue
@@ -457,8 +415,7 @@ def build_expected(course_id, sections):
                 if modname == "resource":
                     rel_parts = [section, f"{prefix}{fname}"]
                 else:
-                    inner = clean_path(c.get("filepath", "/"))
-                    rel_parts = [section, f"{prefix}{modtitle}"] + inner + [fname]
+                    rel_parts = [section, f"{prefix}{modtitle}"] + clean_path(c.get("filepath", "/")) + [fname]
                 files.append({
                     "rel": "/".join(rel_parts),
                     "fileurl": c.get("fileurl"),
@@ -496,7 +453,6 @@ class _HTMLToText(HTMLParser):
 
 
 def html_to_text(h):
-    """Best-effort HTML -> readable text/markdown (links kept inline as text (url))."""
     if not h:
         return ""
     p = _HTMLToText()
@@ -512,11 +468,11 @@ def html_to_text(h):
 
 
 def build_section_info(sections):
-    """Aggregate each section's intro/summary + label text into one _info.md."""
+    """One _info.md per section, aggregating its summary + label text."""
     texts = []
     for si, sec in enumerate(sections, 1):
         raw_section = clean_name(sec.get("name") or f"section-{sec.get('section', 0)}", "General")
-        section = f"{si:03d} - {raw_section}"      # must match build_expected's numbering
+        section = f"{si:03d} - {raw_section}"      # numbering must match build_expected
         parts = []
         summ = html_to_text(sec.get("summary"))
         if summ:
@@ -529,20 +485,17 @@ def build_section_info(sections):
         if not parts:
             continue
         body = f"# {raw_section}\n\n" + "\n\n---\n\n".join(parts) + "\n"
-        # "000 - " pins the section overview to the top of its section folder
         texts.append({"rel": f"{section}/000 - _info.md", "content": body.encode("utf-8"), "tm": 0})
     return texts
 
 
 def fetch_forums(course_id):
-    """Read-only: list forums + their discussions (announcements & posts) -> markdown.
-    Uses only listing functions, so it does NOT mark anything as read."""
+    """Forums/announcements -> .md. Uses only listing functions, so it does NOT mark posts read."""
     texts, files = [], []
     forums = ws("mod_forum_get_forums_by_courses", **{"courseids[0]": course_id})
     for f in forums:
         fname = clean_name(f.get("name"), "forum")
-        # "000 - " pins forums to the very top of the course folder (before 001 - …),
-        # consistent with the numbered ordering instead of an underscore that sorts last.
+        # "000 - " pins forums to the top of the course folder (before "001 - ...").
         folder = "000 - Annunci" if f.get("type") == "news" else f"000 - Forum/{fname}"
         try:
             discs = ws("mod_forum_get_forum_discussions", forumid=f["id"]).get("discussions", [])
@@ -603,9 +556,9 @@ def download(fileurl):
 
 
 def sync_course(dav, course_id, rel_folder, state):
-    """Sync one course. Returns (uploaded, skipped, errors, pruned).
+    """Sync one course. Returns (uploaded, skipped, errors, pruned);
     'errors' is the count of expected files still missing after the reconcile loop."""
-    base = "/".join(p for p in [BASE_PATH, rel_folder, SUBFOLDER] if p).strip("/")
+    base = nfc("/".join(p for p in [BASE_PATH, rel_folder, SUBFOLDER] if p).strip("/"))
     sections = ws("core_course_get_contents", courseid=course_id)
     files, links = build_expected(course_id, sections)
 
@@ -620,11 +573,17 @@ def sync_course(dav, course_id, rel_folder, state):
 
     fstate = state.setdefault("files", {})
 
-    # one entry per destination path (last wins on the rare same-path collision)
-    file_by = {f"{base}/{f['rel']}": f for f in files}
-    link_by = {f"{base}/{l['rel']}": l for l in links}
-    text_by = {f"{base}/{t['rel']}": t for t in texts}
-    expected = set(file_by) | set(link_by) | set(text_by)
+    # Assign each item a unique destination path (deterministic from the stable API order);
+    # unique_path keeps two distinct items from overwriting each other on a name collision.
+    taken = set()
+    file_by, link_by, text_by = {}, {}, {}
+    for f in files:
+        file_by[unique_path(f"{base}/{f['rel']}", taken)] = f
+    for l in links:
+        link_by[unique_path(f"{base}/{l['rel']}", taken)] = l
+    for t in texts:
+        text_by[unique_path(f"{base}/{t['rel']}", taken)] = t
+    expected = set(taken)
 
     def do_file(logical, f):
         path, size = download(f["fileurl"])
@@ -637,7 +596,8 @@ def sync_course(dav, course_id, rel_folder, state):
 
     def do_link(logical, l):
         dav.put_bytes(logical, l["content"])
-        fstate[logical] = {"tm": 0, "size": len(l["content"]), "link": True}
+        fstate[logical] = {"size": len(l["content"]),
+                           "md5": hashlib.md5(l["content"]).hexdigest(), "link": True}
 
     def do_text(logical, t):
         dav.put_bytes(logical, t["content"])
@@ -653,11 +613,13 @@ def sync_course(dav, course_id, rel_folder, state):
     existing = dav.list_files(base)
     uploaded = skipped = 0
 
-    # ---- first pass: upload new / changed / missing ----
     for logical, f in file_by.items():
         cur = existing.get(logical)
-        prev = fstate.get(logical, {})
-        if cur is not None and (f["size"] == 0 or cur == f["size"]) and prev.get("tm", -1) >= f["tm"]:
+        prev = fstate.get(logical)
+        # Up-to-date = present + unchanged on iCorsi (timemodified) + intact (ownCloud size ==
+        # the bytes we stored). Moodle's reported filesize is deliberately NOT used: it is 0
+        # for generated 'page' files, which made those re-upload every run.
+        if cur is not None and prev and prev.get("tm", -1) >= f["tm"] and cur == prev.get("size"):
             skipped += 1
             continue
         try:
@@ -666,7 +628,8 @@ def sync_course(dav, course_id, rel_folder, state):
             log.error("failed %s: %s", logical, e)
 
     for logical, l in link_by.items():
-        if existing.get(logical) is not None and logical in fstate:
+        digest = hashlib.md5(l["content"]).hexdigest()
+        if existing.get(logical) == len(l["content"]) and fstate.get(logical, {}).get("md5") == digest:
             skipped += 1
             continue
         try:
@@ -676,7 +639,7 @@ def sync_course(dav, course_id, rel_folder, state):
 
     for logical, t in text_by.items():
         digest = hashlib.md5(t["content"]).hexdigest()
-        if existing.get(logical) is not None and fstate.get(logical, {}).get("md5") == digest:
+        if existing.get(logical) == len(t["content"]) and fstate.get(logical, {}).get("md5") == digest:
             skipped += 1
             continue
         try:
@@ -684,18 +647,21 @@ def sync_course(dav, course_id, rel_folder, state):
         except Exception as e:
             log.error("failed text %s: %s", logical, e)
 
-    # ---- reconcile: re-list what's ACTUALLY in ownCloud and retry anything still
-    #      missing/partial, looping until nothing is missing (bounded by max passes
-    #      and a no-progress guard so a genuinely-gone file can't loop forever) ----
+    # Reconcile: re-list ownCloud and retry anything still missing/wrong-size, looping until
+    # none remain, bounded by RECON_MAX_PASSES and a no-progress guard.
     def find_missing():
         actual = dav.list_files(base)
         miss = []
-        for lg, f in file_by.items():
+        for lg in file_by:
             cur = actual.get(lg)
-            if cur is None or (f["size"] > 0 and cur != f["size"]):
+            prev = fstate.get(lg)
+            if cur is None or not prev or cur != prev.get("size"):
                 miss.append(lg)
-        for lg in list(link_by) + list(text_by):
-            if actual.get(lg) is None:
+        for lg, l in link_by.items():
+            if actual.get(lg) != len(l["content"]):
+                miss.append(lg)
+        for lg, t in text_by.items():
+            if actual.get(lg) != len(t["content"]):
                 miss.append(lg)
         return actual, miss
 
@@ -717,25 +683,23 @@ def sync_course(dav, course_id, rel_folder, state):
             except Exception as e:
                 log.error("reconcile failed %s: %s", lg, e)
         actual, missing = find_missing()
-        if len(missing) >= before:        # no progress -> genuinely unavailable
+        if len(missing) >= before:
             break
     for lg in missing:
         log.error("STILL MISSING after %d passes: %s", passes, lg)
     errors = len(missing)
 
-    # ---- prune orphans (opt-in, safeguarded): leave ONLY the current expected set.
-    #      Anything in _icorsi/ not produced by this course — old/unnumbered files AND
-    #      their folders — is deleted (to ownCloud trash). Confined to base. ----
+    # Prune (opt-in): delete everything under base that isn't in the current expected set —
+    # old/renamed/removed files and their folders — so exactly one current copy remains.
+    # Only when the course fetched OK with 0 errors. Deletes go to ownCloud trash.
     pruned = 0
     if PRUNE_ORPHANS and expected and errors == 0:
         actual_files, actual_dirs = dav._list(base)
-        # every directory that legitimately holds an expected item (ancestors under base)
         expected_dirs = set()
         for lg in expected:
             segs = lg[len(base) + 1:].split("/")
             for i in range(1, len(segs)):
                 expected_dirs.add(f"{base}/" + "/".join(segs[:i]))
-        # 1) orphan files
         for lg in sorted(actual_files):
             if lg not in expected:
                 try:
@@ -743,8 +707,8 @@ def sync_course(dav, course_id, rel_folder, state):
                     log.info("pruned file %s", lg)
                 except Exception as e:
                     log.error("prune file failed %s: %s", lg, e)
-        # 2) orphan folders (shallowest first; DELETE on a collection removes its subtree,
-        #    so nested orphans below it just 404 on their turn, which delete() ignores)
+        # shallowest first: deleting a collection removes its subtree, so nested orphans below
+        # it just 404 (ignored by delete()).
         for d in sorted(actual_dirs - expected_dirs, key=lambda p: p.count("/")):
             try:
                 dav.delete(d); pruned += 1
@@ -756,14 +720,14 @@ def sync_course(dav, course_id, rel_folder, state):
 
 
 def load_courses():
+    """Returns (mapped {id: path}, skipped {id}). Non-numeric keys are ignored;
+    a null/false/""/"skip" value means explicitly skip (no 'new course' notification)."""
     path = _resolve_courses_file()
     if not path:
         sys.exit("FATAL: no course map found. Create /data/courses.json "
                  "(see courses.example.json for the format).")
     with open(path) as f:
         raw = json.load(f)
-    # numeric course IDs only (ignores helper keys like "_comment").
-    # value null/false/""/"skip" => explicitly skipped (silent, no "new course" ping).
     mapped, skipped = {}, set()
     for k, v in raw.items():
         if not str(k).isdigit():
@@ -797,31 +761,41 @@ def run_once(dav, state):
                 ws("core_enrol_get_users_courses", userid=userid)}
     mapped, skipped = load_courses()
 
+    # Two courses pointing at the same folder would prune each other's files — refuse both.
+    by_target = {}
+    for cid, rel in mapped.items():
+        by_target.setdefault(rel, []).append(cid)
+    dup_targets = {rel for rel, cids in by_target.items() if len(cids) > 1}
+    if dup_targets:
+        notify("⚠️ icorsi-sync: multiple courses map to the same folder "
+               f"({', '.join(sorted(dup_targets))}); skipping them — give each a unique folder.")
+
     archived = set(state.get("archived_courses", []))
     known_unmapped = set(state.get("known_unmapped", []))
 
-    # new enrolled course that is neither mapped nor explicitly skipped -> notify once
     for cid, name in enrolled.items():
         if cid in mapped or cid in skipped or cid in known_unmapped:
             continue
         notify(f"🆕 icorsi-sync: new enrolled course not mapped: {cid} — {name}\n"
                f"Add it to courses.json to start syncing (or set it to null to skip).")
         known_unmapped.add(cid)
-    known_unmapped &= set(enrolled)               # forget ones now gone
-    known_unmapped -= set(mapped)                 # forget ones now mapped
-    known_unmapped -= skipped                     # forget ones now explicitly skipped
+    known_unmapped &= set(enrolled)
+    known_unmapped -= set(mapped)
+    known_unmapped -= skipped
 
     total_dl = total_sk = total_err = total_pr = 0
     changed_courses = []
 
     for cid, rel in mapped.items():
+        if rel in dup_targets:
+            continue
         if cid not in enrolled:
             if cid not in archived:
                 notify(f"📦 icorsi-sync: course {cid} no longer in your enrolments "
                        f"(passed/unenrolled?). Keeping existing files, skipping from now on.")
                 archived.add(cid)
             continue
-        archived.discard(cid)                     # re-enrolled? resume
+        archived.discard(cid)                     # re-enrolled -> resume
         try:
             dl, sk, err, pr = sync_course(dav, cid, rel, state)
             total_dl += dl; total_sk += sk; total_err += err; total_pr += pr
