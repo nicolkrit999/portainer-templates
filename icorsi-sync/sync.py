@@ -541,7 +541,9 @@ def fetch_forums(course_id):
     forums = ws("mod_forum_get_forums_by_courses", **{"courseids[0]": course_id})
     for f in forums:
         fname = clean_name(f.get("name"), "forum")
-        folder = "_annunci" if f.get("type") == "news" else f"_forum/{fname}"
+        # "000 - " pins forums to the very top of the course folder (before 001 - …),
+        # consistent with the numbered ordering instead of an underscore that sorts last.
+        folder = "000 - Annunci" if f.get("type") == "news" else f"000 - Forum/{fname}"
         try:
             discs = ws("mod_forum_get_forum_discussions", forumid=f["id"]).get("discussions", [])
         except MoodleError as e:
