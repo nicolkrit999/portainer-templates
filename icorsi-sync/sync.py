@@ -234,10 +234,9 @@ class WebDav:
         self.hdr = basic_auth_header(user, pw)
         # ownCloud rejects requests whose Host isn't a trusted domain with HTTP 400.
         # When we reach the container directly (http://owncloud:8080), send the public
-        # trusted hostname as Host (and X-Forwarded-Host) so the request is accepted.
+        # trusted hostname as Host so the request is accepted.
         if host_header:
             self.hdr["Host"] = host_header
-            self.hdr["X-Forwarded-Host"] = host_header
         # path prefix of the dav root, e.g. /remote.php/dav/files/oc_admin
         self.root_path = urllib.parse.urlsplit(self.base).path.rstrip("/")
         self._ensured = set()
