@@ -292,7 +292,11 @@ class WebDav:
 
     def list_files(self, logical_dir):
         """Recursively list files under logical_dir. Returns {logical_path: size}."""
-        out = {}
+        return self._list(logical_dir)[0]
+
+    def _list(self, logical_dir):
+        """Recursively walk logical_dir. Returns ({file_path: size}, {dir_path})."""
+        out, dirs = {}, set()
         stack = [logical_dir.strip("/")]
         body = ('<?xml version="1.0"?>'
                 '<d:propfind xmlns:d="DAV:"><d:prop>'
@@ -312,10 +316,11 @@ class WebDav:
                 if rel.strip("/") == d.strip("/"):
                     continue                  # the directory itself
                 if is_col:
+                    dirs.add(rel.strip("/"))
                     stack.append(rel)
                 else:
                     out[rel] = size
-        return out
+        return out, dirs
 
     def _parse_multistatus(self, raw):
         ns = {"d": "DAV:"}
@@ -716,18 +721,34 @@ def sync_course(dav, course_id, rel_folder, state):
         log.error("STILL MISSING after %d passes: %s", passes, lg)
     errors = len(missing)
 
-    # ---- prune orphans (opt-in, safeguarded): exactly one current copy ----
+    # ---- prune orphans (opt-in, safeguarded): leave ONLY the current expected set.
+    #      Anything in _icorsi/ not produced by this course — old/unnumbered files AND
+    #      their folders — is deleted (to ownCloud trash). Confined to base. ----
     pruned = 0
     if PRUNE_ORPHANS and expected and errors == 0:
-        for lg in sorted(actual):
+        actual_files, actual_dirs = dav._list(base)
+        # every directory that legitimately holds an expected item (ancestors under base)
+        expected_dirs = set()
+        for lg in expected:
+            segs = lg[len(base) + 1:].split("/")
+            for i in range(1, len(segs)):
+                expected_dirs.add(f"{base}/" + "/".join(segs[:i]))
+        # 1) orphan files
+        for lg in sorted(actual_files):
             if lg not in expected:
                 try:
-                    dav.delete(lg)
-                    fstate.pop(lg, None)
-                    pruned += 1
-                    log.info("pruned orphan %s", lg)
+                    dav.delete(lg); fstate.pop(lg, None); pruned += 1
+                    log.info("pruned file %s", lg)
                 except Exception as e:
-                    log.error("prune failed %s: %s", lg, e)
+                    log.error("prune file failed %s: %s", lg, e)
+        # 2) orphan folders (shallowest first; DELETE on a collection removes its subtree,
+        #    so nested orphans below it just 404 on their turn, which delete() ignores)
+        for d in sorted(actual_dirs - expected_dirs, key=lambda p: p.count("/")):
+            try:
+                dav.delete(d); pruned += 1
+                log.info("pruned folder %s", d)
+            except Exception as e:
+                log.error("prune folder failed %s: %s", d, e)
 
     return uploaded, skipped, errors, pruned
 
