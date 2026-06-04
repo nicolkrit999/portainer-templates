@@ -83,7 +83,8 @@ Set these where you run the container (e.g. Portainer stack env). Secrets stay h
 |---|---|
 | `ICORSI_TOKEN` | your Moodle token (secret) |
 | `OWNCLOUD_WEBDAV_URL` | ownCloud WebDAV URL, e.g. `http://owncloud:8080/remote.php/dav/files/<user>` |
-| `OWNCLOUD_USER` / `OWNCLOUD_PASS` | ownCloud login (secret) |
+| `OWNCLOUD_USER` / `OWNCLOUD_APP_PASSWORD` | ownCloud login — use an **app password** (secret) |
+| `OWNCLOUD_HOST_HEADER` | trusted domain to send as `Host` when hitting the container directly (else ownCloud returns HTTP 400), e.g. `owncloud.nicolkrit.ch` |
 | `OWNCLOUD_BASE_PATH` | base folder the `courses.json` paths are relative to |
 | `DISCORD_WEBHOOK_URL` | optional — get notified of new files / new courses / problems |
 
