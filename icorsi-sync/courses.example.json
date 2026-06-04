@@ -1,0 +1,6 @@
+{
+  "_comment": "Map iCorsi course ID (string) -> destination folder relative to OWNCLOUD_BASE_PATH. Use null to skip a course (keeps it documented but never syncs). Files land in <folder>/<SUBFOLDER>/ (default _icorsi). The REAL file goes in the private /data volume, NOT in this public repo.",
+  "12345": "0001 Example Subject",
+  "23456": "0002 Another Subject/2-semestre",
+  "34567": null
+}

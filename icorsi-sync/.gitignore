@@ -1,0 +1,7 @@
+courses.json
+*.env
+.env
+data/
+state.json
+__pycache__/
+*.pyc
