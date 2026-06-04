@@ -713,7 +713,7 @@ def run_once(dav, state):
             dl, sk, err = sync_course(dav, cid, rel, state)
             total_dl += dl; total_sk += sk; total_err += err
             if dl or err:
-                changed_courses.append(f"{enrolled[cid][:40]}: +{dl}" + (f" ⚠️{err}" if err else ""))
+                changed_courses.append(f"[{cid}] {enrolled[cid]}: +{dl}" + (f" ⚠️{err}" if err else ""))
             log.info("course %s (%s): %d new, %d ok, %d errors", cid, rel, dl, sk, err)
             save_state(state)                     # checkpoint per course
         except MoodleError as e:
