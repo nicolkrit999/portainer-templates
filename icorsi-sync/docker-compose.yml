@@ -26,6 +26,8 @@ services:
       SAVE_SECTION_INFO: "${SAVE_SECTION_INFO:-true}"      # labels + section intros -> _info.md
       SAVE_FORUMS: "${SAVE_FORUMS:-true}"                  # forums/announcements -> .md (read-only)
       EXCLUDE_MODULES: "${EXCLUDE_MODULES:-}"              # optional opt-out filter; empty = fetch from all types
+      PRUNE_ORPHANS: "${PRUNE_ORPHANS:-false}"            # delete files no longer in the course (one current copy; to trash)
+      RECON_MAX_PASSES: "${RECON_MAX_PASSES:-5}"          # reconcile passes that retry still-missing files
       SYNC_INTERVAL_SECONDS: "${SYNC_INTERVAL_SECONDS:-21600}"   # 6h
       RUN_ON_START: "${RUN_ON_START:-true}"
       DRY_RUN: "${DRY_RUN:-false}"
