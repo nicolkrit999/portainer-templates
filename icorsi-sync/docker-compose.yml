@@ -16,8 +16,9 @@ services:
       ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token
       # --- ownCloud WebDAV target (reached locally over the shared docker network) ---
       OWNCLOUD_WEBDAV_URL: "${OWNCLOUD_WEBDAV_URL}"         # e.g. http://owncloud:8080/remote.php/dav/files/oc_admin
-      OWNCLOUD_USER: "${OWNCLOUD_USER}"                     # secret
-      OWNCLOUD_PASS: "${OWNCLOUD_PASS}"                     # secret
+      OWNCLOUD_USER: "${OWNCLOUD_USER}"
+      OWNCLOUD_APP_PASSWORD: "${OWNCLOUD_APP_PASSWORD}"     # secret (ownCloud app password)
+      OWNCLOUD_HOST_HEADER: "${OWNCLOUD_HOST_HEADER:-}"     # trusted domain, e.g. owncloud.nicolkrit.ch (avoids HTTP 400)
       OWNCLOUD_BASE_PATH: "${OWNCLOUD_BASE_PATH}"           # e.g. University/Supsi
       # --- behaviour ---
       SUBFOLDER: "${SUBFOLDER:-_icorsi}"
