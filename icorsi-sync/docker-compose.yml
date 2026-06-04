@@ -2,6 +2,7 @@ services:
   icorsi-sync:
     build: .
     image: icorsi-sync:local
+    pull_policy: build          # locally built image — never try to pull from a registry
     container_name: icorsi-sync
     restart: unless-stopped
     security_opt:
