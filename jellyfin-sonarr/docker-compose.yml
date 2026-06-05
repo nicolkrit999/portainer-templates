@@ -1,0 +1,19 @@
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/jellyfin-sonarr/config:/config
+      - ${DOCKER_DATA_DIR}/jellyfin/tv-shows:/tv
+    networks:
+      - cloudflare_web_network
+    restart: unless-stopped
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

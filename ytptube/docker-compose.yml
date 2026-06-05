@@ -1,0 +1,28 @@
+services:
+  ytptube:
+    image: ghcr.io/arabcoders/ytptube
+    container_name: YTPTube
+    user: "${PUID}:${PGID}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -u ${YTP_AUTH_USERNAME}:${YTP_AUTH_PASSWORD} http://127.0.0.1:8081/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    environment:
+      - YTP_AUTH_USERNAME=${YTP_AUTH_USERNAME}
+      - YTP_AUTH_PASSWORD=${YTP_AUTH_PASSWORD}
+      - YTP_LOG_LEVEL=INFO
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/ytptube/config:/config:rw
+      - ${DOCKER_DATA_DIR}/ytptube/downloads:/downloads:rw
+      - ${DOCKER_DATA_DIR}/ytptube/downloads:/tmp:rw
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

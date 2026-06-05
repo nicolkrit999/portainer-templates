@@ -1,0 +1,24 @@
+services:
+  qbittorrent:
+    container_name: qbit-torrent
+    image: ghcr.io/linuxserver/qbittorrent:latest
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${WEBUI_PORT}/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 16g
+    cpu_shares: 768
+    security_opt:
+      - no-new-privileges:true
+    network_mode: host
+    tty: true
+    volumes:
+      - "${DOCKER_CONFIG_DIR}/qbit-torrent/config:/config:rw"
+      - "${DOCKER_DATA_DIR}/qbit-torrent/downloads:/downloads:rw"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=${WEBUI_PORT}

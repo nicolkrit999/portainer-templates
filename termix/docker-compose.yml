@@ -1,0 +1,22 @@
+services:
+  termix:
+    image: ghcr.io/lukegus/termix:latest
+    container_name: termix
+    restart: unless-stopped
+    user: "0:0"
+    privileged: true
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/termix:/app/data:rw
+    networks:
+      - cloudflare_web_network
+    healthcheck:
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
