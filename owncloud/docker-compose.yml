@@ -1,7 +1,7 @@
 services:
   owncloud:
     image: owncloud/server:latest
-    container_name: owncloud
+    container_name: "owncloud"
     restart: always
     privileged: true
     environment:
