@@ -1,0 +1,19 @@
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=0
+      - PGID=0
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/jellyfin-radarr/config:/config
+      - ${DOCKER_DATA_DIR}/jellyfin/movies:/movies
+    networks:
+      - cloudflare_web_network
+    restart: unless-stopped
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

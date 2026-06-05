@@ -1,0 +1,16 @@
+services:
+    ittols:
+        container_name: it-tools
+        image: corentinth/it-tools
+        mem_limit: 2g
+        cpu_shares: 768
+        security_opt:
+            - no-new-privileges:true
+        restart: unless-stopped
+        networks:
+            - cloudflare_web_network
+
+networks:
+    cloudflare_web_network:
+        name: cloudflare-web
+        external: true

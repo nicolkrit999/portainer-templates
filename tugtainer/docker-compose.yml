@@ -1,0 +1,18 @@
+services:
+  app:
+    container_name: tugtainer
+    image: quenary/tugtainer:latest
+    environment:
+      - PGID=121 # docker id, needed to allow update
+      - PUID=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER_CONFIG_DIR}/tugtainer/app:/tugtainer
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

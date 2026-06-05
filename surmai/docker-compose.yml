@@ -1,0 +1,26 @@
+services:
+  surmai:
+    image: ghcr.io/rohitkumbhar/surmai:latest
+    container_name: viaggi
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    volumes:
+      - ${DOCKER_DATA_DIR}/surmai:/pb_data:rw
+    environment:
+      SURMAI_ADMIN_EMAIL: "${SURMAI_ADMIN_EMAIL}"
+      SURMAI_ADMIN_PASSWORD: "${SURMAI_ADMIN_PASSWORD}"
+      PB_DATA_DIRECTORY: /pb_data
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

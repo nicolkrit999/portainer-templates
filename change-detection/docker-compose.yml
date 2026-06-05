@@ -1,0 +1,51 @@
+services:
+  changedetection:
+    container_name: change-detection
+    image: dgtlmoon/changedetection.io:latest
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/5000' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/changedetection/datastore:/datastore:rw
+    depends_on:
+      sockpuppetbrowser:
+        condition: service_started
+    environment:
+      - TZ=${TZ}
+      - PLAYWRIGHT_DRIVER_URL=ws://sockpuppetbrowser:3000
+      - LC_ALL=C.UTF-8
+      - LANG=C.UTF-8
+      - SOCKETIO_ASYNC_MODE=threading
+    networks:
+      - cloudflare_web_network
+
+  sockpuppetbrowser:
+    container_name: changedetection-sock
+    image: dgtlmoon/sockpuppetbrowser:latest
+    security_opt:
+      - seccomp:unconfined
+    shm_size: "2g"
+    restart: unless-stopped
+    environment:
+      - SCREEN_WIDTH=1920
+      - SCREEN_HEIGHT=1080
+    healthcheck:
+      test: [
+        "CMD-SHELL",
+        "python3 -c 'import socket; s = socket.socket(); s.settimeout(5); s.connect((\"127.0.0.1\", 3000))'"
+      ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
