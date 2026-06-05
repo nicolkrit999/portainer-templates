@@ -13,14 +13,14 @@ services:
       retries: 3
       start_period: 90s
     volumes:
-      - /volume2/docker/blender:/config:rw
-      - /volume1/Default-volume-1/0001_Docker/blender/projects:/projects:rw
+      - ${DOCKER_CONFIG_DIR}/blender:/config:rw
+      - ${DOCKER_DATA_DIR}/blender/projects:/projects:rw
     environment:
-      TZ: Europe/Zurich
-      CUSTOM_USER: krit
-      PASSWORD: ${PASSWORD}
-      PUID: 1000
-      PGID: 10
+      TZ: "${TZ}"
+      CUSTOM_USER: "${ADMIN_USER}"
+      PASSWORD: "${PASSWORD}"
+      PUID: "${PUID}"
+      PGID: "${PGID}"
       TITLE: Blender
       FILE_MANAGER_PATH: /projects
       WEBPUI_PORT: 8082

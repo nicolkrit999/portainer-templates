@@ -4,7 +4,7 @@ services:
     container_name: snappymail
     restart: unless-stopped
     volumes:
-      - /volume2/docker/snappymail:/var/lib/snappymail
+      - ${DOCKER_CONFIG_DIR}/snappymail:/var/lib/snappymail
     environment:
       - ALLOW_ADMIN_PANEL=1
     networks:

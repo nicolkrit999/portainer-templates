@@ -6,15 +6,15 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - TZ=Europe/Zurich
-      - ACTUAL_SERVER=http://ActualBudget:5006
+      - TZ=${TZ}
+      - ACTUAL_SERVER=${ACTUAL_SERVER}
       - ACTUAL_MAIN_PASSWORD=${ACTUAL_PASSWORD}
       - ACTUAL_SYNC_PASSWORD=${ACTUAL_ENCRYPTION_PASSWORD}
       - ACTUAL_SYNC_ID=${ACTUAL_SYNC_ID}
       - SYNC_ID_AS_URL=true
-      - CURRENCY=CHF
+      - CURRENCY=${CURRENCY}
     volumes:
-      - /volume2/docker/actualical:/app/.actual-cache
+      - ${DOCKER_CONFIG_DIR}/actualical:/app/.actual-cache
     networks:
       - cloudflare_web_network
 

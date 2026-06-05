@@ -4,7 +4,7 @@ services:
   immich-server:
     container_name: immich_server
     image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
-    user: "1000:10"
+    user: "${PUID}:${PGID}"
     environment:
       - IMMICH_HOST=0.0.0.0
       - HOST=0.0.0.0
@@ -39,7 +39,7 @@ services:
   immich-machine-learning:
     container_name: immich_machine_learning
     image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
-    user: "1000:10"
+    user: "${PUID}:${PGID}"
     devices:
       - /dev/dri:/dev/dri
     environment:
@@ -50,7 +50,7 @@ services:
       - REDIS_HOSTNAME=immich_redis
       - MPLCONFIGDIR=/cache/matplotlib
     volumes:
-      - /volume1/Default-volume-1/0001_Docker/immich/model-cache:/cache
+      - ${DOCKER_DATA_DIR}/immich/model-cache:/cache
       - "${UPLOAD_LOCATION}:/data"
     restart: always
     networks:
@@ -66,7 +66,7 @@ services:
     container_name: immich_redis
     image: docker.io/valkey/valkey:8-bookworm@sha256:fea8b3e67b15729d4bb70589eb03367bab9ad1ee89c876f54327fc7c6e618571
     volumes:
-      - /volume2/docker/immich/redis:/data
+      - ${DOCKER_CONFIG_DIR}/immich/redis:/data
     restart: always
     networks:
       - cloudflare_web_network

@@ -4,16 +4,16 @@ services:
     container_name: atticd
     restart: unless-stopped
     command: ["-f", "/etc/atticd/server.toml"]
-    user: "1000:10"
+    user: "${PUID}:${PGID}"
     ports:
       - "8081:8080"
     environment:
       ATTIC_SERVER_TOKEN_RS256_SECRET_BASE64: "${ATTIC_SERVER_TOKEN_RS256_SECRET_BASE64}"
-      TZ: "Europe/Zurich"
+      TZ: "${TZ}"
     volumes:
-      - /volume2/docker/attic/db:/var/lib/atticd/db
-      - /volume1/Default-volume-1/0001_Docker/attic/storage:/var/lib/atticd/storage
-      - /volume2/docker/attic/config/server.toml:/etc/atticd/server.toml:ro
+      - ${DOCKER_CONFIG_DIR}/attic/db:/var/lib/atticd/db
+      - ${DOCKER_DATA_DIR}/attic/storage:/var/lib/atticd/storage
+      - ${DOCKER_CONFIG_DIR}/attic/config/server.toml:/etc/atticd/server.toml:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/ || exit 1"]
       interval: 30s

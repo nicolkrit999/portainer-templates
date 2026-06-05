@@ -8,14 +8,14 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
     volumes:
-      - /volume2/docker/audiobookshelf:/config:rw
-      - /volume1/Default-volume-1/0001_Docker/audiobookshelf/audiobooks:/audiobooks:rw
-      - /volume1/Default-volume-1/0001_Docker/audiobookshelf/podcasts:/podcasts:rw
-      - /volume2/docker/audiobookshelf/metadata:/metadata:rw
+      - ${DOCKER_CONFIG_DIR}/audiobookshelf:/config:rw
+      - ${DOCKER_DATA_DIR}/audiobookshelf/audiobooks:/audiobooks:rw
+      - ${DOCKER_DATA_DIR}/audiobookshelf/podcasts:/podcasts:rw
+      - ${DOCKER_CONFIG_DIR}/audiobookshelf/metadata:/metadata:rw
     environment:
-      PUID: 1000
-      PGID: 10
-      TZ: Europe/Zurich
+      PUID: "${PUID}"
+      PGID: "${PGID}"
+      TZ: "${TZ}"
     networks:
       - cloudflare_web_network
 

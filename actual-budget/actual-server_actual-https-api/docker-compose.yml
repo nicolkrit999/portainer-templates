@@ -4,9 +4,9 @@ services:
     container_name: ActualBudget
     restart: always
     environment:
-      - 'TZ=Europe/Zurich'
+      - TZ=${TZ}
     volumes:
-      - /volume2/docker/actual-budget/actual-data:/data
+      - ${DOCKER_CONFIG_DIR}/actual-budget/actual-data:/data
     networks:
       - cloudflare_web_network
     ports:

@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: vikunjauser
       POSTGRES_PASSWORD: vikunjapass
     volumes:
-      - /volume2/docker/vikunja/db:/var/lib/postgresql
+      - ${DOCKER_CONFIG_DIR}/vikunja/db:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d vikunja -U vikunjauser"]
       interval: 10s
@@ -24,14 +24,14 @@ services:
     hostname: vikunja
     security_opt:
       - no-new-privileges:true
-    user: 1000:10
+    user: "${PUID}:${PGID}"
     restart: unless-stopped
     ports:
       - 3456:3456
     environment:
       VIKUNJA_MAILER_ENABLED: "true"
-      VIKUNJA_MAILER_HOST: smtp.gmail.com
-      VIKUNJA_MAILER_PORT: 587
+      VIKUNJA_MAILER_HOST: "${VIKUNJA_MAILER_HOST}"
+      VIKUNJA_MAILER_PORT: "${VIKUNJA_MAILER_PORT}"
       VIKUNJA_MAILER_SKIPTLSVERIFY: "false"
       VIKUNJA_MAILER_AUTHTYPE: login
       VIKUNJA_MAILER_USERNAME: ${VIKUNJA_MAILER_USERNAME}
@@ -48,7 +48,7 @@ services:
       VIKUNJA_SERVICE_ENABLEREGISTRATION: "false"
       HOME: /app/vikunja/files
     volumes:
-      - /volume2/docker/vikunja/files:/app/vikunja/files:rw
+      - ${DOCKER_CONFIG_DIR}/vikunja/files:/app/vikunja/files:rw
     networks:
       - default
       - cloudflare_web_network
