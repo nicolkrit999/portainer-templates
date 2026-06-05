@@ -44,9 +44,9 @@ services:
       - /dev/dri:/dev/dri
     environment:
       - DB_HOSTNAME=database
-      - DB_USERNAME=${DB_USERNAME}
+      - DB_USERNAME=immich
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_DATABASE_NAME=${DB_DATABASE_NAME}
+      - DB_DATABASE_NAME=immich
       - REDIS_HOSTNAME=immich_redis
       - MPLCONFIGDIR=/cache/matplotlib
     volumes:
