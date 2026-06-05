@@ -12,9 +12,9 @@ services:
       - PUBLIC_IMMICH_SERVER_URL=${PUBLIC_IMMICH_SERVER_URL}
 
       - DB_HOSTNAME=database
-      - DB_USERNAME=${DB_USERNAME}
+      - DB_USERNAME=immich
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_DATABASE_NAME=${DB_DATABASE_NAME}
+      - DB_DATABASE_NAME=immich
       - REDIS_HOSTNAME=immich_redis
 
     volumes:
