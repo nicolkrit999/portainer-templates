@@ -1,0 +1,23 @@
+services:
+  homebox:
+    container_name: homebox
+    image: ghcr.io/sysadminsmedia/homebox:latest
+    mem_limit: 3g
+    cpu_shares: 1024
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/homebox:/data:rw
+    environment:
+      HBOX_LOG_LEVEL: "info"
+      HBOX_LOG_FORMAT: "text"
+      HBOX_WEB_MAX_UPLOAD_SIZE: "5000"
+      TZ: "${TZ}"
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

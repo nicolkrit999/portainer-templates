@@ -1,0 +1,29 @@
+services:
+  navidrome:
+    container_name: navidrome
+    image: deluan/navidrome
+    mem_limit: 6g
+    cpu_shares: 1024
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/navidrome:/data:rw
+      - ${DOCKER_CONFIG_DIR}/navidrome/music-root:/music:rw
+      - /home/krit/Music:/music/krit:ro
+      - /home/roberta/Music:/music/roberta:ro
+      - /home/paul/Music:/music/paul:ro
+      - ${DOCKER_CONFIG_DIR}/navidrome/empty-library-fallback:/empty:rw
+      - ${DOCKER_CONFIG_DIR}/navidrome/cache:/var/cache/navidrome:rw
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      ND_ENABLEINSIGHTSCOLLECTOR: false
+      ND_MUSICFOLDER: /music
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

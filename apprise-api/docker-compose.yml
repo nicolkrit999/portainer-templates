@@ -1,0 +1,20 @@
+services:
+  apprise-api:
+    image: lscr.io/linuxserver/apprise-api:latest
+    container_name: apprise-api
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/apprise/config:/config
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+    ports:
+      - 8010:8000
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

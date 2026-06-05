@@ -1,0 +1,26 @@
+name: uptime-kuma
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/uptime-kuma:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - cloudflare_web_network
+    healthcheck:
+      test: ["CMD", "node", "/app/extra/healthcheck.js"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 180s
+
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

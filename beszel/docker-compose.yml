@@ -1,0 +1,34 @@
+services:
+  beszel:
+    container_name: beszel
+    image: henrygd/beszel:latest
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/beszel:/beszel_data:rw
+    ports:
+      - "8096:8090"
+    environment:
+      - PORT=8090
+    restart: always
+    networks:
+      - cloudflare_web_network
+
+  beszel-agent:
+    image: henrygd/beszel-agent
+    container_name: Beszel-Agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DOCKER_CONFIG_DIR}/beszel/agent:/var/lib/beszel-agent:rw
+    environment:
+      TOKEN: "${BESZEL_AGENT_TOKEN}"
+      HUB_URL: "${BESZEL_HUB_URL}"
+      LISTEN: "45876"
+      KEY: "${BESZEL_AGENT_KEY}"
+      FILESYSTEM: "${BESZEL_FILESYSTEM}"
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
