@@ -13,12 +13,12 @@ services:
     ports:
       - 3059:3001
     volumes:
-      - /volume2/docker/claude/data:/home/claude/.claude:rw
-      - /volume2/docker/claude/workspace:/workspace:rw
+      - ${DOCKER_CONFIG_DIR}/claude/data:/home/claude/.claude:rw
+      - ${DOCKER_CONFIG_DIR}/claude/workspace:/workspace:rw
     environment:
-      TZ: "Europe/Zurich"
-      PUID: 1000
-      PGID: 10
+      TZ: "${TZ}"
+      PUID: "${PUID}"
+      PGID: "${PGID}"
       # ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
     logging:
       options:

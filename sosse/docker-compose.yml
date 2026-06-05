@@ -2,7 +2,7 @@ services:
     db:
         image: postgres:latest
         container_name: sosse-db
-        hostname: sosse-db.nicolkrit.ch
+        hostname: "${SOSSE_DB_HOSTNAME}"
         user: 999:10
         security_opt:
             - no-new-privileges:true
@@ -16,7 +16,7 @@ services:
             POSTGRES_USER: sosseuser
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
         volumes:
-            - /volume1/Default-volume-1/0001_Docker/sosse/db:/var/lib/postgresql
+            - ${DOCKER_DATA_DIR}/sosse/db:/var/lib/postgresql
         restart: unless-stopped
         networks:
             - cloudflare_web_network
@@ -33,7 +33,7 @@ services:
         environment:
             PUID: 10
             PGID: 1000
-            TZ: Europe/Zurich
+            TZ: "${TZ}"
             SOSSE_DB_NAME: sosse
             SOSSE_DB_USER: sosseuser
             SOSSE_DB_PASS: ${SOSSE_DB_PASS}
@@ -43,7 +43,7 @@ services:
             SOSSE_USE_TZ: true
             SOSSE_TIMEZONE: Europe/Zurich
         volumes:
-            - /volume1/Default-volume-1/0001_Docker/sosse/app:/var/lib/sosse
+            - ${DOCKER_DATA_DIR}/sosse/app:/var/lib/sosse
         depends_on:
             - db
         restart: unless-stopped

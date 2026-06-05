@@ -3,15 +3,15 @@ services:
         image: docker.gitea.com/gitea:latest
         container_name: gitea
         environment:
-            - USER_UID=1000
-            - USER_GID=10
-            - GITEA__server__ROOT_URL=https://gitea.nicolkrit.ch/
-            - GITEA__server__DOMAIN=gitea.nicolkrit.ch
+            - USER_UID=${PUID}
+            - USER_GID=${PGID}
+            - GITEA__server__ROOT_URL=${GITEA_ROOT_URL}
+            - GITEA__server__DOMAIN=${GITEA_DOMAIN}
             - GITEA__server__SSH_PORT=22
-            - GITEA__server__SSH_DOMAIN=gitea-ssh.nicolkrit.ch
+            - GITEA__server__SSH_DOMAIN=${GITEA_SSH_DOMAIN}
         restart: unless-stopped
         volumes:
-            - /volume1/Default-volume-1/0001_Docker/gitea/gitea:/data
+            - ${DOCKER_DATA_DIR}/gitea/gitea:/data
             - /etc/timezone:/etc/timezone:ro
             - /etc/localtime:/etc/localtime:ro
         networks:

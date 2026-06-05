@@ -3,15 +3,15 @@ services:
     image: lscr.io/linuxserver/plex:latest
     container_name: plex
     environment:
-      - PUID=1000
-      - PGID=10
-      - TZ=Europe/Zurich
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
       - VERSION=docker
       - PLEX_CLAIM=${PLEX_CLAIM}
     volumes:
-      - /volume2/docker/plex/config:/config
-      - /volume1/Default-volume-1/0001_Docker/jellyfin/tv-shows:/tv
-      - /volume1/Default-volume-1/0001_Docker/jellyfin/movies:/movie
+      - ${DOCKER_CONFIG_DIR}/plex/config:/config
+      - ${DOCKER_DATA_DIR}/jellyfin/tv-shows:/tv
+      - ${DOCKER_DATA_DIR}/jellyfin/movies:/movie
     networks:
       - cloudflare_web_network
     restart: unless-stopped

@@ -3,13 +3,13 @@ services:
     image: antlafarge/jdownloader:latest
     container_name: jdownloader
     restart: unless-stopped
-    user: "1000:10"
+    user: "${PUID}:${PGID}"
     volumes:
-      - "/volume1/Default-volume-1/0001_Docker/jdownloader:/jdownloader/downloads/"
-      - "/volume2/docker/jdownloader/config:/jdownloader/cfg/"
-      - "/volume2/docker/jdownloader/logs:/jdownloader/logs/"
+      - "${DOCKER_DATA_DIR}/jdownloader:/jdownloader/downloads/"
+      - "${DOCKER_CONFIG_DIR}/jdownloader/config:/jdownloader/cfg/"
+      - "${DOCKER_CONFIG_DIR}/jdownloader/logs:/jdownloader/logs/"
     environment:
-      TZ: "Europe/Zurich"
+      TZ: "${TZ}"
     secrets:
       - JD_EMAIL
       - JD_PASSWORD
@@ -19,15 +19,15 @@ services:
 
 secrets:
   JD_EMAIL:
-    file: /volume2/docker/jdownloader/secrets/jd_email.txt
+    file: ${DOCKER_CONFIG_DIR}/jdownloader/secrets/jd_email.txt
   JD_PASSWORD:
-    file: /volume2/docker/jdownloader/secrets/jd_password.txt
+    file: ${DOCKER_CONFIG_DIR}/jdownloader/secrets/jd_password.txt
   JD_DEVICENAME:
-    file: /volume2/docker/jdownloader/secrets/jd_devicename.txt
+    file: ${DOCKER_CONFIG_DIR}/jdownloader/secrets/jd_devicename.txt
 
 networks:
   jd_custom_network:
     driver: bridge
     ipam:
       config:
-        - subnet: 10.100.10.0/24 
+        - subnet: 10.100.10.0/24

@@ -11,7 +11,7 @@ services:
       interval: 10s
       retries: 10
     volumes:
-      - /volume2/docker/linkwarden/db:/var/lib/postgresql/data:rw
+      - ${DOCKER_CONFIG_DIR}/linkwarden/db:/var/lib/postgresql/data:rw
     environment:
       POSTGRES_DB: linkwarden
       POSTGRES_USER: linkwardenuser
@@ -33,11 +33,11 @@ services:
     security_opt:
       - no-new-privileges:true
     volumes:
-      - /volume2/docker/linkwarden/data:/data/data:rw
+      - ${DOCKER_CONFIG_DIR}/linkwarden/data:/data/data:rw
     environment:
       DATABASE_URL: postgres://linkwardenuser:linkwardenpass@linkwarden-db:5432/linkwarden
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: https://linkwarden.nicolkrit.ch
+      NEXTAUTH_URL: "${NEXTAUTH_URL}"
       NEXT_PUBLIC_DISABLE_REGISTRATION: true
     restart: unless-stopped
     networks:

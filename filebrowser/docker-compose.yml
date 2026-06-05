@@ -7,8 +7,8 @@ services:
     expose:
       - "80"
     volumes:
-      - /volume2/docker/filebrowser/database:/database
-      - /volume2/docker/filebrowser/config:/config
+      - ${DOCKER_CONFIG_DIR}/filebrowser/database:/database
+      - ${DOCKER_CONFIG_DIR}/filebrowser/config:/config
       - /:/srv
     command: --database /database/filebrowser.db --root /srv --port 80
     networks:

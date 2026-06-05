@@ -1,14 +1,14 @@
 services:
   owncloud:
-    image: owncloud/server:${APP_VERSION}
-    container_name: ${APP_NAME}
+    image: owncloud/server:latest
+    container_name: owncloud
     restart: always
     privileged: true
     environment:
       - OWNCLOUD_DOMAIN=${APP_URL}
       - OWNCLOUD_DB_TYPE=mysql
-      - OWNCLOUD_DB_NAME=${DB_MARIADB_NAME}
-      - OWNCLOUD_DB_USERNAME=${DB_MARIADB_USER}
+      - OWNCLOUD_DB_NAME=owncloud
+      - OWNCLOUD_DB_USERNAME=owncloud
       - OWNCLOUD_DB_PASSWORD=${DB_MARIADB_PASSWORD}
       - OWNCLOUD_DB_HOST=mariadb
       - OWNCLOUD_ADMIN_USERNAME=${APP_USER}
@@ -25,7 +25,7 @@ services:
       fix-permissions:
         condition: service_completed_successfully
     volumes:
-      - /volume1/Default-volume-1/0001_Docker/owncloud/data:/mnt/data
+      - ${DOCKER_DATA_DIR}/owncloud/data:/mnt/data
     healthcheck:
       test: ["CMD", "/usr/bin/healthcheck"]
       interval: 30s
@@ -47,7 +47,7 @@ services:
       - MYSQL_PASSWORD=${DB_MARIADB_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${DB_MARIADB_PASSWORD}
     volumes:
-      - /volume2/docker/owncloud/mariadb:/var/lib/mysql
+      - ${DOCKER_CONFIG_DIR}/owncloud/mariadb:/var/lib/mysql
     depends_on:
       fix-permissions:
         condition: service_completed_successfully
@@ -61,7 +61,7 @@ services:
 
     command: ["redis-server", "--save", "", "--appendonly", "no", "--stop-writes-on-bgsave-error", "no"]
     volumes:
-      - /volume2/docker/owncloud/redis:/data
+      - ${DOCKER_CONFIG_DIR}/owncloud/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -95,9 +95,9 @@ services:
       echo 'Permissions fixed. Exiting.'
       "
     volumes:
-      - /volume2/docker/owncloud/redis:/fix/redis
-      - /volume2/docker/owncloud/mariadb:/fix/mariadb
-      - /volume1/Default-volume-1/0001_Docker/owncloud/data:/fix/data
+      - ${DOCKER_CONFIG_DIR}/owncloud/redis:/fix/redis
+      - ${DOCKER_CONFIG_DIR}/owncloud/mariadb:/fix/mariadb
+      - ${DOCKER_DATA_DIR}/owncloud/data:/fix/data
     networks:
       - cloudflare_web_network
 
