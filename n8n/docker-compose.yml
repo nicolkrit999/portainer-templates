@@ -1,8 +1,20 @@
 services:
+  n8n-db-init:
+    image: alpine
+    container_name: n8n-db-init
+    restart: "no"
+    user: "0"
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/n8n/db:/var/lib/postgresql
+    command: chown -R 999:999 /var/lib/postgresql
+
   n8n-db:
     image: postgres:18
     container_name: n8n-db
     restart: unless-stopped
+    depends_on:
+      n8n-db-init:
+        condition: service_completed_successfully
     security_opt:
       - no-new-privileges:true
     environment:
