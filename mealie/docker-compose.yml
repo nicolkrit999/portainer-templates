@@ -1,0 +1,35 @@
+services:
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:latest
+    container_name: mealie
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1000M
+    volumes:
+      - ${DOCKER_DATA_DIR}/mealie/mealie_data:/app/data/
+    environment:
+      - ALLOW_SIGNUP=true
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - MAX_WORKERS=1
+      - WEB_CONCURRENCY=1
+      - BASE_URL=${MEALIE_BASE_URL}
+      # --- OIDC Configuration ---
+      - OIDC_AUTH_ENABLED=true
+      - OIDC_SIGNUP_ENABLED=true
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - OIDC_SCOPES=openid profile email groups
+      - OIDC_USER_CLAIM=preferred_username
+      - OAUTH_PROVIDER_NAME=Pocket ID
+      - OIDC_CONFIGURATION_URL=${OIDC_CONFIGURATION_URL}
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

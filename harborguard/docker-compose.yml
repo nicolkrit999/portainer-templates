@@ -1,0 +1,82 @@
+services:
+  harborguard:
+    image: ghcr.io/harborguard/harborguard:latest
+    container_name: harborguard
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+      # Connect to the separate DB container
+      # Format: postgresql://USER:PASSWORD@HOST:PORT/DB_NAME
+      - DATABASE_URL=postgresql://harborguard:${DB_PASSWORD}@harborguard-db:5432/harborguard?schema=public
+
+      # Scanner configuration
+      - MAX_CONCURRENT_SCANS=4
+      - SCAN_TIMEOUT_MINUTES=30
+      - ENABLED_SCANNERS=trivy,grype,syft,dockle,osv,dive
+
+      # Caches
+      - TRIVY_CACHE_DIR=/opt/trivy-cache
+      - GRYPE_DB_CACHE_DIR=/opt/grype-cache
+      - SYFT_CACHE_DIR=/opt/syft-cache
+
+      # Logging & features
+      - LOG_LEVEL=info
+      - CLEANUP_OLD_SCANS_DAYS=30
+      - HEALTH_CHECK_ENABLED=true
+      - VERSION_CHECK_ENABLED=true
+      - STORE_RAW_SCAN_DATA=true
+      - STORE_METADATA_JSON=true
+      - USE_NORMALIZED_APIS=true
+      - ENABLE_LEGACY_FALLBACK=true
+      - AUTO_UPDATE_SUMMARIES=true
+      - SUMMARY_CACHE_TTL_MINUTES=5
+      - ENABLE_CVE_DEDUPLICATION=true
+      - DASHBOARD_API_TIMEOUT_MS=105000
+      - BATCH_SUMMARY_UPDATE_SIZE=10
+
+    volumes:
+      # Removed the DB volume from here
+      - ${DOCKER_CONFIG_DIR}/harborguard/trivy-cache:/opt/trivy-cache
+      - ${DOCKER_CONFIG_DIR}/harborguard/grype-cache:/opt/grype-cache
+      - ${DOCKER_CONFIG_DIR}/harborguard/syft-cache:/opt/syft-cache
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - cloudflare_web_network
+    depends_on:
+      - harborguard-db
+    healthcheck:
+      # Fixed: Use curl and 127.0.0.1
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  harborguard-db:
+    image: postgres:16-alpine
+    container_name: harborguard-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=harborguard
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=harborguard
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/harborguard/db:/var/lib/postgresql/data
+    networks:
+      - cloudflare_web_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harborguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

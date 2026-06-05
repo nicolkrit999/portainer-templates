@@ -1,0 +1,19 @@
+services:
+  kavita:
+    image: jvmilazz0/kavita:latest
+    container_name: kavita
+    volumes:
+      - ${DOCKER_DATA_DIR}/kavita/manga:/manga
+      - ${DOCKER_DATA_DIR}/kavita/comics:/comics
+      - ${DOCKER_DATA_DIR}/kavita/books:/books
+      - ${DOCKER_DATA_DIR}/kavita/data:/kavita/config
+    environment:
+      - TZ=${TZ}
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

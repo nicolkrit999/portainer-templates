@@ -1,0 +1,23 @@
+services:
+  homehub:
+    container_name: homehub
+    image: ghcr.io/surajverma/homehub:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+    restart: unless-stopped
+    volumes:
+      - ${DOCKER_DATA_DIR}/homehub/uploads:/app/uploads
+      - ${DOCKER_DATA_DIR}/homehub/media:/app/media
+      - ${DOCKER_DATA_DIR}/homehub/pdfs:/app/pdfs
+      - ${DOCKER_CONFIG_DIR}/homehub/data:/app/data
+      - ${DOCKER_CONFIG_DIR}/homehub/config.yml:/app/config.yml:ro
+    networks:
+      - cloudflare_web_network
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

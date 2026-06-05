@@ -1,0 +1,36 @@
+services:
+  stirling-pdf:
+    container_name: stirling-pdf
+    image: ghcr.io/stirling-tools/stirling-pdf
+    mem_limit: 4g
+    cpu_shares: 1024
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/stirling-pdf/data:/usr/share/tessdata:rw
+      - ${DOCKER_CONFIG_DIR}/stirling-pdf/config:/configs:rw
+      - ${DOCKER_CONFIG_DIR}/stirling-pdf/logs:/logs:rw
+    environment:
+     PUID: 1000
+     PGID: 10
+     DOCKER_ENABLE_SECURITY: true
+     SECURITY_ENABLELOGIN: true
+     SECURITY_INITIALLOGIN_USERNAME: "${STIRLING_PDF_USERNAME}"
+     SECURITY_INITIALLOGIN_PASSWORD: "${STIRLING_PDF_PASSWORD}"
+     INSTALL_BOOK_AND_ADVANCED_HTML_OPS: false
+     SECURITY_CSRFDISABLED: true
+     SYSTEM_DEFAULTLOCALE: it_CH
+     UI_APPNAME: kritPDF
+     UI_HOMEDESCRIPTION: kritPDF
+     UI_APPNAMENAVBAR: Bober
+     SYSTEM_MAXFILESIZE: 5000
+     METRICS_ENABLED: true
+     SYSTEM_GOOGLEVISIBILITY: false
+    restart: unless-stopped
+    networks:
+      - cloudflare_web_services
+
+networks:
+  cloudflare_web_services:
+    name: cloudflare-web
+    external: true
