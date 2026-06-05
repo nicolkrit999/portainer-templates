@@ -10,7 +10,7 @@ services:
             - MYSQL_PASSWORD=${MYSQL_PASSWORD}
             - TZ=${TZ}
         volumes:
-            - "/volume1/Default-volume-1/0001_Docker/ghost/mysql:/var/lib/mysql"
+            - "${DOCKER_DATA_DIR}/ghost/mysql:/var/lib/mysql"
         healthcheck:
             test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
             interval: 20s
@@ -45,7 +45,7 @@ services:
             - NODE_ENV=production
             - TZ=${TZ}
         volumes:
-            - "/volume1/Default-volume-1/0001_Docker/ghost/content:/var/lib/ghost/content"
+            - "${DOCKER_DATA_DIR}/ghost/content:/var/lib/ghost/content"
         networks:
             - cloudflare-web
 

@@ -6,13 +6,13 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      TZ: "Europe/Zurich"
+      TZ: "${TZ}"
       JWT_SECRET: "${JWT_SECRET}"
       ACCOUNT_REGISTRATION: "false"
       HTTP_ALLOWED: "true"
       ALLOW_UNAUTHENTICATED: "false"
     volumes:
-      - /volume1/Default-volume-1/0001_Docker/convertx:/app/data:rw
+      - ${DOCKER_DATA_DIR}/convertx:/app/data:rw
     networks:
       - cloudflare_web_network
     logging:

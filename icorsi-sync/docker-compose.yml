@@ -30,7 +30,7 @@ services:
       DRY_RUN: "${DRY_RUN:-false}"
       DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"       # secret, optional
     volumes:
-      - /volume2/docker/icorsi-sync/data:/data
+      - ${DOCKER_CONFIG_DIR}/icorsi-sync/data:/data
     networks:
       - cloudflare_web_network
     logging:
