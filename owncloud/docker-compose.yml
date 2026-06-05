@@ -1,14 +1,14 @@
 services:
   owncloud:
-    image: owncloud/server:${APP_VERSION}
-    container_name: ${APP_NAME}
+    image: owncloud/server:latest
+    container_name: owncloud
     restart: always
     privileged: true
     environment:
       - OWNCLOUD_DOMAIN=${APP_URL}
       - OWNCLOUD_DB_TYPE=mysql
-      - OWNCLOUD_DB_NAME=${DB_MARIADB_NAME}
-      - OWNCLOUD_DB_USERNAME=${DB_MARIADB_USER}
+      - OWNCLOUD_DB_NAME=owncloud
+      - OWNCLOUD_DB_USERNAME=owncloud
       - OWNCLOUD_DB_PASSWORD=${DB_MARIADB_PASSWORD}
       - OWNCLOUD_DB_HOST=mariadb
       - OWNCLOUD_ADMIN_USERNAME=${APP_USER}
