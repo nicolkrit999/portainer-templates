@@ -10,7 +10,7 @@ services:
     environment:
       # NOTE: every value is quoted on purpose — Portainer's stack deployer rejects
       # unquoted YAML booleans/numbers with an opaque "[object Object]" UI error.
-      TZ: "Europe/Zurich"
+      TZ: "${TZ}"
       ICORSI_BASE_URL: "https://www.icorsi.ch"
       ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token
       OWNCLOUD_WEBDAV_URL: "${OWNCLOUD_WEBDAV_URL}"         # e.g. http://owncloud:8080/remote.php/dav/files/oc_admin
