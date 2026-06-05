@@ -10,9 +10,9 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/navidrome:/data:rw
       - ${DOCKER_CONFIG_DIR}/navidrome/music-root:/music:rw
-      - /home/krit/Music:/music/krit:ro
-      - /home/roberta/Music:/music/roberta:ro
-      - /home/paul/Music:/music/paul:ro
+      - ${MUSIC_DIR_1}:/music/user1:ro
+      - ${MUSIC_DIR_2}:/music/user2:ro
+      - ${MUSIC_DIR_3}:/music/user3:ro
       - ${DOCKER_CONFIG_DIR}/navidrome/empty-library-fallback:/empty:rw
       - ${DOCKER_CONFIG_DIR}/navidrome/cache:/var/cache/navidrome:rw
     environment:
