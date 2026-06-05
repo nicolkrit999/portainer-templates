@@ -42,8 +42,8 @@ services:
       - --max-allowed-packet=128M
       - --innodb-log-file-size=64M
     environment:
-      - MYSQL_DATABASE=${DB_MARIADB_NAME}
-      - MYSQL_USER=${DB_MARIADB_USER}
+      - MYSQL_DATABASE=owncloud
+      - MYSQL_USER=owncloud
       - MYSQL_PASSWORD=${DB_MARIADB_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${DB_MARIADB_PASSWORD}
     volumes:
