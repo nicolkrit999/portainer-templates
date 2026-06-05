@@ -11,7 +11,7 @@ services:
     environment:
       - PUID=0
       - PGID=0
-      - TZ=Europe/Zurich
+      - TZ=${TZ}
       - SETTINGS_ENCRYPTION_KEY=${DUPLICATI_SETTINGS_ENCRYPTION_KEY}
       - DUPLICATI__WEBSERVICE_PASSWORD=${DUPLICATI_WEBSERVICE_PASSWORD}
 
@@ -19,11 +19,11 @@ services:
       - DUPLICATI__WEBSERVICE_ALLOWED_HOSTNAMES=*
 
     volumes:
-      - /volume2/docker/duplicati/config:/data
-      - /home:/home_ro:ro
-      - /volume1:/source1:ro
-      - /volume2:/source2:ro
-      - /volume1/Momentary-volume-1/duplicati-restore-temporary:/restore_temp:rw
+      - ${DOCKER_CONFIG_DIR}/duplicati/config:/data
+      - ${DUPLICATI_HOME_SOURCE}:/home_ro:ro
+      - ${DUPLICATI_SOURCE1}:/source1:ro
+      - ${DUPLICATI_SOURCE2}:/source2:ro
+      - ${DUPLICATI_RESTORE_TEMP}:/restore_temp:rw
       - /etc/localtime:/etc/localtime:ro
 
     healthcheck:

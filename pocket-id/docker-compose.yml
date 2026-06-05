@@ -14,7 +14,7 @@ services:
       - "1411:1411"
 
     volumes:
-      - /volume2/docker/pocket-id:/app/data:rw
+      - ${DOCKER_CONFIG_DIR}/pocket-id:/app/data:rw
 
     healthcheck:
       test: [ "CMD", "/app/pocket-id", "healthcheck" ]

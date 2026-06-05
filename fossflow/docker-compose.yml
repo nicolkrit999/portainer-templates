@@ -14,7 +14,7 @@ services:
             STORAGE_PATH: /data/diagrams
             ENABLE_GIT_BACKUP: false
         volumes:
-            - /volume2/docker/fossflow:/data/diagrams:rw
+            - ${DOCKER_CONFIG_DIR}/fossflow:/data/diagrams:rw
         restart: unless-stopped
         networks:
             - cloudflare_web_network

@@ -6,7 +6,7 @@ services:
     container_name: easy-appointments-permissions-init
     restart: "no"
     volumes:
-      - '/volume2/docker/easyappointments:/data'
+      - '${DOCKER_CONFIG_DIR}/easyappointments:/data'
     command: >
       sh -c "
       chown -R 33:33 /data &&
@@ -27,8 +27,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - '/volume2/docker/easyappointments:/var/www/html'
-      - '/volume2/docker/easyappointments/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini'
+      - '${DOCKER_CONFIG_DIR}/easyappointments:/var/www/html'
+      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini'
     networks:
       - cloudflare_web_network
     depends_on:
@@ -45,8 +45,8 @@ services:
     image: 'nginx:1.23.3-alpine'
     working_dir: /var/www/html
     volumes:
-      - '/volume2/docker/easyappointments:/var/www/html'
-      - '/volume2/docker/easyappointments/docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf'
+      - '${DOCKER_CONFIG_DIR}/easyappointments:/var/www/html'
+      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf'
     ports:
       - "${NGINX_PORT}:80"
     networks:
@@ -66,7 +66,7 @@ services:
   mysql:
     image: 'mysql:8.0'
     volumes:
-      - '/volume2/docker/easyappointments/docker/mysql:/var/lib/mysql'
+      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/mysql:/var/lib/mysql'
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
@@ -108,7 +108,7 @@ services:
     ports:
       - "${SWAGGER_UI_PORT}:8080"
     volumes:
-      - /volume2/docker/easyappointments/openapi.yml:/usr/share/nginx/html/openapi.yml
+      - ${DOCKER_CONFIG_DIR}/easyappointments/openapi.yml:/usr/share/nginx/html/openapi.yml
     environment:
       API_URL: openapi.yml
     networks:
@@ -126,9 +126,9 @@ services:
     ports:
         - "${BAIKAL_PORT}:80"
     volumes:
-        - /volume2/docker/easyappointments/docker/baikal/html:/var/www/html
-        - /volume2/docker/easyappointments/docker/baikal/config:/var/www/baikal/config
-        - /volume2/docker/easyappointments/docker/baikal/data:/var/www/baikal/Specific
+        - ${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/html:/var/www/html
+        - ${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/config:/var/www/baikal/config
+        - ${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/data:/var/www/baikal/Specific
     networks:
         - cloudflare_web_network
     healthcheck:

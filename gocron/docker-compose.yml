@@ -5,10 +5,10 @@ services:
     hostname: gocron
     restart: unless-stopped
     environment:
-      TZ: Europe/Zurich
+      TZ: "${TZ}"
       PORT: 8156
     volumes:
-      - /volume2/docker/gocron/config:/app/config
+      - ${DOCKER_CONFIG_DIR}/gocron/config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - cloudflare_web_network

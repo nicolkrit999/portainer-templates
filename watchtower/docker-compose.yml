@@ -11,7 +11,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      TZ: Europe/Zurich
+      TZ: "${TZ}"
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_REMOVE_VOLUMES: "false"
       WATCHTOWER_INCLUDE_RESTARTING: "true"
@@ -21,11 +21,11 @@ services:
       WATCHTOWER_ROLLING_RESTART: "true"
       WATCHTOWER_TIMEOUT: "30s"
       WATCHTOWER_LOG_FORMAT: "pretty"
-      WATCHTOWER_DISABLE_CONTAINERS: "firefox-app-1,qbittorrent-app-1,homeassistant1-app-1"
+      WATCHTOWER_DISABLE_CONTAINERS: "${WATCHTOWER_DISABLE_CONTAINERS}"
       WATCHTOWER_NOTIFICATIONS: gotify
-      WATCHTOWER_NOTIFICATION_GOTIFY_URL: http://gotify:80/
+      WATCHTOWER_NOTIFICATION_GOTIFY_URL: "${GOTIFY_URL}"
       WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN: ${WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN}
-      WATCHTOWER_NOTIFICATIONS_HOSTNAME: watchtower-notification-nicolkrit.ch
+      WATCHTOWER_NOTIFICATIONS_HOSTNAME: "${WATCHTOWER_NOTIFICATIONS_HOSTNAME}"
     networks:
       - cloudflare_web_network 
     restart: unless-stopped

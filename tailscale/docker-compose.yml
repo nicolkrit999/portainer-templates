@@ -10,5 +10,5 @@ services:
       - TS_USERSPACE=false
       - TS_EXTRA_ARGS=--reset
     volumes:
-      - /volume2/docker/tailscale/state:/var/lib/tailscale
+      - ${DOCKER_CONFIG_DIR}/tailscale/state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
