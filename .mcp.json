@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "portainer": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "PORTAINER_URL=https://portainer.nicolkrit.ch PORTAINER_API_KEY=$(cat /run/secrets/claude_mcp_portainer_token) PORTAINER_EXPOSE_ENV_VALUES=1 exec uvx --from 'mcp-portainer~=2.42.0' mcp-portainer"
+      ]
+    }
+  }
+}
