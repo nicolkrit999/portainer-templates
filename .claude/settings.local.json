@@ -6,5 +6,9 @@
       "Bash(ssh-keygen:*)",
       "Bash(git:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "portainer"
+  ],
+  "enableAllProjectMcpServers": true
 }
