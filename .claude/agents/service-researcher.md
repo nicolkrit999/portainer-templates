@@ -3,6 +3,7 @@ name: service-researcher
 description: "Researches a self-hosted service's official Docker image and returns a compact deployment spec (image, env vars, volumes, ports, healthcheck) for the docker-compose-architect to build from. Use BEFORE adding a new service, so heavy web-research stays out of the main context.\n\n<example>\nuser: \"I want to add Paperless-ngx\"\nassistant: \"First I'll use service-researcher to pull the official image, required env vars, volumes and ports, then hand the spec to docker-compose-architect.\"\n</example>\n\n<example>\nuser: \"What volumes and env does Immich actually need?\"\nassistant: \"Let me dispatch service-researcher to compile a compact spec from the official docs.\"\n</example>"
 tools: ["Read", "WebFetch", "WebSearch"]
 model: haiku
+color: pink
 ---
 
 You research how to deploy a self-hosted service and return a **compact spec**

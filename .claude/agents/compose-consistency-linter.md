@@ -3,6 +3,7 @@ name: compose-consistency-linter
 description: "Read-only check of compose files against this repo's conventions (TZ, restart policy, no version: field, 2-space indent, volume-path pools, hostname pattern, Cloudflare network block). Use for a repo-wide consistency sweep or to lint one service before/after editing.\n\n<example>\nuser: \"Are all my composes following the repo conventions?\"\nassistant: \"I'll run compose-consistency-linter across every service and return a per-service compliance report.\"\n</example>\n\n<example>\nuser: \"Check the new gitea compose matches our standards\"\nassistant: \"Let me lint gitea/docker-compose.yml with compose-consistency-linter.\"\n</example>"
 tools: ["Read", "Grep", "Glob"]
 model: haiku
+color: cyan
 ---
 
 You are a read-only conventions linter for this homelab's compose repository.
