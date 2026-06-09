@@ -1,0 +1,120 @@
+services:
+  affine:
+    image: ghcr.io/toeverything/affine:stable
+    container_name: affine
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      affine_migration:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 10s bash -c ':> /dev/tcp/127.0.0.1/3010' || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - /volume2/docker/affine/config:/root/.affine/config:rw
+      - /volume2/docker/affine/storage:/root/.affine/storage:rw
+    environment:
+      AFFINE_REVISION: "stable"
+      AFFINE_INDEXER_ENABLED: "false"
+      PORT: "3010"
+      AFFINE_SERVER_HTTPS: "true"
+      AFFINE_SERVER_EXTERNAL_URL: "${AFFINE_EXTERNAL_URL}"
+      MAILER_HOST: "smtp.gmail.com"
+      MAILER_PORT: "465"
+      MAILER_USER: "${AFFINE_MAILER_USER}"
+      MAILER_PASSWORD: "${AFFINE_MAILER_PASSWORD}"
+      MAILER_SENDER: "Affine"
+      REDIS_SERVER_HOST: "redis"
+      DATABASE_URL: "postgres://${AFFINE_DB_USER}:${AFFINE_DB_PASSWORD}@postgres:5432/${AFFINE_DB_NAME}?sslmode=disable"
+      NODE_ENV: "production"
+      AFFINE_ADMIN_EMAIL: "${AFFINE_ADMIN_EMAIL}"
+      AFFINE_ADMIN_PASSWORD: "${AFFINE_ADMIN_PASSWORD}"
+      TZ: "${TZ}"
+    networks:
+      - default
+      - cloudflare_web_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  affine_migration:
+    image: ghcr.io/toeverything/affine:stable
+    container_name: affine_migration
+    command: ["node", "./scripts/self-host-predeploy.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - /volume2/docker/affine/config:/root/.affine/config:rw
+      - /volume2/docker/affine/storage:/root/.affine/storage:rw
+    environment:
+      REDIS_SERVER_HOST: "redis"
+      DATABASE_URL: "postgres://${AFFINE_DB_USER}:${AFFINE_DB_PASSWORD}@postgres:5432/${AFFINE_DB_NAME}?sslmode=disable"
+      AFFINE_INDEXER_ENABLED: "false"
+      TZ: "${TZ}"
+    networks:
+      - default
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:latest
+    container_name: affine_redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - /volume2/docker/affine/redis:/data:rw
+    environment:
+      TZ: "${TZ}"
+    networks:
+      - default
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: affine_postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "${AFFINE_DB_NAME}", "-U", "${AFFINE_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - /volume1/Default-volume-1/0001_Docker/affine/db:/var/lib/postgresql/data:rw
+    environment:
+      POSTGRES_USER: "${AFFINE_DB_USER}"
+      POSTGRES_PASSWORD: "${AFFINE_DB_PASSWORD}"
+      POSTGRES_DB: "${AFFINE_DB_NAME}"
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      TZ: "${TZ}"
+    networks:
+      - default
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

@@ -12,7 +12,13 @@ Unless the user specifies otherwise, a service's public hostname is
 Use this default for `N8N_HOST`, `WEBHOOK_URL`, and any hostname/URL env vars.
 
 ## Cloudflare Tunnel network
-Services exposed through the Cloudflare Tunnel need this exact configuration.
+**Default: every user-facing application service is attached to the Cloudflare
+Tunnel.** Do not ask, do not skip — if in doubt, use Cloudflare. Only omit it
+when the user explicitly says a service is internal-only, or when the service is
+a backing dependency (database, cache, message broker, migration job) that must
+never be publicly reachable.
+
+Services on the Cloudflare Tunnel need this exact configuration.
 
 Top-level networks block (always at the end of the file):
 ```yaml

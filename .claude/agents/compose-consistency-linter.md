@@ -22,15 +22,17 @@ otherwise sweep all via Glob (`**/docker-compose.yml`).
 - [ ] No top-level `version:` field (Compose V2).
 - [ ] 2-space indentation; no trailing whitespace.
 - [ ] Every `environment:` value quoted (except `PUID`/`PGID`).
-- [ ] `TZ: Europe/Zurich` present where the image accepts `TZ`.
+- [ ] `TZ: "${TZ}"` present where the image accepts `TZ` — a hardcoded value like
+      `TZ: "Europe/Zurich"` is a violation; it must be `"${TZ}"`.
 - [ ] `container_name` on every service.
 - [ ] `restart` policy on every service (`unless-stopped` default).
 - [ ] Persistent volumes bind-mount under `/volume2/...` (SSD) or
       `/volume1/Default-volume-1/0001_Docker/...` (HDD) — no anonymous/named-only
       volumes, nothing in default `@docker`.
-- [ ] If externally exposed: correct Cloudflare block
-      (`cloudflare_web_network` → `name: cloudflare-web`, `external: true`) and
-      hostname follows `<service>.nicolkrit.ch`.
+- [ ] Every user-facing app service is on `cloudflare_web_network` (correct block:
+      `name: cloudflare-web`, `external: true`). Only backing services (databases,
+      caches, migration jobs) may omit it. Flag any app service missing this network
+      unless the user explicitly marked it internal-only.
 - [ ] `depends_on` uses `condition: service_healthy` where a healthcheck exists.
 - [ ] Default user `krit` / `PUID=1000` / `PGID=10` where applicable.
 
@@ -45,7 +47,7 @@ otherwise sweep all via Glob (`**/docker-compose.yml`).
 | Service | Rule | Detail |
 |---------|------|--------|
 | ghost | quote-env | `MAIL_PORT: 587` should be `"587"` |
-| plex | tz-missing | no `TZ: Europe/Zurich` |
+| plex | tz | `TZ: "Europe/Zurich"` hardcoded — must be `TZ: "${TZ}"` |
 
 ### Compliant
 <comma-separated list>

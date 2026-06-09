@@ -1,0 +1,48 @@
+services:
+  trek:
+    image: mauriceboe/trek:latest
+    container_name: trek
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    user: "0:0"
+    volumes:
+      - /volume2/docker/trek/data:/app/data:rw
+      - /volume1/Default-volume-1/0001_Docker/trek/uploads:/app/uploads:rw
+    environment:
+      NODE_ENV: "production"
+      ENCRYPTION_KEY: "${TREK_ENCRYPTION_KEY}"
+      TZ: "${TZ}"
+      ADMIN_EMAIL: "${TREK_ADMIN_EMAIL}"
+      ADMIN_PASSWORD: "${TREK_ADMIN_PASSWORD}"
+      PORT: "3000"
+      COOKIE_SECURE: "true"
+      ALLOWED_ORIGINS: "${TREK_APP_URL}"
+      TRUST_PROXY: "1"
+      APP_URL: "${TREK_APP_URL}"
+      #OIDC_ISSUER: "${TREK_OIDC_ISSUER}"
+      #OIDC_CLIENT_ID: "trek"
+      #OIDC_CLIENT_SECRET: "${TREK_OIDC_CLIENT_SECRET}"
+      #OIDC_DISPLAY_NAME: "SSO"
+      #OIDC_ONLY: "false"
+    networks:
+      - cloudflare_web_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

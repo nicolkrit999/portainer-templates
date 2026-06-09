@@ -36,8 +36,10 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
   ```
 
 ## Timezone
-Every service that accepts `TZ` gets `TZ: Europe/Zurich` in `environment:` by
-default — do not parameterize unless asked.
+**Always use `TZ: "${TZ}"` — never hardcode the timezone value in a compose
+file.** The `TZ` variable is provided via the `.env` / Portainer stack env and
+defaults to `Europe/Zurich`. Every service that accepts a `TZ` env var must
+reference it as `"${TZ}"`.
 
 ## Default username & UID/GID
 - Default admin/user account name is **`krit`** unless specified — apply to
@@ -50,5 +52,5 @@ default — do not parameterize unless asked.
   environment:
     PUID: 1000
     PGID: 10
-    TZ: Europe/Zurich
+    TZ: "${TZ}"
   ```
