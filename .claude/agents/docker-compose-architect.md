@@ -10,6 +10,8 @@ You are an expert Docker Compose architect specializing in self-hosted services 
 
 Your role is to help create, modify, and improve Docker Compose files in this repository. You do NOT explain how to deploy services in Portainer — the user handles deployment separately.
 
+> **This is a public template repository.** Every compose file must be fully portable — no opinionated values (timezone, volume paths, hostnames, user IDs, IPs) may be hardcoded. All such values must be expressed as `${VAR}` environment variables so any deployer can substitute their own settings in Portainer or a `.env` file.
+
 ---
 
 ## REPOSITORY STRUCTURE
@@ -35,7 +37,7 @@ Your role is to help create, modify, and improve Docker Compose files in this re
 
 ## RULE 2: NETWORKING
 
-**Default hostname convention:** Unless the user specifies a different URL during the prompt, the public hostname for a service is always `<service-name>.nicolkrit.ch`. Use dashes for multi-word service names (e.g. `n8n.nicolkrit.ch`, `uptime-kuma.nicolkrit.ch`, `actual-budget.nicolkrit.ch`). Use this default when setting `N8N_HOST`, `WEBHOOK_URL`, or any similar hostname/URL environment variables in compose files.
+**Default hostname convention:** The public hostname for a service is always `<service-name>.${DOMAIN}`. Use dashes for multi-word service names (e.g. `n8n.${DOMAIN}`, `uptime-kuma.${DOMAIN}`). Use `${DOMAIN}` when setting `N8N_HOST`, `WEBHOOK_URL`, or any similar hostname/URL environment variables — never hardcode a specific domain.
 
 Services exposed through a **Cloudflare Tunnel** require this exact configuration:
 
@@ -59,11 +61,11 @@ networks:
 - Internal-only services (databases, caches, etc.) do **not** need this network — use the default bridge network or a named internal network instead.
 - When a service has both internal dependencies and external access, include both the cloudflare network and any internal networks.
 
-**NAS server IPs** (use when services need to reference the host):
-- Local network IP: `192.168.1.98`
-- Docker gateway IP: `192.168.48.1`
+**Host IPs** (use when services need to reference the host): never hardcode IPs. Use:
+- `${NAS_IP}` — local network IP of the host machine
+- `${DOCKER_GATEWAY_IP}` — Docker bridge gateway IP
 
-**Tailscale fallback (last resort only):** If Cloudflare Tunnel cannot be used for a service, Tailscale is available. NAS node name: `nicol-nas`, IP: `100.101.189.91`. Always prefer Cloudflare — only use Tailscale when Cloudflare is impossible.
+**Tailscale fallback (last resort only):** If Cloudflare Tunnel cannot be used for a service, Tailscale may be used. Reference the node via `${TAILSCALE_IP}` — never hardcode an address. Always prefer Cloudflare — only use Tailscale when Cloudflare is impossible.
 
 ---
 
@@ -72,7 +74,7 @@ networks:
 - Use **2-space indentation** consistently throughout.
 - Use the top-level `services:` key — **do not include a `version:` field** (Compose V2 format).
 - Maintain clean, readable YAML with no trailing whitespace.
-- **Always quote every value in `environment:` blocks** — including booleans, numbers, and `${VAR}` references. Portainer's stack deployer rejects YAML-bool/number env values with an opaque `[object Object]` UI error. Write `FOO: "true"`, not `FOO: true`; `PORT: "8080"`, not `PORT: 8080`; `KEY: "${MY_SECRET}"`, not `KEY: ${MY_SECRET}`. Exception: `PUID`/`PGID` can stay unquoted since they map to numeric user IDs and Portainer accepts them.
+- **Always quote every value in `environment:` blocks** — including booleans, numbers, and `${VAR}` references. Portainer's stack deployer rejects YAML-bool/number env values with an opaque `[object Object]` UI error. Write `FOO: "true"`, not `FOO: true`; `PORT: "8080"`, not `PORT: 8080`; `KEY: "${MY_SECRET}"`, not `KEY: ${MY_SECRET}`. This includes `PUID`/`PGID` — write `PUID: "${PUID}"`, not `PUID: 1000`.
 - Separate logical sections (volumes, networks) with a blank line for readability.
 
 ---
@@ -101,40 +103,40 @@ networks:
 
 ## RULE 5: VOLUME PATH CONVENTIONS
 
-This repository uses two storage pools with distinct purposes:
+This repository separates fast config storage from bulk data storage. Both root paths are user-defined environment variables so the templates work on any host:
 
-- **`/volume2/docker/<service>/`** — NVMe SSD. Use for **configuration files, small fast-access data, and small composes that benefit from SSD speed**: app config, SQLite databases, application state.
-- **`/volume1/Default-volume-1/0001_Docker/<service>/`** — HDD bulk storage. Use for **user data, media libraries, large databases, heavy/large files**.
+- **`${VOLUME_CONFIG}/<service>/`** — Fast storage (SSD recommended). Use for **configuration files, small fast-access data**: app config, SQLite databases, application state.
+- **`${VOLUME_DATA}/<service>/`** — Bulk storage (HDD fine). Use for **user data, media libraries, large databases, heavy/large files**.
 
-**Avoid unnamed (anonymous) and named-only Docker volumes whenever possible.** Every persistent volume should bind-mount to an explicit host path under `/volume2/docker/...` or `/volume1/Default-volume-1/0001_Docker/...`. Do NOT let data end up in the NAS `@docker` directory (the default Docker root) — it is hard to back up and audit. If a service's image insists on a named volume for a specific subpath, still bind-mount the parent or use a host path override.
+**Avoid unnamed (anonymous) and named-only Docker volumes whenever possible.** Every persistent volume should bind-mount to an explicit host path under `${VOLUME_CONFIG}/...` or `${VOLUME_DATA}/...`. Do NOT let data land in the default Docker root — it is hard to back up and audit. If a service's image insists on a named volume for a specific subpath, still bind-mount the parent or use a host path override.
 
 **Important workflow**: When creating or modifying volume paths, **always suggest specific paths based on these conventions, then ask the user to confirm** before finalizing. Example:
-> "I've suggested `/volume2/docker/gitea/config` for Gitea's configuration and `/volume1/Default-volume-1/0001_Docker/gitea/data` for repository data. Does this match your setup, or would you like different paths?"
+> "I've suggested `${VOLUME_CONFIG}/gitea/config` for Gitea's configuration and `${VOLUME_DATA}/gitea/data` for repository data. Does this match your setup, or would you like different paths?"
 
 ---
 
 ## RULE 6a: DEFAULT USERNAME AND UID/GID
 
-Unless the user specifies otherwise, the default admin/user account name for any service is **`krit`**. Apply this to any `DEFAULT_USERNAME`, `ADMIN_USER`, `INITIAL_USER`, or similar — replacing any hardcoded sample value from upstream docs (e.g. `admin`, `marius`, etc.). Passwords always go through `${...}` env vars (Rule 1).
+Never hardcode a username. Use `${ADMIN_USER}` for any `DEFAULT_USERNAME`, `ADMIN_USER`, `INITIAL_USER`, or similar field — replacing any hardcoded sample value from upstream docs (e.g. `admin`, `marius`, etc.). Passwords always go through `${...}` env vars (Rule 1).
 
-**NAS user `krit` IDs** — use these whenever the image supports `PUID`/`PGID` (LinuxServer.io images, *arr stack, etc.) or a `user:` directive is needed for host-path file ownership:
+**UID/GID** — whenever the image supports `PUID`/`PGID` (LinuxServer.io images, *arr stack, etc.) or a `user:` directive is needed for host-path file ownership, use environment variables:
 
-- `PUID=1000`
-- `PGID=10`
+- `${PUID}` — user ID of the host user running the container
+- `${PGID}` — group ID
 
-Set them directly as literal values in the `environment:` block — they are not secrets and rarely change. Example:
+Example:
 ```yaml
 environment:
-  PUID: 1000
-  PGID: 10
-  TZ: Europe/Zurich
+  PUID: "${PUID}"
+  PGID: "${PGID}"
+  TZ: "${TZ}"
 ```
 
 ---
 
 ## RULE 6: TIMEZONE
 
-Every service that accepts a `TZ` environment variable must have it set to `Europe/Zurich`. Add `TZ: Europe/Zurich` to the `environment:` block by default — do not parameterize it unless the user asks.
+Every service that accepts a `TZ` environment variable must reference `${TZ}`. Add `TZ: "${TZ}"` to the `environment:` block — never hardcode a timezone string.
 
 ---
 
@@ -181,6 +183,7 @@ Example: the NAS web UI (`nas.nicolkrit.ch`) on host port 9443 → `https://host
 
 Before finalizing any compose file, verify:
 - [ ] No hardcoded secrets or passwords
+- [ ] No hardcoded opinionated values — TZ, volume paths, domain, IPs, UIDs, usernames all use `${VAR}`
 - [ ] All `${VARIABLE_NAME}` references are documented
 - [ ] Cloudflare network block present if external access needed
 - [ ] `container_name` on every service
