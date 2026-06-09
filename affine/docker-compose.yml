@@ -31,7 +31,7 @@ services:
       MAILER_PASSWORD: "${AFFINE_MAILER_PASSWORD}"
       MAILER_SENDER: "Affine"
       REDIS_SERVER_HOST: "redis"
-      DATABASE_URL: "postgres://${AFFINE_DB_USER}:${AFFINE_DB_PASSWORD}@postgres:5432/${AFFINE_DB_NAME}?sslmode=disable"
+      DATABASE_URL: "${AFFINE_DATABASE_URL}"
       NODE_ENV: "production"
       AFFINE_ADMIN_EMAIL: "${AFFINE_ADMIN_EMAIL}"
       AFFINE_ADMIN_PASSWORD: "${AFFINE_ADMIN_PASSWORD}"
@@ -58,7 +58,7 @@ services:
       - /volume2/docker/affine/storage:/root/.affine/storage:rw
     environment:
       REDIS_SERVER_HOST: "redis"
-      DATABASE_URL: "postgres://${AFFINE_DB_USER}:${AFFINE_DB_PASSWORD}@postgres:5432/${AFFINE_DB_NAME}?sslmode=disable"
+      DATABASE_URL: "${AFFINE_DATABASE_URL}"
       AFFINE_INDEXER_ENABLED: "false"
       TZ: "${TZ}"
     networks:
