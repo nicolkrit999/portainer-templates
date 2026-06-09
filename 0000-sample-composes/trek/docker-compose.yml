@@ -1,0 +1,45 @@
+services:
+  trek:
+    image: mauriceboe/trek:latest
+    container_name: TREK
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    ports:
+      - 2341:3000
+    volumes:
+      - /volume1/docker/trek/data:/app/data:rw
+      - /volume1/docker/trek/uploads:/app/uploads:rw
+    user: 0:0
+    environment:
+       NODE_ENV: production
+       ENCRYPTION_KEY: b85d30ff0f96bf77d805e67903e1697a64132162c378d17c1da77205f42226a0
+       TZ: Europe/Bucharest
+       ADMIN_EMAIL: yourown@email
+       ADMIN_PASSWORD: mariushosting  
+       PORT: 3000
+       COOKIE_SECURE: false #true instead of false if you use your own domain name or DDNS
+       #ALLOWED_ORIGINS: https://yourdomainname #or your synology.me DDNS. Remove the # in front of ALLOWED_ORIGINS if you use a domain name or DDNS.
+       #TRUST_PROXY: 1 # Number of trusted proxies (for X-Forwarded-For / real client IP)
+       #ALLOW_INTERNAL_NETWORK: false #set to true instead of false if Immich or other services are hosted on your local network.
+       #APP_URL: https://yourowndomainname # Public base URL - required if OIDC is enabled.
+       #OIDC_ISSUER: https://yourownauthdomainname # OpenID Connect provider URL
+       #OIDC_CLIENT_ID: trek # OpenID Connect client ID
+       #OIDC_CLIENT_SECRET: supersecret # OpenID Connect client secret
+       #OIDC_DISPLAY_NAME: SSO # Label shown on the SSO login button
+       #OIDC_ONLY: false # Set true to disable local password auth entirely (SSO only)
+       #OIDC_ADMIN_CLAIM: groups # OIDC claim used to identify admin users
+       #OIDC_ADMIN_VALUE: app-trek-admins # Value of the OIDC claim that grants admin role
+       #OIDC_SCOPE: openid email profile # Fully overrides the default. Add extra scopes as needed (e.g. add groups if using OIDC_ADMIN_CLAIM)
+       #OIDC_DISCOVERY_URL: # Override the OIDC discovery endpoint for providers with non-standard paths (e.g. Authentik)
+       #MCP_RATE_LIMIT: 60 # Max MCP API requests per user per minute (default: 60)
+    restart: on-failure:5

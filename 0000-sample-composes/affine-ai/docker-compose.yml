@@ -1,0 +1,91 @@
+services:
+  affine:
+    image: ghcr.io/toeverything/affine:stable
+    container_name: AFFINE
+    healthcheck:
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/3010' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    ports:
+      - 3010:3010
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      affine_migration:
+        condition: service_completed_successfully
+    volumes:
+      - /volume1/docker/affine/config:/root/.affine/config:rw
+      - /volume1/docker/affine/storage:/root/.affine/storage:rw
+    restart: on-failure:5
+    environment:
+      - AFFINE_REVISION=stable
+      - AFFINE_INDEXER_ENABLED=false
+      - PORT=3010
+      - AFFINE_SERVER_HTTPS=true
+      - AFFINE_SERVER_EXTERNAL_URL=https://affine.yourname.synology.me
+      - MAILER_HOST=smtp.gmail.com
+      - MAILER_PORT=465
+      - MAILER_USER=Your-own-gmail-address
+      - MAILER_PASSWORD=Your-own-app-password
+      - MAILER_SENDER=Affine
+      - REDIS_SERVER_HOST=redis
+      - DATABASE_URL=postgres://affineuser:affinepass@postgres:5432/affine?sslmode=disable
+      - NODE_ENV=production
+      - AFFINE_ADMIN_EMAIL=yourown@email
+      - AFFINE_ADMIN_PASSWORD=Mariushosting84##
+      - DB_DATA_LOCATION=~/.affine/self-host/postgres/pgdata
+      - UPLOAD_LOCATION=~/.affine/self-host/storage
+      - CONFIG_LOCATION=~/.affine/self-host/config
+
+  affine_migration:
+    image: ghcr.io/toeverything/affine:stable
+    container_name: Affine_MIGRATION
+    volumes:
+      - /volume1/docker/affine/config:/root/.affine/config:rw
+      - /volume1/docker/affine/storage:/root/.affine/storage:rw
+    command: ['sh', '-c', 'node ./scripts/self-host-predeploy.js']
+    environment:
+      - REDIS_SERVER_HOST=redis
+      - DATABASE_URL=postgres://affineuser:affinepass@postgres:5432/affine?sslmode=disable
+      - AFFINE_INDEXER_ENABLED=false
+      - DB_DATA_LOCATION=~/.affine/self-host/postgres/pgdata
+      - UPLOAD_LOCATION=~/.affine/self-host/storage
+      - CONFIG_LOCATION=~/.affine/self-host/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:latest
+    container_name: AFFINE-REDIS
+    restart: on-failure:5
+    volumes:
+      - /volume1/docker/affine/redis:/data:rw
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: AFFINE-DB
+    restart: on-failure:5
+    volumes:
+      - /volume1/docker/affine/db:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "affine", "-U", "affineuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_USER: affineuser
+      POSTGRES_PASSWORD: affinepass
+      POSTGRES_DB: affine
+      POSTGRES_INITDB_ARGS: '--data-checksums'
