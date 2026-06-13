@@ -7,17 +7,24 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 
 Two storage pools with distinct purposes:
 
-- **`/volume2/docker/<service>/`** — NVMe SSD. Use for **configuration, small
+- **`/volume2/docker/<service>/`** - NVMe SSD. Use for **configuration, small
   fast-access data, small composes**: app config, SQLite DBs, application state.
-- **`/volume1/Default-volume-1/0001_Docker/<service>/`** — HDD bulk storage. Use
+- **`/volume1/Default-volume-1/0001_Docker/<service>/`** - HDD bulk storage. Use
   for **user data, media libraries, large databases, heavy files**.
 
 ## Rules
+- **Parameterize host paths as `${VAR}` - never hardcode them in committed
+  compose files.** Bind-mount host paths are personal infrastructure detail.
+  Use a per-service base variable (e.g. `${GITEA_DATA_ROOT}/data:/data`), put the
+  real path in `.env` / Portainer stack env, and ship a sensible default in
+  `.env.example` (e.g. `GITEA_DATA_ROOT=/volume2/docker/gitea`). Suggest the
+  conventional path as that default; the user confirms it in `.env`, not the
+  compose.
 - **Avoid unnamed (anonymous) and named-only Docker volumes whenever possible.**
   Every persistent volume should bind-mount to an explicit host path under
   `/volume2/docker/...` or `/volume1/Default-volume-1/0001_Docker/...`.
 - Do **not** let data land in the NAS `@docker` directory (the default Docker
-  root) — it is hard to back up and audit. If an image insists on a named volume
+  root) - it is hard to back up and audit. If an image insists on a named volume
   for a subpath, bind-mount the parent or use a host-path override.
 
 ## Workflow

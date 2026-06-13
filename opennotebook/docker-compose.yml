@@ -4,13 +4,9 @@ services:
     container_name: opennotebook-surrealdb
     restart: unless-stopped
     user: root
-    command: >
-      start --log info
-      --user ${SURREAL_USER}
-      --pass ${SURREAL_PASSWORD}
-      rocksdb:/mydata/mydatabase.db
+    command: "start --log info --user ${SURREAL_USER} --pass ${SURREAL_PASSWORD} rocksdb:/mydata/mydatabase.db"
     volumes:
-      - /volume2/docker/opennotebook/surreal_data:/mydata
+      - ${OPENNOTEBOOK_DB_ROOT}/surreal_data:/mydata
     healthcheck:
       test: ["CMD", "/surreal", "isready", "--conn", "http://localhost:8000"]
       interval: 10s
@@ -35,7 +31,7 @@ services:
       SURREAL_DATABASE: "open_notebook"
       TZ: "${TZ}"
     volumes:
-      - /volume2/docker/opennotebook/notebook_data:/app/data
+      - ${OPENNOTEBOOK_DATA_ROOT}/notebook_data:/app/data
     depends_on:
       surrealdb:
         condition: service_healthy
