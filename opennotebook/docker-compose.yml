@@ -1,0 +1,55 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:v2
+    container_name: opennotebook-surrealdb
+    restart: unless-stopped
+    user: root
+    command: >
+      start --log info
+      --user ${SURREAL_USER}
+      --pass ${SURREAL_PASSWORD}
+      rocksdb:/mydata/mydatabase.db
+    volumes:
+      - /volume2/docker/opennotebook/surreal_data:/mydata
+    healthcheck:
+      test: ["CMD", "/surreal", "isready", "--conn", "http://localhost:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  open_notebook:
+    image: lfnovo/open_notebook:v1-latest
+    container_name: opennotebook
+    restart: unless-stopped
+    environment:
+      OPEN_NOTEBOOK_ENCRYPTION_KEY: "${OPEN_NOTEBOOK_ENCRYPTION_KEY}"
+      SURREAL_URL: "ws://surrealdb:8000/rpc"
+      SURREAL_USER: "${SURREAL_USER}"
+      SURREAL_PASSWORD: "${SURREAL_PASSWORD}"
+      SURREAL_NAMESPACE: "open_notebook"
+      SURREAL_DATABASE: "open_notebook"
+      TZ: "${TZ}"
+    volumes:
+      - /volume2/docker/opennotebook/notebook_data:/app/data
+    depends_on:
+      surrealdb:
+        condition: service_healthy
+    networks:
+      - default
+      - cloudflare_web_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    driver: bridge
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
