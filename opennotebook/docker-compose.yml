@@ -24,13 +24,13 @@ services:
     restart: unless-stopped
     environment:
       OPEN_NOTEBOOK_ENCRYPTION_KEY: "${OPEN_NOTEBOOK_ENCRYPTION_KEY}"
-      API_URL: "${OPENNOTEBOOK_PUBLIC_URL}"
+      API_URL: "${OPENNOTEBOOK_PUBLIC_URL:-https://opennotebook.nicolkrit.ch}"
       SURREAL_URL: "ws://surrealdb:8000/rpc"
       SURREAL_USER: "${SURREAL_USER}"
       SURREAL_PASSWORD: "${SURREAL_PASSWORD}"
       SURREAL_NAMESPACE: "open_notebook"
       SURREAL_DATABASE: "open_notebook"
-      TZ: "${TZ}"
+      TZ: "${TZ:-Europe/Zurich}"
     volumes:
       - ${OPENNOTEBOOK_DATA_ROOT}/notebook_data:/app/data
     depends_on:
