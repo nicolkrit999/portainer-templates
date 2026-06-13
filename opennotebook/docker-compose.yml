@@ -24,6 +24,7 @@ services:
     restart: unless-stopped
     environment:
       OPEN_NOTEBOOK_ENCRYPTION_KEY: "${OPEN_NOTEBOOK_ENCRYPTION_KEY}"
+      API_URL: "${OPENNOTEBOOK_PUBLIC_URL}"
       SURREAL_URL: "ws://surrealdb:8000/rpc"
       SURREAL_USER: "${SURREAL_USER}"
       SURREAL_PASSWORD: "${SURREAL_PASSWORD}"
