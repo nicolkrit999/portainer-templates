@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "bgpt": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://bgpt.pro/mcp/sse"],
+      "type": "stdio"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "enabledMcpjsonServers": ["bgpt"],
+  "enableAllProjectMcpServers": true
+}

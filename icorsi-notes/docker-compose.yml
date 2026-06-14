@@ -1,0 +1,49 @@
+services:
+  icorsi-notes:
+    build: .
+    image: icorsi-notes:local
+    pull_policy: build
+    container_name: icorsi-notes
+    restart: unless-stopped
+
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse
+    security_opt:
+      - apparmor:unconfined
+
+    # NOTE: ANTHROPIC_API_KEY is intentionally absent - see README
+    environment:
+      TZ: "${TZ}"
+      OWNCLOUD_WEBDAV_URL: "${OWNCLOUD_WEBDAV_URL}"
+      OWNCLOUD_USER: "${OWNCLOUD_USER}"
+      OWNCLOUD_APP_PASSWORD: "${OWNCLOUD_APP_PASSWORD}"
+      OWNCLOUD_HOST_HEADER: "${OWNCLOUD_HOST_HEADER:-}"
+      OWNCLOUD_BASE_PATH: "${OWNCLOUD_BASE_PATH}"
+      DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"
+      NOTES_INTERVAL_SECONDS: "${NOTES_INTERVAL_SECONDS:-21600}"
+      LIMIT_BACKOFF_SECONDS: "${LIMIT_BACKOFF_SECONDS:-3600}"
+      ACTIVE_HOURS: "${ACTIVE_HOURS:-00:00-03:00}"
+      MIN_TASK_WINDOW_SECONDS: "${MIN_TASK_WINDOW_SECONDS:-1800}"
+      WINDOW_GRACE_MINUTES: "${WINDOW_GRACE_MINUTES:-10}"
+      RUN_ON_START: "${RUN_ON_START:-true}"
+      DRY_RUN: "${DRY_RUN:-false}"
+      CLAUDE_MODEL: "${CLAUDE_MODEL:-}"
+
+    volumes:
+      - "${DOCKER_CONFIG_DIR}/icorsi-notes/data:/data"
+      - "${DOCKER_CONFIG_DIR}/icorsi-notes/claude:/root/.claude"
+
+    networks:
+      - cloudflare_web_network
+
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true

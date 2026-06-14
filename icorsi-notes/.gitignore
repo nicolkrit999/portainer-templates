@@ -1,0 +1,6 @@
+# Real courses.json contains personal paths - never commit it
+courses.json
+
+# Runtime secrets / state
+.env
+*.log

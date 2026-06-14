@@ -1,0 +1,12 @@
+{
+  "_comment": "Map course folder name (relative to OWNCLOUD_BASE_PATH) -> per-course options. Use null to skip. The daemon watches _icorsi/ inside each listed folder and proposes notes into <notes_dir>/_suggested/. The REAL file goes in the private /data volume, NOT in this public repo.",
+  "0001 Example Subject": {
+    "format": "typst",
+    "notes_dir": "notes"
+  },
+  "0002 Another Subject/2-semestre": {
+    "format": "typst",
+    "notes_dir": "notes"
+  },
+  "0003 Skip This One": null
+}
