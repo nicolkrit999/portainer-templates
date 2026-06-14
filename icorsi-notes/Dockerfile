@@ -5,11 +5,13 @@ FROM node:22-slim
 #   python3    - the watch.py daemon
 #   curl       - rclone installer
 #   ca-certificates - TLS roots (WebDAV + npm)
+#   unzip      - required by rclone install.sh to extract the downloaded zip
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     fuse3 \
     python3 \
+    unzip \
     && curl -sSL https://rclone.org/install.sh | bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
