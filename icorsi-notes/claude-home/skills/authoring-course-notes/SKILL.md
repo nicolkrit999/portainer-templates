@@ -1,6 +1,6 @@
 ---
 name: authoring-course-notes
-description: "Use this skill when creating detailed study notes or course documentation from source material and (optionally) compiling them to PDF - for any CS or math course (linear algebra, calculus, discrete math, statistics, programming). Triggers: 'make notes for this chapter', 'write detailed notes on …', 'turn this course material into a PDF', 'create documentation explaining every topic in …', 'compile these notes to PDF', 'create documentation explaining every topic in …', 'typst/latex notes for …', 'cheat sheet for …'. Works from ANY course folder (callable by name without an absolute path). Orchestrates reading the source → authoring the explanations → formatting/compiling through the project's `cs-notes` Nix dev environment (Typst, LaTeX via Tectonic, Pandoc, diagrams, plotting, Python). Use whenever study notes / documentation should be produced as a polished file, especially when LaTeX/Typst/PDF compilation is involved."
+description: "Use this skill when creating detailed study notes or course documentation from source material and (optionally) compiling them to PDF - for any CS or math course (linear algebra, calculus, discrete math, statistics, programming). Triggers: 'make notes for this chapter', 'write detailed notes on …', 'turn this course material into a PDF', 'create documentation explaining every topic in …', 'compile these notes to PDF', 'typst/latex notes for …', 'cheat sheet for …'. Works from ANY course folder (callable by name without an absolute path). Orchestrates reading the source → authoring the explanations → formatting/compiling through the project's `cs-notes` Nix dev environment (Typst, LaTeX via Tectonic, Pandoc, diagrams, plotting, Python). Use whenever study notes / documentation should be produced as a polished file, especially when LaTeX/Typst/PDF compilation is involved."
 ---
 
 # Authoring course notes
@@ -37,6 +37,18 @@ Only when the auditor returns `FAITHFUL` is the task complete.
 - **Typst** - default for math/CS notes: fast, lightweight, great math. Its own package ecosystem (cetz, etc.) is auto-fetched by `typst`.
 - **LaTeX** - when the doc needs it; compiled with **Tectonic** (fetches only the packages each doc uses - no multi-GB TeX Live).
 - **Markdown → PDF** - via `pandoc --pdf-engine=tectonic`.
+
+## Document setup conventions
+
+Both formats have a mandatory standard template - see `./typst-and-latex-document-templates.md` for the full copy-paste code. Adapt the metadata placeholders (`SUBJECT`, `CHAPTERS_LABEL`, `LANG`, `SUBTITLE_TOPICS`, `YEAR`) but keep the structure and style intact.
+
+### Personal additions
+
+**Any content not from the professor / not from iCorsi is a personal addition.** This includes extra explanations, expanded calculations, self-constructed examples, analogies, and mnemonics - anything you cannot point to on a slide or iCorsi PDF.
+
+These MUST be wrapped in the `personal-addition` block defined in the template. The auditor flags unmarked non-source material as an **invention defect**.
+
+Rule: if you cannot cite the exact slide or PDF page → wrap it in `personal-addition`.
 
 ## The `cs-notes` environment (how to compile)
 
