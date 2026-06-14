@@ -4,9 +4,9 @@ Automatically propose study-note additions whenever `icorsi-sync` delivers new c
 
 Watches each course's `_icorsi/` folder (written by `icorsi-sync`) and, when new content
 arrives, invokes the `authoring-course-notes` Claude Code skill headlessly to produce the
-**gap** - the topics present in the source but not yet in your live notes - and deposits it
-in `Notes/_suggested/`. You review, edit if you like, and merge. The live notes are never
-touched by the bot.
+**gap** - topics present in the source but not yet in your live notes - and deposits proposals
+in `<notes_dir>/_suggested/`. You review, edit if you like, and merge. The live notes are
+never touched by the bot.
 
 ---
 
@@ -14,42 +14,34 @@ touched by the bot.
 
 ```
 <your course folder>/
-├── _icorsi/                ← written by icorsi-sync (read-only for this bot)
-│   ├── 001 - Recursion/
-│   └── 002 - Sorting/
-└── Notes/
-    ├── fondamenti_notes.typ  ← YOUR live notes (never touched by bot)
-    ├── _notes.md             ← pipeline inventory (read-only for bot)
-    └── _suggested/           ← BOT WRITES HERE ONLY
-        ├── SUGGESTED.md      ← what's new + where to slot it in
-        └── new_topics.typ    ← authored .typ (or .md) source to merge
-```
-
-You compile the final PDF with one command on your Nix PC:
-
-```bash
-CSNOTES="$HOME/nix/templates/krit/dev-environments/language-combined/cs-notes"
-nix develop "$CSNOTES" --command typst compile Notes/fondamenti_notes.typ
+├── _icorsi/                  ← written by icorsi-sync (read-only for this bot)
+│   ├── 001 - Topic A/
+│   └── 002 - Topic B/
+└── <notes_dir>/
+    ├── my_notes.typ           ← YOUR live notes (never touched by bot)
+    └── _suggested/            ← BOT WRITES HERE ONLY
+        ├── SUGGESTED.md       ← what's new + where to slot it in
+        └── new_topics.typ     ← authored source to review and merge
 ```
 
 ---
 
 ## The one thing you'll edit: `courses.json`
 
-Lives in the `/data` volume. Map each course folder (relative to `OWNCLOUD_BASE_PATH`) to
-per-course options. Edit it anytime - no rebuild, picked up on next pass.
+Lives in the `/data` volume (never in the image). Map each course folder - relative to
+`OWNCLOUD_BASE_PATH` - to per-course options. Edit anytime; no rebuild needed.
 
 ```json
 {
-  "0001 Tecnica Digitale": {
+  "0001 Course Name": {
     "format": "typst",
     "notes_dir": "Notes"
   },
-  "0003 Fondamenti di informatica/2-semestre": {
-    "format": "typst",
-    "notes_dir": "Notes"
+  "0002 Another Course/semester-2": {
+    "format": "markdown",
+    "notes_dir": "notes"
   },
-  "0004 Skip This": null
+  "0003 Skip This": null
 }
 ```
 
@@ -58,41 +50,69 @@ Options per entry:
 | Option | Default | Meaning |
 |---|---|---|
 | `format` | `"typst"` | Output format: `"typst"` or `"markdown"` |
-| `notes_dir` | `"Notes"` | Subfolder (beside `_icorsi/`) for live notes and `_suggested/` |
-| `null` | - | Skip this course |
+| `notes_dir` | `"notes"` | Subfolder (beside `_icorsi/`) for live notes and `_suggested/` |
+| `null` | - | Skip this course entirely |
+
+Courses are processed **sequentially in file order**, one at a time.
+
+---
+
+## How it tracks progress
+
+After each run, `<notes_dir>/_suggested/_notes.md` records what was authored and what remains:
+
+```
+## Coverage status
+STATUS: COMPLETE
+Authored: Topic A, Topic B, Topic C
+Remaining: none
+Continuation: yes
+```
+
+- `STATUS: COMPLETE` - course is skipped on future passes until new source material arrives.
+- `STATUS: PARTIAL` - run was interrupted (window end, rate-limit, error); next pass resumes
+  from `Remaining:` without re-reading sources.
+- Missing file - treated conservatively as PARTIAL; bot will re-run the course.
+
+The slow step (reading all source material) only happens **once per course**. After that, the
+bot either skips (complete) or continues from the checkpoint (partial).
 
 ---
 
 ## Controlling when it runs
 
 ### Active-hours window (`ACTIVE_HOURS`)
-By default the bot runs only between `01:00` and `07:00` (NAS local time) so it never
-competes with your own Max subscription usage during the day. Change the window or set to
-empty to run at any time.
+The bot only makes Claude calls within a configured time window (default `00:00-03:00` local
+time). This avoids consuming your Claude Max subscription during hours you use it yourself.
+Set to empty to run at any time.
+
+The bot will not start a new course if less than `MIN_TASK_WINDOW_SECONDS` remain before the
+window ends. A course in progress at window end receives SIGTERM (graceful write) then SIGKILL,
+and resumes cleanly on the next pass.
 
 ### Instant pause
-Create `/data/PAUSE` (e.g. `docker exec icorsi-notes touch /data/PAUSE`) to halt the bot
-immediately. Delete it to resume. No restart needed.
+Create `/data/PAUSE` (e.g. `docker exec icorsi-notes touch /data/PAUSE`) to halt immediately.
+Delete it to resume. No restart needed.
 
 ### Hard stop
-`docker stop icorsi-notes` (or stop the stack in Portainer). Safe at any point - a course's
-fingerprint only advances after a successful run, so an interrupted course simply re-runs on
-the next pass.
+`docker stop icorsi-notes` is safe at any point. The checkpoint in `_suggested/_notes.md` is
+updated after every section, so at most the current in-progress section is lost.
 
 ---
 
 ## Auth setup (one time)
 
 The bot uses your **Claude Max subscription** via OAuth - there is no `ANTHROPIC_API_KEY`.
-This means exhausting your plan limit triggers a configurable sleep (default 1 h), never API
-billing.
+Exhausting your plan limit triggers a configurable sleep (default 1 h), never API billing.
 
-1. Deploy the stack. The `/root/.claude` volume starts empty.
-2. Run: `docker exec -it icorsi-notes claude` and complete the subscription OAuth login once.
-3. The token persists in `${DOCKER_CONFIG_DIR}/icorsi-notes/claude/` and auto-refreshes there.
+1. Deploy the stack.
+2. Run: `docker exec -it icorsi-notes claude` and complete the OAuth login once.
+3. The token persists in `${DOCKER_CONFIG_DIR}/icorsi-notes/claude/` and auto-refreshes.
 
-**Alternative:** copy `${DOCKER_CONFIG_DIR}/claude/data/.credentials.json` from `holyclaude`
-into this volume - but a separate login avoids two containers racing the same token refresh.
+**Billing safety:** the bot refuses to start if any API-billing credential is present in the
+environment (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, Bedrock/Vertex flags). If a non-zero
+`total_cost_usd` ever appears in a Claude response, the bot writes `/data/HALT`, sends a
+Discord alert, and stops until you remove the file manually.
 
 ---
 
@@ -100,25 +120,34 @@ into this volume - but a separate login avoids two containers racing the same to
 
 | Variable | Default | What it does |
 |---|---|---|
-| `OWNCLOUD_WEBDAV_URL` | - | ownCloud WebDAV URL (same as icorsi-sync) |
+| `OWNCLOUD_WEBDAV_URL` | - | ownCloud WebDAV URL |
 | `OWNCLOUD_USER` | - | ownCloud username |
 | `OWNCLOUD_APP_PASSWORD` | - | ownCloud app password (secret) |
-| `OWNCLOUD_HOST_HEADER` | - | Trusted domain for the HTTP Host header |
-| `OWNCLOUD_BASE_PATH` | - | Base folder; courses.json paths are relative to this |
-| `DISCORD_WEBHOOK_URL` | - | Optional Discord webhook for run summaries |
+| `OWNCLOUD_HOST_HEADER` | - | Trusted domain for the HTTP `Host` header |
+| `OWNCLOUD_BASE_PATH` | - | Base folder; `courses.json` paths are relative to this |
+| `DISCORD_WEBHOOK_URL` | - | Optional Discord webhook for per-pass summaries |
 | `NOTES_INTERVAL_SECONDS` | `21600` | How often to check for new material (6 h) |
-| `LIMIT_BACKOFF_SECONDS` | `3600` | Sleep time after hitting Max plan limit (1 h) |
-| `ACTIVE_HOURS` | `01:00-07:00` | Window when Claude calls are allowed; empty = always |
+| `LIMIT_BACKOFF_SECONDS` | `3600` | Sleep after hitting the Max plan rate-limit (1 h) |
+| `ACTIVE_HOURS` | `00:00-03:00` | Window when Claude calls are allowed; empty = always |
+| `MIN_TASK_WINDOW_SECONDS` | `1800` | Minimum window remaining to start a new course |
+| `WINDOW_GRACE_MINUTES` | `10` | Grace period for writes before hard kill at window end |
 | `RUN_ON_START` | `true` | Run a pass immediately on container start |
-| `DRY_RUN` | `false` | List what would be proposed; invoke nothing |
+| `DRY_RUN` | `false` | Log what would run; invoke nothing |
 | `CLAUDE_MODEL` | - | Force a specific Claude model (leave empty for default) |
+
+**Tip:** set `DRY_RUN=true` on first deploy to verify course discovery and rclone mount before
+enabling live runs.
 
 ---
 
 ## Notes quality
 
-The bot runs the **full 4-stage authoring pipeline** (`cs-material-researcher` →
-`cs-notes-author` → `cs-notes-formatter` → `cs-notes-auditor`) with the same models and
-faithfulness audit loop as a desktop run. The only step skipped is `typst compile` / PDF
-output - that intentionally stays in your Nix workspace, where you can review and recompile
-on demand.
+The bot runs the full 4-stage authoring pipeline baked into the image:
+
+1. **`cs-material-researcher`** - inventories all topics in the source material
+2. **`cs-notes-author`** - writes detailed notes for each gap topic
+3. **`cs-notes-formatter`** - formats output in the chosen format (Typst or Markdown)
+4. **`cs-notes-auditor`** - checks for omissions, inventions, and formatting errors
+
+Agents and skills are merged into the container's `~/.claude/` on startup, while OAuth
+credentials on the same volume are preserved across rebuilds.
