@@ -613,7 +613,7 @@ def _course_label(key):
     return "/".join(parts[-2:]) if len(parts) >= 2 else (parts[-1] if parts else key)
 
 
-def run_once(state, active_hours):
+def run_once(state, active_hours, halt_notified=False):
     # ── HALT check ───────────────────────────────────────────────────────────
     # Written by the cost circuit-breaker; requires manual removal to resume.
     if os.path.exists(HALT_FILE):
@@ -622,7 +622,8 @@ def run_once(state, active_hours):
             "Disable 'extra usage' on your Claude account, then `rm /data/HALT` to resume."
         )
         log.warning(msg)
-        notify(msg)
+        if not halt_notified:
+            notify(msg)
         return state
 
     courses = load_courses()
@@ -882,16 +883,22 @@ def main():
     active_hours = parse_active_hours(ACTIVE_HOURS_RAW)
     state = load_state()
     first = True
+    halt_notified = False
 
     while True:
         if first and not RUN_ON_START:
             log.info("RUN_ON_START=false; sleeping %ds before first pass", INTERVAL)
         else:
+            halt_present = os.path.exists(HALT_FILE)
+            if not halt_present:
+                halt_notified = False  # reset so a future re-trigger notifies again
             try:
-                state = run_once(state, active_hours)
+                state = run_once(state, active_hours, halt_notified=halt_notified)
             except Exception as e:
                 log.exception("Unexpected error in run_once: %s", e)
                 notify(f"⚠️ icorsi-notes unexpected error: {e}")
+            if halt_present:
+                halt_notified = True
 
         first = False
 
