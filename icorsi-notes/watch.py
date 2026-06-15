@@ -285,7 +285,7 @@ def notify(msg):
         return
     import urllib.request
 
-    payload = json.dumps({"content": msg[:2000]}).encode()
+    payload = json.dumps({"username": "icorsi-notes", "content": msg[:2000]}).encode()
     req = urllib.request.Request(
         DISCORD_WEBHOOK,
         data=payload,
