@@ -289,7 +289,7 @@ def notify(msg):
     req = urllib.request.Request(
         DISCORD_WEBHOOK,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "User-Agent": "icorsi-notes/1.0"},
         method="POST",
     )
     try:
