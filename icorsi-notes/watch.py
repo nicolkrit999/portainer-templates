@@ -66,6 +66,7 @@ LOOP = INTERVAL > 0
 ACTIVE_HOURS_RAW = env("ACTIVE_HOURS", "00:00-03:00").strip()  # empty = always active
 DISCORD_WEBHOOK = env("DISCORD_WEBHOOK_URL", "")
 
+COST_CIRCUIT_BREAKER = env_bool("COST_CIRCUIT_BREAKER", True)
 MIN_TASK_WINDOW = int(env("MIN_TASK_WINDOW_SECONDS", "1800"))
 WINDOW_GRACE_MINUTES = int(env("WINDOW_GRACE_MINUTES", "10"))
 STALL_THRESHOLD = int(env("STALL_THRESHOLD", "4"))
@@ -718,7 +719,10 @@ def run_once(state, active_hours, halt_notified=False):
             )
 
             # ── cost circuit-breaker (layer 2 billing safety) ─────────────────
-            if cost > 0:
+            # Disable with COST_CIRCUIT_BREAKER=false if on a Max plan with
+            # extra usage OFF - total_cost_usd then reflects subscription value
+            # consumed, not real overage charges.
+            if COST_CIRCUIT_BREAKER and cost > 0:
                 msg = (
                     f"⛔ icorsi-notes: non-zero cost (${cost:.4f}) detected after {label}. "
                     "Writing /data/HALT to prevent further billing. "

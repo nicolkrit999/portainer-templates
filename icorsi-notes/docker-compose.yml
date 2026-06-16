@@ -29,6 +29,7 @@ services:
       WINDOW_GRACE_MINUTES: "${WINDOW_GRACE_MINUTES:-10}"
       RUN_ON_START: "${RUN_ON_START:-true}"
       DRY_RUN: "${DRY_RUN:-false}"
+      COST_CIRCUIT_BREAKER: "${COST_CIRCUIT_BREAKER:-true}"
       CLAUDE_MODEL: "${CLAUDE_MODEL:-}"
 
     volumes:
