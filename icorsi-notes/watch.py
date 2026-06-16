@@ -727,7 +727,7 @@ def run_once(state, active_hours, halt_notified=False):
                 log.error(msg)
                 try:
                     with open(HALT_FILE, "w") as f:
-                        f.write(f"cost={cost}\n")
+                        f.write(f"cost={cost}\nwritten={datetime.datetime.now().isoformat()}\ncourse={label}\n")
                 except Exception as e:
                     log.error("Could not write HALT file: %s", e)
                 notify(msg)
