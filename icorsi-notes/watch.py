@@ -217,6 +217,48 @@ def window_end_seconds(parsed):
     return max(0, int(mins_left * 60))
 
 
+def current_window_start(parsed):
+    """
+    Return the datetime when the current (or most recent) active window began.
+    For 00:00-03:00 at 01:00 → today at 00:00.
+    For 23:00-03:00 at 01:00 → yesterday at 23:00.
+    Falls back to start of today when ACTIVE_HOURS is empty.
+    """
+    now = datetime.datetime.now()
+    if parsed is None:
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    sh, sm, eh, em = parsed
+    start_mins = sh * 60 + sm
+    end_mins = eh * 60 + em
+    cur_mins = now.hour * 60 + now.minute
+    window_start_today = now.replace(hour=sh, minute=sm, second=0, microsecond=0)
+    if start_mins > end_mins and cur_mins < end_mins:
+        # Overnight window: we're in the early-morning part; window started yesterday
+        return window_start_today - datetime.timedelta(days=1)
+    return window_start_today
+
+
+def is_halt_stale(active_hours):
+    """
+    Return True if the HALT file was written before the current active window started.
+    A stale HALT means the 5-hour limit that triggered it has since reset; safe to remove.
+    Returns False if the timestamp is missing or unreadable (conservative: keep HALT).
+    """
+    try:
+        with open(HALT_FILE) as f:
+            content = f.read()
+        written = None
+        for line in content.splitlines():
+            if line.startswith("written="):
+                written = datetime.datetime.fromisoformat(line.split("=", 1)[1].strip())
+                break
+        if written is None:
+            return False  # old-format HALT without timestamp: keep it
+    except Exception:
+        return False
+    return written < current_window_start(active_hours)
+
+
 def minutes_until_active(parsed):
     """Return minutes to sleep until the active window opens (approx)."""
     if parsed is None or is_active_now(parsed):
@@ -616,16 +658,26 @@ def _course_label(key):
 
 def run_once(state, active_hours, halt_notified=False):
     # ── HALT check ───────────────────────────────────────────────────────────
-    # Written by the cost circuit-breaker; requires manual removal to resume.
+    # Written by the cost circuit-breaker when extra usage billing was detected.
+    # Auto-removed if stale (written before the current active window) since the
+    # 5-hour subscription limit will have reset by then.
     if os.path.exists(HALT_FILE):
-        msg = (
-            "⛔ icorsi-notes: /data/HALT present (non-zero API cost was previously detected). "
-            "Disable 'extra usage' on your Claude account, then `rm /data/HALT` to resume."
-        )
-        log.warning(msg)
-        if not halt_notified:
-            notify(msg)
-        return state
+        if is_halt_stale(active_hours):
+            log.info("HALT file is from a previous active window - auto-removing and resuming.")
+            try:
+                os.remove(HALT_FILE)
+            except Exception as e:
+                log.error("Could not remove stale HALT file: %s", e)
+                return state  # keep blocked if we can't remove it
+        else:
+            msg = (
+                "⛔ icorsi-notes: /data/HALT present (extra usage billing detected this window). "
+                "Remove /data/HALT to resume once the active window resets."
+            )
+            log.warning(msg)
+            if not halt_notified:
+                notify(msg)
+            return state
 
     courses = load_courses()
     if not courses:
