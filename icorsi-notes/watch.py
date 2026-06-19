@@ -721,9 +721,13 @@ def run_once(state, active_hours):
             )
 
             # ── cost circuit-breaker (layer 2 billing safety) ─────────────────
-            # Disable with COST_CIRCUIT_BREAKER=false if on a Max plan with
-            # extra usage OFF - total_cost_usd then reflects subscription value
-            # consumed, not real overage charges.
+            # NOTE: total_cost_usd from claude -p reflects the dollar value of
+            # tokens consumed against the Max subscription - it is non-zero for
+            # every normal run, not just when extra-usage billing kicks in.
+            # The check is therefore a false signal for Max plan users and should
+            # be left disabled (COST_CIRCUIT_BREAKER=false). The real billing
+            # guards are: (1) no ANTHROPIC_API_KEY in env (startup assertion
+            # above), and (2) "extra usage" OFF on the Anthropic dashboard.
             if COST_CIRCUIT_BREAKER and cost > 0:
                 msg = (
                     f"⛔ icorsi-notes: non-zero cost (${cost:.4f}) detected after {label}. "
