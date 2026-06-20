@@ -1,4 +1,12 @@
 services:
+  coolify-init:
+    image: "alpine:3.19"
+    container_name: coolify-init
+    restart: "no"
+    volumes:
+      - "${COOLIFY_DATA_ROOT}/ssh:/ssh"
+    command: "sh -c 'chown -R 9999:9999 /ssh && chmod -R 700 /ssh'"
+
   coolify:
     image: "ghcr.io/coollabsio/coolify:${COOLIFY_VERSION:-latest}"
     container_name: coolify
@@ -45,6 +53,8 @@ services:
       retries: 10
       timeout: 2s
     depends_on:
+      coolify-init:
+        condition: service_completed_successfully
       coolify-db:
         condition: service_healthy
       coolify-redis:
