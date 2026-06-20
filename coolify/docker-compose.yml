@@ -1,0 +1,124 @@
+services:
+  coolify:
+    image: "ghcr.io/coollabsio/coolify:${COOLIFY_VERSION:-latest}"
+    container_name: coolify
+    restart: unless-stopped
+    working_dir: /var/www/html
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - "${COOLIFY_DATA_ROOT}/source/.env:/var/www/html/.env:ro"
+      - "${COOLIFY_DATA_ROOT}/ssh:/var/www/html/storage/app/ssh"
+      - "${COOLIFY_DATA_ROOT}/applications:/var/www/html/storage/app/applications"
+      - "${COOLIFY_DATA_ROOT}/databases:/var/www/html/storage/app/databases"
+      - "${COOLIFY_DATA_ROOT}/services:/var/www/html/storage/app/services"
+      - "${COOLIFY_DATA_ROOT}/backups:/var/www/html/storage/app/backups"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    env_file:
+      - "${COOLIFY_DATA_ROOT}/source/.env"
+    environment:
+      APP_ENV: "${APP_ENV}"
+      PHP_MEMORY_LIMIT: "${PHP_MEMORY_LIMIT}"
+      PHP_FPM_PM_CONTROL: "${PHP_FPM_PM_CONTROL}"
+      PHP_FPM_PM_START_SERVERS: "${PHP_FPM_PM_START_SERVERS}"
+      PHP_FPM_PM_MIN_SPARE_SERVERS: "${PHP_FPM_PM_MIN_SPARE_SERVERS}"
+      PHP_FPM_PM_MAX_SPARE_SERVERS: "${PHP_FPM_PM_MAX_SPARE_SERVERS}"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8080/api/health"]
+      interval: 5s
+      retries: 10
+      timeout: 2s
+    depends_on:
+      coolify-db:
+        condition: service_healthy
+      coolify-redis:
+        condition: service_healthy
+      coolify-realtime:
+        condition: service_healthy
+    networks:
+      - cloudflare_web_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  coolify-db:
+    image: "postgres:15-alpine"
+    container_name: coolify-db
+    restart: unless-stopped
+    volumes:
+      - "${COOLIFY_DATA_ROOT}/db:/var/lib/postgresql/data"
+    environment:
+      POSTGRES_USER: "${DB_USERNAME}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      POSTGRES_DB: "${DB_DATABASE}"
+      TZ: "${TZ}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
+      retries: 10
+      timeout: 2s
+    networks:
+      - cloudflare_web_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  coolify-redis:
+    image: "redis:7-alpine"
+    container_name: coolify-redis
+    restart: unless-stopped
+    command: "redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD}"
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      TZ: "${TZ}"
+    volumes:
+      - "${COOLIFY_DATA_ROOT}/redis:/data"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+      timeout: 2s
+    networks:
+      - cloudflare_web_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  coolify-realtime:
+    image: "ghcr.io/coollabsio/coolify-realtime:1.0.16"
+    container_name: coolify-realtime
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${SOKETI_PORT:-6001}:6001"
+      - "${SOKETI_METRICS_PORT:-6002}:6002"
+    volumes:
+      - "${COOLIFY_DATA_ROOT}/ssh:/var/www/html/storage/app/ssh"
+    environment:
+      APP_NAME: "${APP_NAME}"
+      SOKETI_DEBUG: "${SOKETI_DEBUG}"
+      SOKETI_DEFAULT_APP_ID: "${PUSHER_APP_ID}"
+      SOKETI_DEFAULT_APP_KEY: "${PUSHER_APP_KEY}"
+      SOKETI_DEFAULT_APP_SECRET: "${PUSHER_APP_SECRET}"
+      SOKETI_HOST: "0.0.0.0"
+      TZ: "${TZ}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:6001/ready && wget -qO- http://127.0.0.1:6002/ready || exit 1"]
+      interval: 5s
+      retries: 10
+      timeout: 2s
+    networks:
+      - cloudflare_web_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
