@@ -8,6 +8,15 @@ services:
       - ${DOCKER_CONFIG_DIR}/n8n/db:/var/lib/postgresql
     command: chown -R 999:999 /var/lib/postgresql
 
+  n8n-data-init:
+    image: alpine
+    container_name: n8n-data-init
+    restart: "no"
+    user: "0"
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/n8n/data:/home/node/.n8n
+    command: chown -R 1000:1000 /home/node/.n8n
+
   n8n-db:
     image: postgres:18
     container_name: n8n-db
@@ -44,7 +53,10 @@ services:
     security_opt:
       - no-new-privileges:true
     depends_on:
-      - n8n-db
+      n8n-db:
+        condition: service_started
+      n8n-data-init:
+        condition: service_completed_successfully
     environment:
       TZ: "${TZ}"
       NODE_ENV: production
