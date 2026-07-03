@@ -5,24 +5,24 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 
 # Volume path conventions
 
-Two storage pools with distinct purposes:
+Two storage pools with distinct purposes, referenced **only** via their
+canonical variables:
 
-- **`/volume2/docker/<service>/`** - NVMe SSD. Use for **configuration, small
-  fast-access data, small composes**: app config, SQLite DBs, application state.
-- **`/volume1/Default-volume-1/0001_Docker/<service>/`** - HDD bulk storage. Use
-  for **user data, media libraries, large databases, heavy files**.
+- **`${VOLUME_CONFIG}/<service>/`** - NVMe/SSD-class storage. Use for
+  **configuration, small fast-access data, small composes**: app config,
+  SQLite DBs, application state.
+- **`${VOLUME_DATA}/<service>/`** - HDD-class bulk storage. Use for **user
+  data, media libraries, large databases, heavy files**.
 
 ## Rules
-- **Parameterize host paths as `${VAR}` - never hardcode them in committed
-  compose files.** Bind-mount host paths are personal infrastructure detail.
-  Use a per-service base variable (e.g. `${GITEA_DATA_ROOT}/data:/data`), put the
-  real path in `.env` / Portainer stack env, and ship a sensible default in
-  `.env.example` (e.g. `GITEA_DATA_ROOT=/volume2/docker/gitea`). Suggest the
-  conventional path as that default; the user confirms it in `.env`, not the
-  compose.
+- **Committed compose files must never contain literal host paths.** The real
+  storage roots are set in `.env` / Portainer stack env; `.env.example` ships
+  sensible defaults for this instance (`VOLUME_CONFIG=/volume2/docker`,
+  `VOLUME_DATA=/volume1/Default-volume-1/0001_Docker`). Reference paths only
+  as `${VOLUME_CONFIG}/<service>/...` or `${VOLUME_DATA}/<service>/...`.
 - **Avoid unnamed (anonymous) and named-only Docker volumes whenever possible.**
   Every persistent volume should bind-mount to an explicit host path under
-  `/volume2/docker/...` or `/volume1/Default-volume-1/0001_Docker/...`.
+  `${VOLUME_CONFIG}/...` or `${VOLUME_DATA}/...`.
 - Do **not** let data land in the NAS `@docker` directory (the default Docker
   root) - it is hard to back up and audit. If an image insists on a named volume
   for a subpath, bind-mount the parent or use a host-path override.
@@ -31,6 +31,6 @@ Two storage pools with distinct purposes:
 When creating or changing volume paths, **suggest specific paths from these
 conventions, then ask the user to confirm** before finalizing. Example:
 
-> "I've suggested `/volume2/docker/gitea/config` for Gitea's configuration and
-> `/volume1/Default-volume-1/0001_Docker/gitea/data` for repository data. Does
-> this match your setup, or would you like different paths?"
+> "I've suggested `${VOLUME_CONFIG}/gitea/config` for Gitea's configuration and
+> `${VOLUME_DATA}/gitea/data` for repository data. Does this match your setup,
+> or would you like different paths?"

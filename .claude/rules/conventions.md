@@ -43,15 +43,18 @@ defaults to `Europe/Zurich`. Every service that accepts a `TZ` env var must
 reference it as `"${TZ}"`.
 
 ## Default username & UID/GID
-- Default admin/user account name is **`krit`** unless specified - apply to
-  `DEFAULT_USERNAME`, `ADMIN_USER`, `INITIAL_USER`, etc., replacing upstream
-  sample values (`admin`, `marius`, …). Passwords still go through `${...}`.
-- NAS user `krit` IDs, for images supporting `PUID`/`PGID` (LinuxServer.io,
-  *arr stack) or a `user:` directive: `PUID=1000`, `PGID=10`. Set as literal
-  values (not secrets):
+- **Never hardcode a username in a compose file.** Use `${ADMIN_USER}` for
+  `DEFAULT_USERNAME`, `ADMIN_USER`, `INITIAL_USER`, and similar fields,
+  replacing upstream sample values (`admin`, `marius`, …). Passwords still go
+  through `${...}`.
+- UID/GID, for images supporting `PUID`/`PGID` (LinuxServer.io, *arr stack) or
+  a `user:` directive, are set via `${PUID}`/`${PGID}` (always quoted) - never
+  as literal numbers. The actual values live in `.env` / Portainer stack env;
+  this instance's `.env.example` defaults to user `krit`, `PUID=1000`,
+  `PGID=10`:
   ```yaml
   environment:
-    PUID: 1000
-    PGID: 10
+    PUID: "${PUID}"
+    PGID: "${PGID}"
     TZ: "${TZ}"
   ```
