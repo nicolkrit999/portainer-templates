@@ -15,17 +15,17 @@ Full roster and orchestration notes: `.claude/agents/README.md`. Delegate by tri
 - **"Audit / security-check my composes"** → `compose-security-auditor` (read-only: secrets, exposed ports, privileged, unpinned images, default-volume leaks).
 - **"Are my composes consistent / following conventions?"** → `compose-consistency-linter` (read-only: TZ, restart, no `version:`, quoting, volume pools, hostname, Cloudflare block).
 
-The three read-only agents fan out across the ~70 service dirs in their own context and return only a compact report — use them to keep large scans and web research out of the main token budget.
+The three read-only agents fan out across the ~70 service dirs in their own context and return only a compact report - use them to keep large scans and web research out of the main token budget.
 
-**Orchestration:** Research → Plan → Implement → Review → Verify. Pass each subagent the objective (the *why*), not just a bare query. Evaluate each return and iterate at most 3 cycles; reviewers never edit — they hand findings back to the architect to apply.
+**Orchestration:** Research → Plan → Implement → Review → Verify. Pass each subagent the objective (the *why*), not just a bare query. Evaluate each return and iterate at most 3 cycles; reviewers never edit - they hand findings back to the architect to apply.
 
 ## Shared conventions (`.claude/rules/`)
 
-The canonical compose conventions live in `.claude/rules/` and are referenced by every agent: `secrets.md` (no hardcoded secrets, use `${VAR}`), `networking.md` (Cloudflare Tunnel block, `<svc>.nicolkrit.ch` hostnames, connector handoff), `volumes.md` (`/volume2` SSD vs `/volume1` HDD bind-mounts), `conventions.md` (2-space indent, no `version:`, quote-all-env, TZ=Europe/Zurich, default user `krit` / PUID 1000 / PGID 10). A non-blocking PostToolUse hook (`.claude/hooks/validate-compose.sh`) warns on `version:`, unquoted env values, and hardcoded-secret patterns when a `docker-compose.yml` is edited.
+The canonical compose conventions live in `.claude/rules/` and are referenced by every agent: `secrets.md` (no hardcoded secrets, use `${VAR}`), `networking.md` (Cloudflare Tunnel block, `<svc>.${DOMAIN}` hostnames, connector handoff), `volumes.md` (`${VOLUME_CONFIG}` fast/SSD-class vs `${VOLUME_DATA}` bulk/HDD-class bind-mounts - parameterized, real paths in .env), `conventions.md` (2-space indent, no `version:`, quote-all-env incl. PUID/PGID, `TZ: "${TZ}"`, `${ADMIN_USER}`/`${PUID}`/`${PGID}`), `portainer-instance.md` (instance-specific operational rules - Portainer MCP tools and migration workflow). A non-blocking PostToolUse hook (`.claude/hooks/validate-compose.sh`) warns on `version:`, unquoted env values, and hardcoded-secret patterns when a `docker-compose.yml` is edited.
 
 ## Token optimization (RTK)
 
-RTK is installed and a Claude Code hook auto-rewrites Bash tool calls — `git status` becomes `rtk git status` transparently. This covers all git and `docker`/`docker compose` commands.
+RTK is installed and a Claude Code hook auto-rewrites Bash tool calls - `git status` becomes `rtk git status` transparently. This covers all git and `docker`/`docker compose` commands.
 
 **The hook does not cover built-in tools.** `Read`, `Grep`, and `Glob` bypass RTK entirely. Always prefer shell equivalents via Bash so RTK can intercept and filter the output:
 
