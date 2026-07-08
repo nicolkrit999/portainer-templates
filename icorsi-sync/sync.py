@@ -1085,40 +1085,41 @@ def sync_course(dav, course_id, rel_folder, state):
         elif logical in text_by:
             do_text(logical, text_by[logical])
 
-    if DRY_RUN:
-        for logical in list(file_by) + list(link_by) + list(text_by):
-            log.info("[dry] would write %s", logical)
-        return len(expected), 0, 0, 0
-
+    # List ownCloud once, then decide what to (re)write vs skip as already-current. This runs for
+    # dry runs too, so the [dry] preview shows what would ACTUALLY change (present + unchanged on
+    # iCorsi + intact in ownCloud = skipped), not the full course inventory.
     existing.update(dav.list_files(base))
     uploaded = skipped = 0
+    files_to_do, links_to_do, texts_to_do = [], [], []
+    for logical, f in file_by.items():
+        cur = existing.get(logical)
+        prev = fstate.get(logical)
+        # Up-to-date = present + unchanged on iCorsi (timemodified) + intact (ownCloud size ==
+        # the bytes we stored). Moodle's reported filesize is deliberately NOT used here: it is
+        # 0 for generated 'page' files, which made those re-upload every run.
+        if cur is not None and prev and prev.get("tm", -1) >= f["tm"] and cur == prev.get("size"):
+            skipped += 1
+            continue
+        files_to_do.append(logical)
+    for logical, l in link_by.items():
+        digest = hashlib.md5(l["content"]).hexdigest()
+        if existing.get(logical) == len(l["content"]) and fstate.get(logical, {}).get("md5") == digest:
+            skipped += 1
+            continue
+        links_to_do.append(logical)
+    for logical, t in text_by.items():
+        digest = hashlib.md5(t["content"]).hexdigest()
+        if existing.get(logical) == len(t["content"]) and fstate.get(logical, {}).get("md5") == digest:
+            skipped += 1
+            continue
+        texts_to_do.append(logical)
+
+    if DRY_RUN:
+        for logical in files_to_do + links_to_do + texts_to_do:
+            log.info("[dry] would write %s", logical)
+        return len(files_to_do) + len(links_to_do) + len(texts_to_do), skipped, 0, 0
 
     try:
-        # Decide what to (re)write vs skip as already-current.
-        files_to_do, links_to_do, texts_to_do = [], [], []
-        for logical, f in file_by.items():
-            cur = existing.get(logical)
-            prev = fstate.get(logical)
-            # Up-to-date = present + unchanged on iCorsi (timemodified) + intact (ownCloud size ==
-            # the bytes we stored). Moodle's reported filesize is deliberately NOT used here: it is
-            # 0 for generated 'page' files, which made those re-upload every run.
-            if cur is not None and prev and prev.get("tm", -1) >= f["tm"] and cur == prev.get("size"):
-                skipped += 1
-                continue
-            files_to_do.append(logical)
-        for logical, l in link_by.items():
-            digest = hashlib.md5(l["content"]).hexdigest()
-            if existing.get(logical) == len(l["content"]) and fstate.get(logical, {}).get("md5") == digest:
-                skipped += 1
-                continue
-            links_to_do.append(logical)
-        for logical, t in text_by.items():
-            digest = hashlib.md5(t["content"]).hexdigest()
-            if existing.get(logical) == len(t["content"]) and fstate.get(logical, {}).get("md5") == digest:
-                skipped += 1
-                continue
-            texts_to_do.append(logical)
-
         # Pre-create every needed parent dir sequentially, so the parallel pass never has to
         # create one concurrently (ensure_dir is also individually locked as a belt-and-braces).
         for logical in files_to_do + links_to_do + texts_to_do:
