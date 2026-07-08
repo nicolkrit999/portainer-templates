@@ -2,21 +2,27 @@ services:
   icorsi-sync:
     build: .
     image: icorsi-sync:local
-    pull_policy: build          # locally built image — never try to pull from a registry
+    pull_policy: build          # locally built image - never try to pull from a registry
     container_name: icorsi-sync
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
     environment:
-      # NOTE: every value is quoted on purpose — Portainer's stack deployer rejects
+      # NOTE: every value is quoted on purpose - Portainer's stack deployer rejects
       # unquoted YAML booleans/numbers with an opaque "[object Object]" UI error.
       TZ: "${TZ}"
+      PUID: "${PUID}"                                      # host uid the container drops to (owns /data)
+      PGID: "${PGID}"
       ICORSI_BASE_URL: "https://www.icorsi.ch"
-      ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token
+      ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token (bootstrap only)
+      ICORSI_PRIVATETOKEN: "${ICORSI_PRIVATETOKEN:-}"       # secret: enables headless auto-renewal (bootstrap only)
+      ICORSI_USERID: "${ICORSI_USERID:-}"                   # your Moodle userid (auto-discovered if empty)
       OWNCLOUD_WEBDAV_URL: "${OWNCLOUD_WEBDAV_URL}"         # e.g. http://owncloud:8080/remote.php/dav/files/oc_admin
       OWNCLOUD_USER: "${OWNCLOUD_USER}"
       OWNCLOUD_APP_PASSWORD: "${OWNCLOUD_APP_PASSWORD}"     # secret (ownCloud app password)
-      OWNCLOUD_HOST_HEADER: "${OWNCLOUD_HOST_HEADER:-}"     # trusted domain, e.g. owncloud.nicolkrit.ch (avoids HTTP 400)
+      OWNCLOUD_HOST_HEADER: "${OWNCLOUD_HOST_HEADER:-}"     # trusted domain, e.g. owncloud.${DOMAIN} (avoids HTTP 400)
       OWNCLOUD_BASE_PATH: "${OWNCLOUD_BASE_PATH}"           # e.g. University/Supsi
       SUBFOLDER: "${SUBFOLDER:-_icorsi}"
       INCLUDE_URL_LINKS: "${INCLUDE_URL_LINKS:-true}"      # save url modules as .txt
@@ -25,14 +31,23 @@ services:
       EXCLUDE_MODULES: "${EXCLUDE_MODULES:-}"              # optional opt-out filter; empty = fetch from all types
       PRUNE_ORPHANS: "${PRUNE_ORPHANS:-false}"            # delete files no longer in the course (one current copy; to trash)
       RECON_MAX_PASSES: "${RECON_MAX_PASSES:-5}"          # reconcile passes that retry still-missing files
+      ICORSI_CONCURRENCY: "${ICORSI_CONCURRENCY:-4}"      # parallel per-file transfers within a course
       SYNC_INTERVAL_SECONDS: "${SYNC_INTERVAL_SECONDS:-21600}"   # 6h
       RUN_ON_START: "${RUN_ON_START:-true}"
       DRY_RUN: "${DRY_RUN:-false}"
       DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"       # secret, optional
+      HEARTBEAT_URL: "${HEARTBEAT_URL:-}"                   # optional: GET after each successful run (uptime-kuma/healthchecks.io)
     volumes:
-      - ${DOCKER_CONFIG_DIR}/icorsi-sync/data:/data
+      - ${VOLUME_CONFIG}/icorsi-sync/data:/data
     networks:
       - cloudflare_web_network
+    healthcheck:
+      # unhealthy if state.json's last_run is older than 2x the sync interval (i.e. a run was missed)
+      test: ["CMD", "python", "-c", "import json,time,os,sys; d=json.load(open('/data/state.json')); t=time.mktime(time.strptime(d['last_run'],'%Y-%m-%d %H:%M:%S')); iv=int(os.environ.get('SYNC_INTERVAL_SECONDS','21600')) or 21600; sys.exit(0 if time.time()-t < 2*iv else 1)"]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 15m
     logging:
       options:
         max-size: "10m"
