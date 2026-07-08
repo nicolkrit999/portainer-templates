@@ -26,8 +26,8 @@ import logging
 import tempfile
 import threading
 import traceback
-import http.client
-import http.cookiejar
+import http.client as http_client
+import http.cookiejar as http_cookiejar  # aliased: a module-level def http() shadows the bare `http` name
 import unicodedata
 import urllib.parse
 import urllib.request
@@ -192,7 +192,7 @@ def retrying(label, fn):
             if 400 <= e.code < 500:
                 raise
             last = e
-        except (urllib.error.URLError, TimeoutError, OSError, http.client.IncompleteRead) as e:
+        except (urllib.error.URLError, TimeoutError, OSError, http_client.IncompleteRead) as e:
             last = e
         if attempt < HTTP_RETRIES:
             time.sleep(2 * attempt)
@@ -459,7 +459,7 @@ class TokenManager:
         if not self.userid:
             raise RuntimeError("cannot redeem autologin key without a userid")
         key, autologinurl = self._get_autologin_key()
-        cj = http.cookiejar.CookieJar()
+        cj = http_cookiejar.CookieJar()
         redeem = autologinurl + "?" + urllib.parse.urlencode({"userid": self.userid, "key": key})
         # Do not follow the redirect; complete_user_login() sets MoodleSession on the 3xx.
         self._request(redeem, "GET", cookiejar=cj, follow_redirects=False)
@@ -499,11 +499,11 @@ class TokenManager:
                 return
 
     def _jar_from_stored(self):
-        jar = http.cookiejar.CookieJar()
+        jar = http_cookiejar.CookieJar()
         sc = self.session_cookie
         if not sc:
             return jar
-        ck = http.cookiejar.Cookie(
+        ck = http_cookiejar.Cookie(
             0, sc["name"], sc["value"], None, False,
             ICORSI_HOST, True, False, "/", True, True, None, False, None, None, {}, False)
         jar.set_cookie(ck)
