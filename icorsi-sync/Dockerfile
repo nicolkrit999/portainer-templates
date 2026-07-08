@@ -12,6 +12,10 @@ WORKDIR /app
 # Only code + template are baked in. The REAL course map is provided at runtime
 # via the private volume at /data/courses.json.
 COPY sync.py entrypoint.py courses.example.json ./
+# The app runs as an unprivileged PUID/PGID chosen at runtime, so the baked-in code must be
+# world-readable + the dir traversable (can't chown to an unknown-at-build uid). a+rX = read
+# for files, execute/traverse for dirs.
+RUN chmod -R a+rX /app
 
 # Large downloads stream through TMPDIR (=/data/tmp), off the container writable layer.
 # The entrypoint starts as root, chowns the bind-mounted /data to PUID/PGID, then
