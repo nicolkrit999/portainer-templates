@@ -11,8 +11,17 @@ import os
 import sys
 import shutil
 
-PUID = int(os.environ.get("PUID", "1000"))
-PGID = int(os.environ.get("PGID", "1000"))
+def _int_env(name, default):
+    # Treat unset AND present-but-empty (e.g. compose passing an undefined "${PUID}") as default.
+    val = (os.environ.get(name) or "").strip()
+    try:
+        return int(val)
+    except ValueError:
+        return default
+
+
+PUID = _int_env("PUID", 1000)
+PGID = _int_env("PGID", 1000)
 DATA = os.environ.get("STATE_DIR", "/data")
 TMPDIR = os.environ.get("TMPDIR", os.path.join(DATA, "tmp"))
 

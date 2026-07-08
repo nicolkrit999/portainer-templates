@@ -13,8 +13,8 @@ services:
       # NOTE: every value is quoted on purpose - Portainer's stack deployer rejects
       # unquoted YAML booleans/numbers with an opaque "[object Object]" UI error.
       TZ: "${TZ}"
-      PUID: "${PUID}"                                      # host uid the container drops to (owns /data)
-      PGID: "${PGID}"
+      PUID: "${PUID:-1000}"                                # host uid the container drops to (owns /data)
+      PGID: "${PGID:-1000}"
       ICORSI_BASE_URL: "https://www.icorsi.ch"
       ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token (bootstrap only)
       ICORSI_PRIVATETOKEN: "${ICORSI_PRIVATETOKEN:-}"       # secret: enables headless auto-renewal (bootstrap only)
