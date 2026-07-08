@@ -91,6 +91,16 @@ The **only** way it hard-fails: the container is down for longer than ~2 days *a
 expiry. Then the stored token is dead and can't renew itself - you get a Discord alert; with
 the env vars still set, restarting the container re-bootstraps from them.
 
+> **Harmless log warning you can ignore:**
+> `keep_alive refresh failed: ... autologinkeygenerationlockout - ... wait 6 minutes between requests`
+> This is **normal and safe to ignore.** Moodle only lets you mint a new autologin key once every
+> 6 minutes. It shows up when the container is **restarted/redeployed twice within 6 minutes** (e.g.
+> while you're setting it up), because each start immediately tries to renew. In steady state the
+> tool only renews once every `SYNC_INTERVAL_SECONDS` (6h by default) - 60× outside the limit - so
+> it never happens on its own. Your token isn't affected: it was already refreshed on the previous
+> run, and the next run renews cleanly. (This single blip also won't trigger the Discord early
+> warning, which needs two consecutive failures.)
+
 ## Get your Moodle credentials (once)
 
 You need three things, and you can grab all of them in one go from the `launch.php` redirect:
