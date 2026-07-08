@@ -24,6 +24,9 @@ services:
       - ACTUAL_SERVER_PASSWORD=${ACTUAL_SERVER_PASSWORD}
       - API_KEY=${ACTUAL_API_PASSWORD}
       - NODE_OPTIONS=--max-old-space-size=4096
+      - ACTUAL_DATA_DIR=/data
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/actual-budget/api-data:/data
     networks:
       - cloudflare_web_network
 
