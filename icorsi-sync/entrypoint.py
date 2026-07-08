@@ -24,6 +24,7 @@ PUID = _int_env("PUID", 1000)
 PGID = _int_env("PGID", 1000)
 DATA = os.environ.get("STATE_DIR", "/data")
 TMPDIR = os.environ.get("TMPDIR", os.path.join(DATA, "tmp"))
+APP_DIR = os.path.dirname(os.path.abspath(__file__)) or "/app"
 
 
 def _chown_tree(path):
@@ -39,6 +40,28 @@ def _chown_tree(path):
         pass
 
 
+def _ensure_readable(path):
+    # Self-heal: make the baked-in app code readable + traversable by the unprivileged user we
+    # drop to, in case the image was built without it. Runs while still root.
+    try:
+        os.chmod(path, os.stat(path).st_mode | 0o755)
+        for root, dirs, files in os.walk(path):
+            for d in dirs:
+                p = os.path.join(root, d)
+                try:
+                    os.chmod(p, os.stat(p).st_mode | 0o055)
+                except OSError:
+                    pass
+            for f in files:
+                p = os.path.join(root, f)
+                try:
+                    os.chmod(p, os.stat(p).st_mode | 0o044)
+                except OSError:
+                    pass
+    except OSError:
+        pass
+
+
 def main():
     os.makedirs(DATA, exist_ok=True)
     # Purge TMPDIR on every start so download temps left by a SIGKILL/OOM/crash (not just a
@@ -47,6 +70,7 @@ def main():
     os.makedirs(TMPDIR, exist_ok=True)
     if os.geteuid() == 0:
         _chown_tree(DATA)
+        _ensure_readable(APP_DIR)
         # Drop root's supplementary groups BEFORE setgid/setuid, while still privileged -
         # otherwise the process would keep root's group memberships after dropping.
         try:
