@@ -1,0 +1,98 @@
+services:
+  sparkyfitness-db:
+    image: postgres:18.3-alpine
+    container_name: sparkyfitness-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${SPARKY_FITNESS_DB_NAME}"
+      POSTGRES_USER: "${SPARKY_FITNESS_DB_USER}"
+      POSTGRES_PASSWORD: "${SPARKY_FITNESS_DB_PASSWORD}"
+      PUID: "${PUID}"
+      PGID: "${PGID}"
+      TZ: "${TZ}"
+    volumes:
+      - "${VOLUME_CONFIG}/sparkyfitness/db:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SPARKY_FITNESS_DB_USER} -d ${SPARKY_FITNESS_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - sparkyfitness_internal
+
+  sparkyfitness-server:
+    image: codewithcj/sparkyfitness_server:latest
+    container_name: sparkyfitness-server
+    restart: unless-stopped
+    depends_on:
+      sparkyfitness-db:
+        condition: service_healthy
+    environment:
+      SPARKY_FITNESS_DB_NAME: "${SPARKY_FITNESS_DB_NAME}"
+      SPARKY_FITNESS_DB_USER: "${SPARKY_FITNESS_DB_USER}"
+      SPARKY_FITNESS_DB_HOST: "sparkyfitness-db"
+      SPARKY_FITNESS_DB_PASSWORD: "${SPARKY_FITNESS_DB_PASSWORD}"
+      SPARKY_FITNESS_DB_PORT: "5432"
+      SPARKY_FITNESS_APP_DB_USER: "${SPARKY_FITNESS_APP_DB_USER}"
+      SPARKY_FITNESS_APP_DB_PASSWORD: "${SPARKY_FITNESS_APP_DB_PASSWORD}"
+      SPARKY_FITNESS_API_ENCRYPTION_KEY: "${SPARKY_FITNESS_API_ENCRYPTION_KEY}"
+      # WARNING: changing BETTER_AUTH_SECRET after users have enabled 2FA will lock them out of their accounts.
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
+      SPARKY_FITNESS_FRONTEND_URL: "https://sparkyfitness.${DOMAIN}"
+      SPARKY_FITNESS_DISABLE_SIGNUP: "${SPARKY_FITNESS_DISABLE_SIGNUP}"
+      SPARKY_FITNESS_ADMIN_EMAIL: "${SPARKY_FITNESS_ADMIN_EMAIL}"
+      SPARKY_FITNESS_LOG_LEVEL: "${SPARKY_FITNESS_LOG_LEVEL:-ERROR}"
+      SPARKY_FITNESS_PUBLIC_API_DOCS: "${SPARKY_FITNESS_PUBLIC_API_DOCS}"
+      ALLOW_PRIVATE_NETWORK_CORS: "${ALLOW_PRIVATE_NETWORK_CORS}"
+      # SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS: "${SPARKY_FITNESS_EXTRA_TRUSTED_ORIGINS}"
+      PUID: "${PUID}"
+      PGID: "${PGID}"
+      TZ: "${TZ}"
+    volumes:
+      - "${VOLUME_DATA}/sparkyfitness/backups:/app/backups"
+      - "${VOLUME_DATA}/sparkyfitness/uploads:/app/uploads"
+    # No healthcheck: no verified HTTP health endpoint exists for this image;
+    # omitted rather than guessing at an unconfirmed route or binary (e.g. curl/nc availability unverified).
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - sparkyfitness_internal
+
+  sparkyfitness-frontend:
+    image: codewithcj/sparkyfitness:latest
+    container_name: sparkyfitness-frontend
+    restart: unless-stopped
+    depends_on:
+      - sparkyfitness-server
+    environment:
+      SPARKY_FITNESS_FRONTEND_URL: "https://sparkyfitness.${DOMAIN}"
+      SPARKY_FITNESS_SERVER_HOST: "sparkyfitness-server"
+      SPARKY_FITNESS_SERVER_PORT: "3010"
+      PUID: "${PUID}"
+      PGID: "${PGID}"
+      TZ: "${TZ}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - sparkyfitness_internal
+      - cloudflare_web_network
+
+networks:
+  sparkyfitness_internal:
+    name: sparkyfitness-internal
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
