@@ -50,6 +50,7 @@ services:
       sparkyfitness-db:
         condition: service_healthy
     environment:
+      NODE_ENV: "production"
       SPARKY_FITNESS_DB_NAME: "${SPARKY_FITNESS_DB_NAME}"
       SPARKY_FITNESS_DB_USER: "${SPARKY_FITNESS_DB_USER}"
       SPARKY_FITNESS_DB_HOST: "sparkyfitness-db"
