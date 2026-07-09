@@ -1,14 +1,29 @@
 services:
+  # One-shot init: the postgres:alpine image runs internally as uid/gid 70
+  # (not root, and it does NOT read PUID/PGID - that's an LSIO-only convention),
+  # so a fresh bind-mounted host directory (owned by root) blocks it from
+  # creating its data subdirectory. Chown once, then exit.
+  sparkyfitness-db-init:
+    image: alpine:3.22
+    container_name: sparkyfitness-db-init
+    command: "chown -R 70:70 /data"
+    volumes:
+      - "${VOLUME_CONFIG}/sparkyfitness/db:/data"
+    networks:
+      - sparkyfitness_internal
+    restart: "no"
+
   sparkyfitness-db:
     image: postgres:18.3-alpine
     container_name: sparkyfitness-db
     restart: unless-stopped
+    depends_on:
+      sparkyfitness-db-init:
+        condition: service_completed_successfully
     environment:
       POSTGRES_DB: "${SPARKY_FITNESS_DB_NAME}"
       POSTGRES_USER: "${SPARKY_FITNESS_DB_USER}"
       POSTGRES_PASSWORD: "${SPARKY_FITNESS_DB_PASSWORD}"
-      PUID: "${PUID}"
-      PGID: "${PGID}"
       TZ: "${TZ}"
     # Mounted at the parent dir, not /var/lib/postgresql/data: Postgres 18+ images
     # place data in a major-version-specific subdirectory under /var/lib/postgresql
