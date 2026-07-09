@@ -10,8 +10,11 @@ services:
       PUID: "${PUID}"
       PGID: "${PGID}"
       TZ: "${TZ}"
+    # Mounted at the parent dir, not /var/lib/postgresql/data: Postgres 18+ images
+    # place data in a major-version-specific subdirectory under /var/lib/postgresql
+    # and refuse to start if something else already occupies .../data directly.
     volumes:
-      - "${VOLUME_CONFIG}/sparkyfitness/db:/var/lib/postgresql/data"
+      - "${VOLUME_CONFIG}/sparkyfitness/db:/var/lib/postgresql"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${SPARKY_FITNESS_DB_USER} -d ${SPARKY_FITNESS_DB_NAME}"]
       interval: 10s
