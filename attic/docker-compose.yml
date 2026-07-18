@@ -1,4 +1,28 @@
 services:
+  atticd-db:
+    image: postgres:17
+    container_name: atticd-db
+    hostname: atticd-db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "atticd", "-U", "atticd"]
+      interval: 10s
+      timeout: 45s
+      retries: 10
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/attic/pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: "atticd"
+      POSTGRES_USER: "atticd"
+      POSTGRES_PASSWORD: "${ATTIC_DB_PASSWORD}"
+      TZ: "${TZ}"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   atticd:
     image: ghcr.io/zhaofengli/attic:latest
     container_name: atticd
@@ -9,13 +33,16 @@ services:
       - "8081:8080"
     environment:
       ATTIC_SERVER_TOKEN_RS256_SECRET_BASE64: "${ATTIC_SERVER_TOKEN_RS256_SECRET_BASE64}"
+      ATTIC_SERVER_DATABASE_URL: "postgres://atticd:${ATTIC_DB_PASSWORD}@atticd-db:5432/atticd"
       TZ: "${TZ}"
     volumes:
-      - ${DOCKER_CONFIG_DIR}/attic/db:/var/lib/atticd/db
       - ${DOCKER_DATA_DIR}/attic/storage:/var/lib/atticd/storage
       - ${DOCKER_CONFIG_DIR}/attic/config/server.toml:/etc/atticd/server.toml:ro
+    depends_on:
+      atticd-db:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://localhost:8080/healthcheck-probe/nix-cache-info 2>&1 | head -1 | grep -qE 'HTTP/[0-9.]+ (404|401|200)'"]
       interval: 30s
       timeout: 5s
       retries: 3
