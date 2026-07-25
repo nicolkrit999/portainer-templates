@@ -2,7 +2,7 @@
 name: compose-security-auditor
 description: "Read-only security audit of Docker Compose files across this repo. Use for 'audit my composes', 'scan for hardcoded secrets', 'security check', or to scan one service or the whole repo for hardcoded secrets, exposed ports, privileged containers, unpinned images, missing healthchecks, or data leaking to the default Docker volume. Flags findings only - never edits; fixes go to docker-compose-architect. (Convention/style issues are compose-consistency-linter's job.)"
 tools: Read, Grep, Glob
-model: opus
+model: sonnet
 color: orange
 ---
 
