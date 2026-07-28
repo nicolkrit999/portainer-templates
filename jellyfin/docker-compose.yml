@@ -11,6 +11,8 @@ services:
     restart: 'unless-stopped'
     environment:
       - TZ=${TZ}
+    ports:
+      - "127.0.0.1:${JELLYFIN_HOST_PORT}:8096"
     networks:
       - cloudflare_web_network
     devices:

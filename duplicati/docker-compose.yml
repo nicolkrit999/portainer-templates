@@ -3,6 +3,8 @@ services:
     image: duplicati/duplicati:canary
     container_name: duplicati
     restart: always
+    ports:
+      - "127.0.0.1:${DUPLICATI_HOST_PORT}:8200"
     networks:
       - cloudflare_web_network
     user: "0:0"

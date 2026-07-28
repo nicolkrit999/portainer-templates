@@ -96,6 +96,8 @@ services:
       PUID: "${PUID}"
       PGID: "${PGID}"
       TZ: "${TZ}"
+    ports:
+      - "127.0.0.1:${SPARKYFITNESS_HOST_PORT}:80"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
       interval: 30s

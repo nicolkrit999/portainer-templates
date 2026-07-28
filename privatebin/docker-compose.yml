@@ -18,6 +18,9 @@ services:
       - ${DOCKER_CONFIG_DIR}/privatebin/tmp:/var/lib/nginx/tmp
       - ${DOCKER_CONFIG_DIR}/privatebin/tmp:/run
 
+    ports:
+      - "127.0.0.1:${PRIVATEBIN_HOST_PORT}:8080"
+
     networks:
       - cloudflare_web_network
 
