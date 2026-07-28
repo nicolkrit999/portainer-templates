@@ -18,6 +18,7 @@ services:
       ICORSI_BASE_URL: "https://www.icorsi.ch"
       ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token (bootstrap only)
       ICORSI_PRIVATETOKEN: "${ICORSI_PRIVATETOKEN:-}"       # secret: enables headless auto-renewal (bootstrap only)
+      ICORSI_SESSION_COOKIE: "${ICORSI_SESSION_COOKIE:-}"   # secret: session-based renewal fallback (bootstrap only)
       ICORSI_USERID: "${ICORSI_USERID:-}"                   # your Moodle userid (auto-discovered if empty)
       OWNCLOUD_WEBDAV_URL: "${OWNCLOUD_WEBDAV_URL}"         # e.g. http://owncloud:8080/remote.php/dav/files/oc_admin
       OWNCLOUD_USER: "${OWNCLOUD_USER}"
