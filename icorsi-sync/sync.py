@@ -72,6 +72,10 @@ INTERVAL          = int(env("SYNC_INTERVAL_SECONDS", "21600"))
 LOOP              = INTERVAL > 0
 DISCORD_WEBHOOK   = env("DISCORD_WEBHOOK_URL", "")
 HEARTBEAT_URL     = env("HEARTBEAT_URL", "")
+# A dead-token/degraded-renewal alert is deduped to one Discord ping per problem so it doesn't
+# spam - but that means a problem nobody acts on goes silent forever. Re-send at this cadence
+# while the problem persists, so an ignored alert doesn't rot for weeks unnoticed.
+ALERT_REPEAT_SECONDS = 24 * 3600
 CONCURRENCY       = max(1, int(env("ICORSI_CONCURRENCY", "4")))
 HTTP_TIMEOUT      = int(env("HTTP_TIMEOUT", "60"))
 HTTP_RETRIES      = int(env("HTTP_RETRIES", "3"))
@@ -192,11 +196,18 @@ def retrying(label, fn):
             if 400 <= e.code < 500:
                 raise
             last = e
-        except (urllib.error.URLError, TimeoutError, OSError, http_client.IncompleteRead) as e:
+        except (urllib.error.URLError, TimeoutError, OSError,
+                http_client.IncompleteRead, json.JSONDecodeError) as e:
             last = e
         if attempt < HTTP_RETRIES:
             time.sleep(2 * attempt)
     raise RuntimeError(f"{label} failed after {HTTP_RETRIES} attempts: {_redact(str(last))}")
+
+
+def _due_for_alert(already_alerted, last_ts):
+    """True on the first occurrence, then again at most once every ALERT_REPEAT_SECONDS
+    while the condition persists."""
+    return (not already_alerted) or (time.time() - last_ts >= ALERT_REPEAT_SECONDS)
 
 
 def basic_auth_header(user, pw):
@@ -293,11 +304,18 @@ def ws(fn, **params):
     q.update(params)
     url = WS_ENDPOINT + "?" + urllib.parse.urlencode(q, doseq=True)
     _assert_icorsi_get(url, "GET")
-    status, body, _ = http_retry(url)
-    data = json.loads(body.decode("utf-8"))
-    if isinstance(data, dict) and data.get("exception"):
-        raise MoodleError(fn, data.get("errorcode"), data.get("message"))
-    return data
+
+    def attempt():
+        # A 200 with an empty/garbled body (seen from iCorsi during transient hiccups) fails
+        # json.loads immediately; routing the decode through retrying() gives it the same
+        # backoff-and-retry treatment as a network error instead of crashing the run outright.
+        status, body, _ = http_retry(url)
+        data = json.loads(body.decode("utf-8"))
+        if isinstance(data, dict) and data.get("exception"):
+            raise MoodleError(fn, data.get("errorcode"), data.get("message"))
+        return data
+
+    return retrying(f"ws {fn}", attempt)
 
 
 def file_download_url(fileurl):
@@ -346,6 +364,7 @@ class TokenManager:
         self.last_renewed = 0
         self.last_checked = 0
         self.token_alerted = False
+        self.token_alert_last_ts = 0
         self._fullname = ""
         self._lock = threading.Lock()
         self._load()
@@ -369,6 +388,7 @@ class TokenManager:
             self.last_renewed  = data.get("last_renewed", 0)
             self.last_checked  = data.get("last_checked", 0)
             self.token_alerted = data.get("token_alerted", False)
+            self.token_alert_last_ts = data.get("token_alert_last_ts", 0)
             log.info("token loaded from %s", self.token_file)
             return
         # Bootstrap (one-time) from env. Deliberately NOT sys.exit on a missing token:
@@ -379,15 +399,27 @@ class TokenManager:
         self.privatetoken = env("ICORSI_PRIVATETOKEN", "") or None
         uid = str(env("ICORSI_USERID", "") or "")
         self.userid = int(uid) if uid.isdigit() else None
+        # Alternate bootstrap for accounts Moodle never hands a privatetoken to (any account
+        # with moodle/site:config - launch.php withholds it unconditionally, see
+        # public/admin/tool/mobile/launch.php: `if ($privatetoken and is_https() and
+        # !$siteadmin)`). Captured from DevTools -> Application -> Cookies -> MoodleSession
+        # after a normal login. Accepts "name=value" or a bare value (assumed MoodleSession).
+        sc = env("ICORSI_SESSION_COOKIE", "") or None
+        if sc:
+            name, sep, value = sc.partition("=")
+            self.session_cookie = {"name": name.strip(), "value": value.strip()} if sep \
+                else {"name": "MoodleSession", "value": sc.strip()}
         if not self.wstoken:
             log.error("no token available (token.json missing/corrupt and ICORSI_TOKEN unset); "
                       "runs will be skipped until it is re-seeded")
         else:
-            log.info("token bootstrapped from env (privatetoken=%s, userid=%s)",
-                     "set" if self.privatetoken else "MISSING", self.userid)
-            if not self.privatetoken:
-                log.warning("ICORSI_PRIVATETOKEN not set - automatic renewal will NOT work; "
-                            "set it (and ICORSI_USERID) to enable headless renewal")
+            log.info("token bootstrapped from env (privatetoken=%s, session_cookie=%s, userid=%s)",
+                     "set" if self.privatetoken else "MISSING",
+                     "set" if self.session_cookie else "MISSING", self.userid)
+            if not self.privatetoken and not self.session_cookie:
+                log.warning("neither ICORSI_PRIVATETOKEN nor ICORSI_SESSION_COOKIE is set - "
+                            "automatic renewal will NOT work; set one of them (and "
+                            "ICORSI_USERID) to enable headless renewal")
         self._save()
 
     def _save(self):
@@ -400,6 +432,7 @@ class TokenManager:
             "last_renewed": self.last_renewed,
             "last_checked": self.last_checked,
             "token_alerted": self.token_alerted,
+            "token_alert_last_ts": self.token_alert_last_ts,
         }
         tmp = self.token_file + ".tmp"
         with open(tmp, "w") as f:
@@ -516,6 +549,7 @@ class TokenManager:
         self._capture_session(cj)
         self.last_renewed = time.time()
         self.token_alerted = False
+        self.token_alert_last_ts = 0
         self._save()
         log.info("token/session refreshed via renewal chain")
 
@@ -532,6 +566,8 @@ class TokenManager:
                     if blob and blob.get("wstoken") and blob["wstoken"] != old:
                         self._adopt(blob, cj)
                         return True
+                    log.warning("renew via stored session did not yield a fresh token "
+                                "(stored MoodleSession is likely dead too)")
                 except Exception as e:
                     log.warning("renew via stored session failed: %s", _redact(str(e)))
             try:
@@ -558,28 +594,41 @@ class TokenManager:
           ok=False  -> chain attempted and failed (detail = redacted reason)
           ok=None   -> nothing to attempt (no privatetoken/userid and no stored session)
         The caller uses this to warn EARLY when proactive renewal is broken while the
-        token still works, instead of only finding out at expiry."""
+        token still works, instead of only finding out at expiry.
+
+        Session and privatetoken paths are tried independently - each in its OWN
+        try/except, session first - mirroring renew(). They used to share one try/except
+        with privatetoken tried first: a stale/mismatched privatetoken (Moodle ties it to
+        one specific token row; it does not carry over to a token minted a different way,
+        e.g. via ICORSI_SESSION_COOKIE) raised before the session path ever ran, silently
+        disabling proactive renewal even though the session alone was perfectly healthy."""
         with self._lock:
-            if not ((self.privatetoken and self.userid) or self.session_cookie):
+            if not (self.session_cookie or (self.privatetoken and self.userid)):
                 return None, ""
-            try:
-                if self.privatetoken and self.userid:
-                    cj = self._autologin_session()
-                    blob = self._relaunch(cj)
-                    if blob and blob.get("wstoken"):
-                        self._adopt(blob, cj)
-                        return True, ""
-                if self.session_cookie:
+            last_detail = "renewal chain returned no usable token"
+            if self.session_cookie:
+                try:
                     cj = self._jar_from_stored()
                     blob = self._relaunch(cj)
                     if blob and blob.get("wstoken"):
                         self._adopt(blob, cj)
                         return True, ""
-                return False, "renewal chain returned no usable token"
-            except Exception as e:
-                detail = _redact(str(e))
-                log.warning("keep_alive refresh failed: %s", detail)
-                return False, detail
+                    last_detail = "stored session did not yield a fresh token"
+                except Exception as e:
+                    last_detail = _redact(str(e))
+                    log.warning("keep_alive via stored session failed: %s", last_detail)
+            if self.privatetoken and self.userid:
+                try:
+                    cj = self._autologin_session()
+                    blob = self._relaunch(cj)
+                    if blob and blob.get("wstoken"):
+                        self._adopt(blob, cj)
+                        return True, ""
+                    last_detail = "autologin chain did not yield a fresh token"
+                except Exception as e:
+                    last_detail = _redact(str(e))
+                    log.warning("keep_alive via autologin chain failed: %s", last_detail)
+            return False, last_detail
 
     def _record_site_info(self, info):
         if not info:
@@ -590,19 +639,29 @@ class TokenManager:
         # Log the userid only - the full name is PII and adds nothing operationally.
         log.info("authenticated (userid=%s)", uid)
 
+    def _alert(self, notify_fn, msg):
+        """Send `msg` now if this is a new problem, or if the same problem has been
+        alerted before but not in the last ALERT_REPEAT_SECONDS - so an alert nobody
+        acted on keeps reminding instead of going silent for weeks (see the 2026-07-11
+        renewal-failure alert that nobody followed up on until 2026-07-28)."""
+        if _due_for_alert(self.token_alerted, self.token_alert_last_ts):
+            notify_fn(msg)
+            self.token_alerted = True
+            self.token_alert_last_ts = time.time()
+            self._save()
+
     def ensure_valid(self, notify_fn):
         """Called at the start of each run (and on a mid-run invalidtoken). Verifies the
         token with a site_info read; on invalidtoken it renews. Returns True if the token
-        is usable, False (after a deduped alert) if it is dead and unrenewable."""
+        is usable, False (after a deduped, periodically-repeated alert) if it is dead/
+        unrenewable or iCorsi is otherwise rejecting the account."""
         self.last_checked = time.time()
         if not self.wstoken:
             # token.json missing/corrupt and no bootstrap env - skip the run rather than crash.
-            if not self.token_alerted:
-                notify_fn("⚠️ icorsi-sync: no Moodle token available (token.json missing/corrupt "
-                          "and ICORSI_TOKEN not set). Re-seed ICORSI_TOKEN + ICORSI_PRIVATETOKEN "
-                          "(+ ICORSI_USERID) in Portainer, then restart.")
-                self.token_alerted = True
-                self._save()
+            self._alert(notify_fn,
+                        "⚠️ icorsi-sync: no Moodle token available (token.json missing/corrupt "
+                        "and ICORSI_TOKEN not set). Re-seed ICORSI_TOKEN + ICORSI_PRIVATETOKEN "
+                        "(+ ICORSI_USERID) in Portainer, then restart.")
             return False
         try:
             info = ws("core_webservice_get_site_info")
@@ -617,18 +676,28 @@ class TokenManager:
                         log.warning("post-renewal site_info still failing: %s", e2.code)
                     self._record_site_info(info)
                     self.token_alerted = False
+                    self.token_alert_last_ts = 0
                     self._save()
                     return True
-                if not self.token_alerted:
-                    notify_fn("⚠️ icorsi-sync: the Moodle token expired and automatic renewal "
-                              "failed. Re-bootstrap by re-seeding ICORSI_TOKEN + "
-                              "ICORSI_PRIVATETOKEN (+ ICORSI_USERID) in Portainer, then restart.")
-                    self.token_alerted = True
-                    self._save()
+                self._alert(notify_fn,
+                            "⚠️ icorsi-sync: the Moodle token expired and automatic renewal "
+                            "failed. Re-bootstrap by re-seeding ICORSI_TOKEN + "
+                            "ICORSI_PRIVATETOKEN (+ ICORSI_USERID) in Portainer, then restart.")
                 log.error("token invalid and renewal failed")
                 return False
-            raise
+            # Any other Moodle-side rejection (e.g. accessexception - the mobile web service
+            # disabled, capability revoked, IP block) isn't fixable by renewing, but crashing
+            # the whole run here (the old behaviour) skipped keep_alive and produced a one-off,
+            # non-deduped notify instead of the same tracked, periodically-repeated alert as a
+            # dead token. Treat it the same way: alert and skip this run.
+            log.error("site_info rejected: %s - %s", e.code, e.msg)
+            self._alert(notify_fn,
+                        f"⚠️ icorsi-sync: Moodle rejected the site_info check ({e.code}); "
+                        "skipping run. This is usually not a dead token - check that the "
+                        "mobile web service is still enabled for your account.")
+            return False
         self.token_alerted = False
+        self.token_alert_last_ts = 0
         self._record_site_info(info)
         self._save()
         return True
@@ -1227,21 +1296,25 @@ def _process_keepalive(state, result, notify_fn):
     """Track proactive-renewal (keep_alive) health across runs and alert EARLY when it breaks.
 
     `result` is keep_alive()'s (ok, detail). Uses two state keys (missing == 0/False):
-    `keepalive_fail_count` and `keepalive_alerted`. Emits at most ONE '⚠️ renewal failing'
-    notify per breakage episode, and only after 2 consecutive failures (so a single transient
-    blip is ignored). On the next success it resets the counter/flag and, if it had alerted,
-    sends a brief recovery notify. Returns True when state changed (caller should save)."""
+    `keepalive_fail_count`, `keepalive_alerted` and `keepalive_alert_last_ts`. Emits a
+    '⚠️ renewal failing' notify on the first breakage (after 2 consecutive failures, so a
+    single transient blip is ignored), then repeats it at most once every ALERT_REPEAT_SECONDS
+    while it stays broken - so an alert nobody acts on doesn't go silent for weeks. On the
+    next success it resets the counter/flags and, if it had alerted, sends a brief recovery
+    notify. Returns True when state changed (caller should save)."""
     ok, detail = result
     if ok is None:                       # nothing to attempt this run - leave state untouched
         return False
     if ok is False:
         state["keepalive_fail_count"] = state.get("keepalive_fail_count", 0) + 1
-        if state["keepalive_fail_count"] >= 2 and not state.get("keepalive_alerted"):
+        if state["keepalive_fail_count"] >= 2 and _due_for_alert(
+                state.get("keepalive_alerted", False), state.get("keepalive_alert_last_ts", 0)):
             notify_fn("⚠️ icorsi-sync: PROACTIVE token renewal is failing "
                       f"({_redact(detail) or 'unknown error'}). The current token still works, "
                       "but sync will stop when it expires (~2 days). Check the renewal setup "
                       "(autologin/token/privatetoken).")
             state["keepalive_alerted"] = True
+            state["keepalive_alert_last_ts"] = time.time()
         return True
     # ok is True - recovered / healthy
     changed = bool(state.get("keepalive_fail_count") or state.get("keepalive_alerted"))
@@ -1249,6 +1322,7 @@ def _process_keepalive(state, result, notify_fn):
         notify_fn("✅ icorsi-sync: token renewal recovered.")
     state["keepalive_fail_count"] = 0
     state["keepalive_alerted"] = False
+    state["keepalive_alert_last_ts"] = 0
     return changed
 
 
