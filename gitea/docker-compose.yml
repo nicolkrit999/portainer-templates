@@ -14,6 +14,8 @@ services:
             - ${DOCKER_DATA_DIR}/gitea/gitea:/data
             - /etc/timezone:/etc/timezone:ro
             - /etc/localtime:/etc/localtime:ro
+        ports:
+            - "127.0.0.1:${GITEA_HOST_PORT}:3000"
         networks:
             - cloudflare_web_network
         healthcheck:
