@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -238,12 +239,21 @@ def fingerprint_dir(path):
     if not p.is_dir():
         return ""
     entries = []
-    for f in sorted(p.rglob("*")):
-        if f.is_file():
+
+    def _on_walk_error(e):
+        # A single unreadable subdirectory (e.g. an ownCloud/WebDAV entry the
+        # mount can't stat) shouldn't blow up fingerprinting for the whole tree.
+        log.warning("Cannot list %s during fingerprint: %s", getattr(e, "filename", e), e)
+
+    for root, _dirs, files in os.walk(p, onerror=_on_walk_error):
+        root_path = Path(root)
+        for name in sorted(files):
+            f = root_path / name
             try:
                 entries.append(f"{f.relative_to(p)}:{f.stat().st_size}")
-            except Exception:
+            except OSError:
                 pass
+    entries.sort()
     return hashlib.sha256("\n".join(entries).encode()).hexdigest()
 
 
@@ -268,13 +278,20 @@ def find_icorsi_dirs(course_path):
     # Per-semester: <course>/<child>/_icorsi/
     try:
         children = sorted(p.iterdir())
-    except PermissionError:
+    except OSError as e:
+        log.warning("Cannot list %s: %s", p, e)
         return []
     for child in children:
-        if child.is_dir() and not child.name.startswith("."):
-            sub = child / "_icorsi"
-            if sub.is_dir():
-                results.append((sub, child))
+        try:
+            if child.is_dir() and not child.name.startswith("."):
+                sub = child / "_icorsi"
+                if sub.is_dir():
+                    results.append((sub, child))
+        except OSError as e:
+            # A single broken WebDAV entry (e.g. a share ownCloud can't stat)
+            # shouldn't abort discovery for the rest of the course tree.
+            log.warning("Cannot stat %s: %s", child, e)
+            continue
 
     return results
 
@@ -318,6 +335,52 @@ def build_rclone_url():
     rewritten = f"{scheme}{DAV_HOST_HEADER}{port or ''}{path}"
     log.info("rclone URL: %s -> %s", DAV_URL, rewritten)
     return rewritten
+
+
+def refresh_owncloud_host_entry():
+    """
+    Re-resolve 'owncloud' (the Docker service name) and rewrite its /etc/hosts
+    entry for OWNCLOUD_HOST_HEADER to match.
+
+    entrypoint.sh writes this mapping once at container startup, but the owncloud
+    container's bridge-network IP can change independently (e.g. it gets recreated
+    for an update) at any point during icorsi-notes' own uptime. A stale entry
+    silently misroutes every WebDAV request to whatever container later reuses that
+    IP, surfacing as a connection error with no obvious cause. Re-running this each
+    pass keeps the mapping correct without requiring icorsi-notes itself to restart.
+    """
+    if not DAV_HOST_HEADER or not DAV_URL:
+        return
+    m = re.match(r"https?://([^/:]+)", DAV_URL)
+    if not m:
+        return
+    hostname = m.group(1)
+    try:
+        ip = socket.gethostbyname(hostname)
+    except OSError as e:
+        log.warning("Cannot resolve %s for host-header mapping: %s", hostname, e)
+        return
+
+    try:
+        with open("/etc/hosts") as f:
+            lines = f.readlines()
+    except OSError as e:
+        log.warning("Cannot read /etc/hosts: %s", e)
+        return
+
+    kept = [ln for ln in lines if DAV_HOST_HEADER not in ln.split()]
+    new_line = f"{ip}  {DAV_HOST_HEADER}\n"
+    if kept == lines and new_line in lines:
+        return  # already correct; skip the write
+
+    kept.append(new_line)
+    try:
+        with open("/etc/hosts", "w") as f:
+            f.writelines(kept)
+    except OSError as e:
+        log.warning("Cannot update /etc/hosts: %s", e)
+        return
+    log.info("/etc/hosts: %s -> %s (via %s)", DAV_HOST_HEADER, ip, hostname)
 
 
 def setup_mount():
@@ -616,6 +679,10 @@ def _course_label(key):
 
 
 def run_once(state, active_hours):
+    # Keep the WebDAV trusted-domain /etc/hosts mapping current - the owncloud
+    # container's IP can drift at any time independent of icorsi-notes' own uptime.
+    refresh_owncloud_host_entry()
+
     # ── HALT check ───────────────────────────────────────────────────────────
     # Written by the cost circuit-breaker when extra usage billing was detected.
     # Always removed at the start of the next run: the 5-hour subscription limit
@@ -680,7 +747,13 @@ def run_once(state, active_hours):
             continue
 
         # ── find _icorsi/ directories ─────────────────────────────────────────
-        icorsi_pairs = find_icorsi_dirs(course_path)
+        try:
+            icorsi_pairs = find_icorsi_dirs(course_path)
+        except OSError as e:
+            # Don't let one broken WebDAV entry abort the whole nightly pass.
+            log.warning("Cannot scan %s: %s", course_path, e)
+            pass_outcomes.append(f"⚠️ {folder} - scan error (will retry next pass): {e}")
+            continue
         if not icorsi_pairs:
             log.debug("No _icorsi/ found under %s; skipping", folder)
             continue

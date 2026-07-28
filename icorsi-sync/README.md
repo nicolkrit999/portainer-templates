@@ -83,13 +83,24 @@ re-bootstrap itself.
 **You're warned if renewal ever has trouble.** Success is silent - if the sync keeps running,
 renewal is working. But if the headless renewal starts failing (Moodle changes something,
 autologin gets disabled, a network/IP problem), the tool sends a Discord **early warning while
-the current token still works** - so you can fix it *before* sync ever stops. It doesn't spam:
-one alert per problem (after two consecutive failures, to skip transient blips), and it goes
-quiet again once renewal recovers.
+the current token still works** - so you can fix it *before* sync ever stops. It doesn't spam
+on a transient blip (needs two consecutive failures first), but once alerted **it repeats once a
+day for as long as the problem persists** - so a warning nobody acts on immediately doesn't just
+go silent. (Before 2026-07-28 it only alerted once per problem, ever - that's how a token death on
+2026-07-11 went unnoticed until 2026-07-28. See the Troubleshooting section below if you're
+dealing with an active alert.)
 
-The **only** way it hard-fails: the container is down for longer than ~2 days *across* an
-expiry. Then the stored token is dead and can't renew itself - you get a Discord alert; with
-the env vars still set, restarting the container re-bootstraps from them.
+It hard-fails (skips runs until you intervene) in two distinct situations - **only one of which
+is actually about downtime:**
+- **The container was down long enough for the token to naturally expire** (~2 days) without
+  `keep_alive()` running to slide it forward. Restarting with the env vars still set
+  re-bootstraps it from them (only if those saved values are still valid - see below).
+- **iCorsi/Moodle revokes your session and token out-of-band**, independent of any downtime -
+  this is what actually happened on 2026-07-10/11: the container had been running continuously
+  for days, `keep_alive()` was renewing every 6h without issue, and then both the token and the
+  underlying Moodle session died within the same ~6h window. Nothing client-side causes or
+  prevents this - it needs a fresh manual credential capture regardless of how long the
+  container has been up. See Troubleshooting below.
 
 > **Harmless log warning you can ignore:**
 > `keep_alive refresh failed: ... autologinkeygenerationlockout - ... wait 6 minutes between requests`
@@ -103,24 +114,65 @@ the env vars still set, restarting the container re-bootstraps from them.
 
 ## Get your Moodle credentials (once)
 
-You need three things, and you can grab all of them in one go from the `launch.php` redirect:
+You need three things, and you can grab all of them in one go from the `launch.php` redirect.
 
-1. Open a **private/incognito** browser window and log into your Moodle site.
+**The order of operations matters and is the #1 thing to get right:** you must visit the
+`launch.php` URL **while logged out**, so that visiting it *is* what triggers your login/SSO -
+the resulting page is the immediate post-login relaunch, which is what makes Moodle include the
+privatetoken. If you log in first and *then* navigate to `launch.php` in a separate step (even in
+the same private window), you will reliably get only 2 of the 3 parts (no privatetoken) - this is
+documented, reproducible Moodle behaviour
+(`public/admin/tool/mobile/launch.php`: the privatetoken is omitted unless
+`$SESSION->justloggedin` is set on that exact request), **not** a sign that anything is broken or
+that your account is restricted. Getting the steps in the wrong order is the most likely
+explanation if you only ever see 2 parts - try the correct order below before assuming you need
+the `ICORSI_SESSION_COOKIE` fallback further down.
+
+1. Open a **private/incognito** browser window. **Do not log in yet.**
 2. Open DevTools → **Network** tab → tick **Preserve log**.
-3. Go to (same tab): `https://<your-moodle>/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=1&urlscheme=moodlemobile`
-   and **Cancel** the "open app" dialog.
-4. Click the `launch.php` row → **Response Headers → `location`** → copy what's after `token=`.
-5. Decode it: `echo '<that>' | base64 -d`. You'll get up to three `:::`-separated parts:
+3. Navigate DIRECTLY to:
+   `https://<your-moodle>/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=1&urlscheme=moodlemobile`
+   This bounces you through the normal login/SSO flow. Complete it.
+4. Once logged in, you land back on `launch.php` and get an "open app" dialog - **Cancel** it.
+5. In the Network tab, click the (last) `launch.php` row → **Response Headers → `location`** →
+   copy what's after `token=`.
+6. Decode it: `echo '<that>' | base64 -d`. You should get three `:::`-separated parts:
    `signature:::wstoken:::privatetoken`.
    - **`ICORSI_TOKEN`** = the 2nd part (the wstoken).
-   - **`ICORSI_PRIVATETOKEN`** = the 3rd part (needed for headless renewal - do the login in
-     **incognito** so the response includes it).
-6. **`ICORSI_USERID`** = your numeric Moodle user id (from your profile URL `…/user/profile.php?id=`).
+   - **`ICORSI_PRIVATETOKEN`** = the 3rd part (needed for headless renewal).
+   - If you only get 2 parts, double check you truly started logged-out on this exact URL (not a
+     leftover session from a previous visit) before falling back to `ICORSI_SESSION_COOKIE` below.
+7. **`ICORSI_USERID`** = your numeric Moodle user id (from your profile URL `…/user/profile.php?id=`).
    It's optional - the tool auto-discovers it on the first successful run - but seeding it lets
    renewal work even if the very first token is already expired.
 
 Set these three once in Portainer / `.env`; you won't need to touch them again unless the
 container was offline long enough for the token to fully lapse.
+
+> **If you genuinely can't get a privatetoken even with the correct logged-out-first order**
+> (possible causes: a `moodle/site:config`-holding account - `launch.php` withholds the
+> privatetoken unconditionally for those; or the site's reverse proxy/CDN not setting things up
+> for Moodle's `is_https()` check to pass - both are server-side and not fixable from here) -
+> there's a second, fully headless renewal path that doesn't need a privatetoken at all: it slides
+> a saved Moodle **session** forward instead. Set **`ICORSI_SESSION_COOKIE`** instead of
+> `ICORSI_PRIVATETOKEN`:
+> 1. While logged into iCorsi in that same browser, open DevTools → **Application** (Chrome)
+>    or **Storage** (Firefox) → **Cookies** → `https://www.icorsi.ch`.
+> 2. Find the session cookie - usually named **`MoodleSession`**, but some installs suffix it
+>    per-instance (e.g. SUPSI's icorsi.ch uses `MoodleSessionelabm2`) - copy its **Value**.
+> 3. Set `ICORSI_SESSION_COOKIE=<cookie name>=<value>` (e.g. `MoodleSessionelabm2=abc123...`),
+>    or just the bare value if the name really is `MoodleSession`.
+>
+> Trade-off vs. the privatetoken path: a Moodle session is generally capped at a shorter idle
+> timeout (commonly hours, vs. the wstoken's ~2-day lifetime), so this path is more sensitive to
+> the container being down for a while. `keep_alive()` touching it every `SYNC_INTERVAL_SECONDS`
+> (6h default) is what's expected to keep it alive indefinitely under normal operation.
+> With `ICORSI_TOKEN` + `ICORSI_SESSION_COOKIE` + `ICORSI_USERID` set, renewal works exactly
+> the same way (headless, every run) - it just refreshes the session instead of using a
+> privatetoken. The one difference: the session is what's alive, so the container being
+> offline for longer than the site's session timeout (commonly 8h, not the ~2 day token
+> lifetime) can lapse it - if that happens you're back to capturing a fresh
+> `ICORSI_SESSION_COOKIE` the same way.
 
 ---
 
@@ -160,3 +212,80 @@ reported (`⚠️ missing`) and retried on the next scheduled run. It never dele
 
 **Tip:** set `DRY_RUN=true` for the first run - it lists what it *would* download and writes
 nothing. When the log looks right, set it back to `false`.
+
+---
+
+## Troubleshooting
+
+**First, check whether it's actually broken right now** - don't assume from an old Discord
+message alone, since alerts repeat daily while a problem persists (see above) and could be
+describing something already fixed if you changed something since:
+- `docker logs icorsi-sync --tail 50` - look for the most recent `=== run start ===` block and
+  what happened after it.
+- Docker health status (`docker inspect icorsi-sync` / the Portainer UI) - `unhealthy` means
+  `state.json`'s `last_run` is older than `2 × SYNC_INTERVAL_SECONDS` (stale runs, i.e. it's
+  actually failing, not just quiet). It self-clears within `start_period` (15m) of a real
+  successful run - no manual action needed once the underlying problem is fixed.
+
+**Discord alert: `no Moodle token available`** - `token.json` is missing/corrupt AND
+`ICORSI_TOKEN` isn't set either. Set `ICORSI_TOKEN` (+ `ICORSI_PRIVATETOKEN` or
+`ICORSI_SESSION_COOKIE`, + `ICORSI_USERID`) in Portainer and restart.
+
+**Discord alert: `the Moodle token expired and automatic renewal failed`** - both the wstoken and
+the stored session are dead; recovery must be a fresh manual credential capture (see below), no
+env var already in place will fix this on its own even if they look correct - the *values* are
+dead, not just missing.
+
+**Discord alert: `Moodle rejected the site_info check (<errorcode>)`** - something other than a
+dead token (e.g. `accessexception`) is rejecting the pre-flight API call. Usually transient/
+Moodle-side (a maintenance window, a temporarily disabled web service) - if it clears on its own
+within a day you don't need to do anything. If it's still alerting after a day, treat it the same
+as a dead token below.
+
+**Discord alert: `PROACTIVE token renewal is failing`** - the current token still works (sync is
+still running fine) but the *renewal* mechanism itself is broken - fix it before the token
+actually expires (~2 days out) to avoid a hard stop. Check the same recovery steps below at your
+convenience, not urgently.
+
+### Full manual recovery procedure (dead token / dead renewal)
+
+1. **Capture fresh credentials - get the order exactly right, this is the part most likely to go
+   wrong:**
+   1. Open a **private/incognito** browser window. **Do not log into iCorsi yet.**
+   2. DevTools → **Network** tab → tick **Preserve log**.
+   3. Navigate DIRECTLY to (this is the one and only URL you should visit first in this window):
+      `https://www.icorsi.ch/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=1&urlscheme=moodlemobile`
+   4. This bounces you into the login/SSO flow - complete it normally.
+   5. You land back on `launch.php` - **Cancel** the "open app?" dialog.
+   6. Network tab → click the (last) `launch.php` request → **Response Headers** → `location` →
+      copy everything after `token=`.
+   7. Decode: `echo '<that>' | base64 -d` → `signature:::wstoken:::privatetoken` (or just
+      `signature:::wstoken` - see below).
+   - **If you log in first and visit `launch.php` afterward (a second tab, a bookmark, typing the
+     URL after already being logged in) you will reliably get only `signature:::wstoken` - 2
+     parts, no privatetoken.** This is normal, reproducible Moodle behavior tied to
+     `$SESSION->justloggedin`, not a broken account or a bug - redo it in the exact order above
+     (logged out → visit the URL → THEN log in) before concluding you can't get a privatetoken.
+     Confirmed twice in this project: the wrong order gave 2 parts both times; doing it in the
+     right order gave 3 parts on the very next try, same account.
+2. **If you got 3 parts:**
+   `ICORSI_TOKEN` = 2nd part, `ICORSI_PRIVATETOKEN` = 3rd part. Set both in Portainer.
+3. **If you only ever get 2 parts even with the order right** (rare - would mean either a
+   `moodle/site:config`-holding account, which `launch.php` withholds the privatetoken from
+   unconditionally, or the site's reverse proxy not satisfying Moodle's `is_https()` check -
+   both server-side, not fixable from your end): use the `ICORSI_SESSION_COOKIE` fallback
+   instead - see "Get your Moodle credentials" above for how to capture it from the same browser
+   session (DevTools → Application/Storage → Cookies → the site's Moodle session cookie, which
+   may be named exactly `MoodleSession` or suffixed per-install, e.g. SUPSI's icorsi.ch uses
+   `MoodleSessionelabm2` - always check the actual cookie name, don't assume).
+4. **`ICORSI_USERID`** - unchanged, no need to recapture (it's your numeric Moodle user id, not
+   part of the token blob).
+5. Set the values from step 2 and/or 3 (plus `ICORSI_USERID`) in the Portainer stack's
+   environment.
+6. **Delete `/data/token.json`** before/while restarting - the env vars are bootstrap-only and get
+   silently ignored as long as `token.json` still has a (dead) `wstoken` in it. From a shell with
+   access to the container: `docker exec icorsi-sync rm -f /data/token.json`. Then restart/
+   redeploy the stack.
+7. Watch `docker logs icorsi-sync -f` for `token bootstrapped from env` and a successful
+   `authenticated (userid=...)` line. Docker health should flip back to healthy within ~15-20
+   minutes of the first successful run.
