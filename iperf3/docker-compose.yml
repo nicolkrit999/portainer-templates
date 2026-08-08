@@ -1,0 +1,18 @@
+services:
+  iperf3:
+    image: networkstatic/iperf3:latest
+    container_name: iperf3
+    hostname: iperf3
+    network_mode: "host"
+    command: "-s"
+    healthcheck:
+      test: ["CMD-SHELL", "iperf3 -k 1 -c 127.0.0.1 || exit 1"]
+      interval: "30s"
+      timeout: "10s"
+      retries: 3
+      start_period: "10s"
+    restart: "unless-stopped"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
