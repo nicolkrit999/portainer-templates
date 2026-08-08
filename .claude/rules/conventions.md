@@ -26,8 +26,10 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
   endpoint/command).
 - **`depends_on`** with `condition: service_healthy` when depending on a service
   that defines a healthcheck.
-- **Image pinning**: pin specific tags/digests for stability-critical services;
-  `:latest` only when the user prefers it or the service is low-risk.
+- **Image tagging**: prefer `:latest` by default across the repo. Pin a
+  specific version tag/digest only when a service is genuinely
+  stability-critical (e.g. a database where an unplanned upgrade could break
+  compatibility or require a manual migration) or the user asks for it.
 - **Logging limits** for long-running services to prevent disk exhaustion:
   ```yaml
   logging:
