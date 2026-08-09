@@ -95,6 +95,8 @@ services:
       timeout: 10s
       retries: 5
     environment:
+      PAPERLESS_SECRET_KEY: "${PAPERLESS_SECRET_KEY}"
+
       # --- Connections ---
       PAPERLESS_REDIS: redis://:${PAPERLESS_REDIS_PASSWORD}@paperlessngx-redis:6379
       PAPERLESS_DBENGINE: postgresql
