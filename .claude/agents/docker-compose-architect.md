@@ -67,6 +67,8 @@ networks:
 
 **Tailscale fallback (last resort only):** If Cloudflare Tunnel cannot be used for a service, Tailscale may be used. Reference the node via `${TAILSCALE_IP}` - never hardcode an address. Always prefer Cloudflare - only use Tailscale when Cloudflare is impossible.
 
+**Host-port bind address, when a `tailscale serve` route may reuse the same port number:** publish the port to `127.0.0.1` (`"127.0.0.1:<port>:<port>"`), not `0.0.0.0`. A 2026-08 incident confirmed `tailscaled` and `docker-proxy` binding the same port number to `0.0.0.0` can race on daemon/container restart - the loser's container comes up with no network attachment at all (this broke Immich, ActualBudget, and Portainer on one reboot). Ports published only to `127.0.0.1` never hit this race. If a service genuinely needs LAN-IP reachability, keep the `0.0.0.0` publish and point the `tailscale serve` listener at a different port instead.
+
 ---
 
 ## RULE 3: YAML FORMATTING
