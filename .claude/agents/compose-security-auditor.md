@@ -26,6 +26,7 @@ Audit a single file when given one, otherwise sweep all of them via Glob
 | CRITICAL | Hardcoded secret/password/token/API key (a literal value where `${VAR}` belongs). See `rules/secrets.md`. |
 | HIGH | `privileged: true`, or broad `cap_add` (e.g. `SYS_ADMIN`), or Docker socket mounted read-write (`/var/run/docker.sock`). |
 | HIGH | Ports published to all interfaces (`- "8080:80"`) for a service that is on `cloudflare_web_network` and shouldn't expose host ports at all. |
+| MEDIUM | A needed host-port publish bound to `0.0.0.0` (`HostIp` empty, e.g. `- "2283:2283"`) instead of `127.0.0.1` (`- "127.0.0.1:2283:2283"`). See `rules/networking.md` - a 2026-08 incident confirmed `0.0.0.0` publishes on this instance can race `tailscaled` on reboot and leave the container with no network attachment. Flag unless the service specifically needs LAN-IP reachability. |
 | MEDIUM | Persistent data must bind under `${VOLUME_CONFIG}/...` or `${VOLUME_DATA}/...` (parameterized) - not named/anonymous volumes or the default `@docker` root. |
 | MEDIUM | Hardcoded personal/instance values in a committed compose (real domain, host IP, username, literal PUID/PGID) - public-repo information disclosure; must be `${VAR}` references. |
 | MEDIUM | `:latest` (or no tag) on a stability- or security-critical service. |

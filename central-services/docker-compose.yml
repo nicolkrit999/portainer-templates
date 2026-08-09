@@ -51,9 +51,8 @@ services:
     hostname: phpldapadmin
     ports:
       - "8201:80"
-    # Volume commented out intentionally
-    # volumes:
-    #   - /volume2/docker/central-services/phpldapadmin:/var/www/phpldapadmin
+    volumes:
+      - ${DOCKER_CONFIG_DIR}/central-services/phpldapadmin:/var/www/phpldapadmin
     environment:
       - PHPLDAPADMIN_LDAP_HOSTS=openldap
       - PHPLDAPADMIN_HTTPS=false
