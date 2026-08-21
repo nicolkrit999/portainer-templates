@@ -51,6 +51,7 @@ services:
       - "${NGINX_PORT}:80"
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
     depends_on:
       php-fpm:
         condition: service_started
@@ -62,6 +63,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.easy-appointments-family.rule: "Host(`${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.easy-appointments-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.easy-appointments-family.tls: "true"
+      traefik.http.routers.easy-appointments-family.tls.certresolver: "cf_dns"
+      traefik.http.routers.easy-appointments-family.service: "easy-appointments"
+      traefik.http.routers.easy-appointments-guest.rule: "Host(`${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.easy-appointments-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
+      traefik.http.routers.easy-appointments-guest.tls: "true"
+      traefik.http.routers.easy-appointments-guest.tls.certresolver: "cf_dns"
+      traefik.http.routers.easy-appointments-guest.service: "easy-appointments"
+      traefik.http.services.easy-appointments.loadbalancer.server.port: "80"
+      traefik.docker.network: "traefik-proxy"
 
   mysql:
     image: 'mysql:8.0'
@@ -141,4 +156,7 @@ services:
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

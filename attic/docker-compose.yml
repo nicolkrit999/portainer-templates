@@ -50,3 +50,19 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.atticd.rule: "Host(`${ATTIC_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.atticd.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.atticd.tls: "true"
+      traefik.http.routers.atticd.tls.certresolver: "cf_dns"
+      traefik.http.routers.atticd.service: "atticd"
+      traefik.http.services.atticd.loadbalancer.server.port: "8080"
+      traefik.docker.network: "traefik-proxy"
+    networks:
+      - traefik_proxy_network
+
+networks:
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true

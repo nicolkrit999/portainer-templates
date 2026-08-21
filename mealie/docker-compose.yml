@@ -28,8 +28,26 @@ services:
       - OIDC_CONFIGURATION_URL=${OIDC_CONFIGURATION_URL}
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.mealie-family.rule: "Host(`${MEALIE_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.mealie-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.mealie-family.tls: "true"
+      traefik.http.routers.mealie-family.tls.certresolver: "cf_dns"
+      traefik.http.routers.mealie-family.service: "mealie"
+      traefik.http.routers.mealie-guest.rule: "Host(`${MEALIE_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.mealie-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
+      traefik.http.routers.mealie-guest.tls: "true"
+      traefik.http.routers.mealie-guest.tls.certresolver: "cf_dns"
+      traefik.http.routers.mealie-guest.service: "mealie"
+      traefik.http.services.mealie.loadbalancer.server.port: "9000"
+      traefik.docker.network: "traefik-proxy"
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

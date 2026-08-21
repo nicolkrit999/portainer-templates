@@ -9,8 +9,21 @@ services:
     restart: unless-stopped
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.openresume.rule: "Host(`${OPENRESUME_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.openresume.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.openresume.tls: "true"
+      traefik.http.routers.openresume.tls.certresolver: "cf_dns"
+      traefik.http.routers.openresume.service: "openresume"
+      traefik.http.services.openresume.loadbalancer.server.port: "3000"
+      traefik.docker.network: "traefik-proxy"
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

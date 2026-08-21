@@ -15,10 +15,23 @@ services:
       TOKEN_EXPIRY: "24h"
       ALLOW_NEW_ACCOUNTS: "true"
     restart: unless-stopped
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.bytestash.rule: "Host(`${BYTESTASH_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.bytestash.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.bytestash.tls: "true"
+      traefik.http.routers.bytestash.tls.certresolver: "cf_dns"
+      traefik.http.routers.bytestash.service: "bytestash"
+      traefik.http.services.bytestash.loadbalancer.server.port: "5000"
+      traefik.docker.network: "traefik-proxy"
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

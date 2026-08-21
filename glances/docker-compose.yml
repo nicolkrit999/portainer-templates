@@ -15,3 +15,11 @@ services:
     environment:
       GLANCES_OPT: "-w"
       TZ: "${TZ}"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.glances.rule: "Host(`${GLANCES_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.glances.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.glances.tls: "true"
+      traefik.http.routers.glances.tls.certresolver: "cf_dns"
+      traefik.http.routers.glances.service: "glances"
+      traefik.http.services.glances.loadbalancer.server.url: "http://${NAS_IP}:61208"

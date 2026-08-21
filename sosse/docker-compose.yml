@@ -24,6 +24,15 @@ services:
     sosse:
         image: biolds/sosse:pip-compose
         container_name: sosse
+        labels:
+            traefik.enable: "true"
+            traefik.http.routers.sosse.rule: "Host(`${SOSSE_SUBDOMAIN}.${DOMAIN}`)"
+            traefik.http.routers.sosse.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+            traefik.http.routers.sosse.tls: "true"
+            traefik.http.routers.sosse.tls.certresolver: "cf_dns"
+            traefik.http.routers.sosse.service: "sosse"
+            traefik.http.services.sosse.loadbalancer.server.port: "80"
+            traefik.docker.network: "traefik-proxy"
         healthcheck:
             test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/80' || exit 1
             interval: 10s
@@ -49,8 +58,12 @@ services:
         restart: unless-stopped
         networks:
             - cloudflare_web_network
+            - traefik_proxy_network
 
 networks:
     cloudflare_web_network:
         name: cloudflare-web
+        external: true
+    traefik_proxy_network:
+        name: traefik-proxy
         external: true

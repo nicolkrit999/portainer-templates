@@ -11,10 +11,23 @@ services:
     restart: unless-stopped
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
     ports:
       - 8010:8000
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.apprise-api.rule: "Host(`${APPRISE_API_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.apprise-api.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.apprise-api.tls: "true"
+      traefik.http.routers.apprise-api.tls.certresolver: "cf_dns"
+      traefik.http.routers.apprise-api.service: "apprise-api"
+      traefik.http.services.apprise-api.loadbalancer.server.port: "8000"
+      traefik.docker.network: "traefik-proxy"
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

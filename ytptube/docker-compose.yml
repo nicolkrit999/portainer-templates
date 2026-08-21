@@ -19,10 +19,23 @@ services:
       - ${DOCKER_DATA_DIR}/ytptube/downloads:/downloads:rw
       - ${DOCKER_DATA_DIR}/ytptube/downloads:/tmp:rw
     restart: unless-stopped
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.ytptube.rule: "Host(`${YTPTUBE_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.ytptube.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.ytptube.tls: "true"
+      traefik.http.routers.ytptube.tls.certresolver: "cf_dns"
+      traefik.http.routers.ytptube.service: "ytptube"
+      traefik.http.services.ytptube.loadbalancer.server.port: "8081"
+      traefik.docker.network: "traefik-proxy"
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

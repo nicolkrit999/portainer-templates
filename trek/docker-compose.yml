@@ -37,6 +37,29 @@ services:
       #OIDC_ONLY: "false"
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.trek-family.rule: "Host(`${TREK_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.trek-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.trek-family.tls: "true"
+      traefik.http.routers.trek-family.tls.certresolver: "cf_dns"
+      traefik.http.routers.trek-family.service: "trek"
+      traefik.http.routers.trek-guest.rule: "Host(`${TREK_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.trek-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
+      traefik.http.routers.trek-guest.tls: "true"
+      traefik.http.routers.trek-guest.tls.certresolver: "cf_dns"
+      traefik.http.routers.trek-guest.service: "trek"
+      traefik.http.routers.trek-friends.rule: "Host(`${TREK_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.trek-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
+      traefik.http.routers.trek-friends.tls: "true"
+      traefik.http.routers.trek-friends.tls.certresolver: "cf_dns"
+      traefik.http.routers.trek-friends.service: "trek"
+      traefik.http.services.trek.loadbalancer.server.port: "3000"
+      traefik.http.services.trek.loadbalancer.server.scheme: "https"
+      traefik.http.services.trek.loadbalancer.serverstransport: "trek-insecure@docker"
+      traefik.http.serversTransports.trek-insecure.insecuretls: "true"
+      traefik.docker.network: "traefik-proxy"
     logging:
       options:
         max-size: "10m"
@@ -45,4 +68,7 @@ services:
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

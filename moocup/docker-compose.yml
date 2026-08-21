@@ -13,8 +13,21 @@ services:
     restart: unless-stopped
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.moocup.rule: "Host(`${MOOCUP_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.moocup.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.moocup.tls: "true"
+      traefik.http.routers.moocup.tls.certresolver: "cf_dns"
+      traefik.http.routers.moocup.service: "moocup"
+      traefik.http.services.moocup.loadbalancer.server.port: "80"
+      traefik.docker.network: "traefik-proxy"
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

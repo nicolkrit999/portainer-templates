@@ -7,8 +7,21 @@ services:
     restart: unless-stopped
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.cardyo.rule: "Host(`${CARDYO_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.cardyo.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.cardyo.tls: "true"
+      traefik.http.routers.cardyo.tls.certresolver: "cf_dns"
+      traefik.http.routers.cardyo.service: "cardyo"
+      traefik.http.services.cardyo.loadbalancer.server.port: "3000"
+      traefik.docker.network: "traefik-proxy"
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

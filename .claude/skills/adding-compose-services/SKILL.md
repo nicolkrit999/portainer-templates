@@ -1,6 +1,6 @@
 ---
 name: adding-compose-services
-description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules, runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off the Cloudflare Tunnel target plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
+description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules - Cloudflare Tunnel AND a private-tier Traefik router by default, plus family/guest/friends tiers if the user asks for them - runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off the Cloudflare Tunnel target plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
 ---
 
 # Adding a Compose Service
@@ -23,6 +23,21 @@ order and loop the review step - agents cannot call each other.
    `${VOLUME_CONFIG}`/`${VOLUME_DATA}` subpaths and confirms them with the user,
    and lists every `${VAR}` that must be set in Portainer.
 
+   It attaches both `cloudflare_web_network` and the Traefik network by
+   default, with a `private`-tier-only router - this is automatic, not
+   something to ask about. The one thing you must ask the user and relay
+   into this dispatch explicitly: **does this service also need `family`,
+   `guest`, and/or `friends` tier access?** docker-compose-architect can't
+   infer that from the service name alone - pass it through as part of the
+   objective. Full networking/Traefik convention detail lives in
+   `.claude/rules/networking.md` ("Traefik reverse-proxy network").
+
+   > ⚠️ One thing worth double-checking in the reviewed file: the router's
+   > `tls.certresolver` must be set explicitly, every time - a router with
+   > its own `tls: "true"` silently overrides the entrypoint's default
+   > certresolver, with no error logged, and falls back to Traefik's
+   > self-signed cert forever. Confirmed production bug, 2026-08-21.
+
 3. **REVIEW** - dispatch `compose-security-auditor` and
    `compose-consistency-linter` in parallel on the new file only. Both are
    read-only and never edit.
@@ -40,7 +55,22 @@ order and loop the review step - agents cannot call each other.
    - the Cloudflare Tunnel connector target, `http://<container_name>:<internal_port>`,
      if the compose touches `cloudflare_web_network` (docker-compose-architect
      states this after any such change - surface it here);
-   - the full list of `${VAR}`s to configure in Portainer for this stack.
+   - the full list of `${VAR}`s to configure in Portainer for this stack,
+     including the new per-service `${<SERVICE>_SUBDOMAIN}` var and its
+     chosen value (default: the service's directory name, unless a legacy
+     Cloudflare hostname already exists for it - confirm with the user);
+   - a reminder that `TRAEFIK_ENTRYPOINT_*`/`TRAEFIK_PORT_*` are shared,
+     repo-wide vars already set once on the `traefik` stack itself - **not**
+     something to add per-service - shown here for reference only:
+
+     | Var | Tier | Port |
+     |---|---|---|
+     | `TRAEFIK_ENTRYPOINT_1` / `TRAEFIK_PORT_1` | family | 443 |
+     | `TRAEFIK_ENTRYPOINT_2` / `TRAEFIK_PORT_2` | guest | 8443 |
+     | `TRAEFIK_ENTRYPOINT_3` / `TRAEFIK_PORT_3` | private (`asDefault`, default for new services) | 8444 |
+     | `TRAEFIK_ENTRYPOINT_4` / `TRAEFIK_PORT_4` | friends | 8445 |
+     | `TRAEFIK_ENTRYPOINT_5` / `TRAEFIK_PORT_5` | internal, `cloudflared`-facing only | 9080 |
+     | `TRAEFIK_ENTRYPOINT_6` / `TRAEFIK_PORT_6` | internal, ping/dashboard-API only | 8080 |
 
 ## Exit condition
 
