@@ -43,6 +43,92 @@ networks:
   the default bridge or a named internal network.
 - A service with both internal deps and external access includes both networks.
 
+## Traefik reverse-proxy network
+**Default: every user-facing application service is ALSO attached to the
+Traefik network, with a router on the `private` tier only, in addition to
+`cloudflare_web_network` above - not instead of it.** Both networks are
+default-on together; this is additive, not a choice between the two. Only
+ask the user whether to add further tiers (`family`/`guest`/`friends`) -
+never ask whether to add Traefik-private access at all, and never skip it
+for the same categories of service that skip Cloudflare (internal-only
+backing dependencies).
+
+Top-level networks block addition (`external: true` in every service's own
+compose - only `traefik/docker-compose.yml` itself creates the network):
+```yaml
+networks:
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true
+```
+
+Per-service reference:
+```yaml
+networks:
+  - traefik_proxy_network
+```
+
+Default label set (private-only - `<service>` is the compose service name,
+`<port>` its internal listening port):
+```yaml
+labels:
+  traefik.enable: "true"
+  traefik.http.routers.<service>.rule: "Host(`${<SERVICE>_SUBDOMAIN}.${DOMAIN}`)"
+  traefik.http.routers.<service>.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+  traefik.http.routers.<service>.tls: "true"
+  traefik.http.routers.<service>.tls.certresolver: "cf_dns"
+  traefik.http.routers.<service>.service: "<service>"
+  traefik.http.services.<service>.loadbalancer.server.port: "<port>"
+  traefik.docker.network: "traefik-proxy"
+```
+
+**⚠️ `tls.certresolver` must be set explicitly on the router, every time -
+this is a confirmed live bug, not a style preference.** Once a router sets
+its own `tls: "true"`, it overrides the entrypoint's `tls.certresolver`
+default entirely (confirmed against Traefik's own community docs and a real
+production incident on this instance, 2026-08-21). Omitting the router-level
+`tls.certresolver` label produces **no error and no crash** - Traefik just
+silently falls back to serving its self-signed `TRAEFIK DEFAULT CERT`
+forever. Verify by checking the certificate issuer after any change, not by
+absence of errors in the logs.
+
+**`${<SERVICE>_SUBDOMAIN}` naming:** always a dedicated `${VAR}` (e.g.
+`ACTUAL_BUDGET_SUBDOMAIN`), never a hardcoded literal in the router rule -
+this repo is public and even the service-specific hostname segment counts as
+an opinionated value. Default the variable's *value* to the service's
+directory name, **except** when a legacy Cloudflare hostname already exists
+for that service and differs from it - ask the user to confirm before
+assuming. Known overrides so far: `actual-budget`→`budget`, `immich`→`foto`,
+`homehub`→`casa`, `mealie`→`ricette`, `surmai`→`viaggi`,
+`mini-qr`→`miniqr`, `omni-tools`→`omnitools`,
+`easy-appointments`→`appuntamenti`, `ghost`→`blog`, `vikunja`→`promemoria`.
+
+**Entrypoint variables - generically numbered on purpose, never named after
+their tier** (this repo is public; even a var *name* like
+`TRAEFIK_ENTRYPOINT_FAMILY` would leak this household's trust-tier
+vocabulary - only the *value* should describe the tier, per an explicit
+household-member decision, 2026-08-21):
+
+| Variable | Meaning this instance | Port var | Port |
+|---|---|---|---|
+| `TRAEFIK_ENTRYPOINT_1` | family tier | `TRAEFIK_PORT_1` | 443 |
+| `TRAEFIK_ENTRYPOINT_2` | guest tier | `TRAEFIK_PORT_2` | 8443 |
+| `TRAEFIK_ENTRYPOINT_3` | private tier (`asDefault`) - **the default for new services** | `TRAEFIK_PORT_3` | 8444 |
+| `TRAEFIK_ENTRYPOINT_4` | friends tier | `TRAEFIK_PORT_4` | 8445 |
+| `TRAEFIK_ENTRYPOINT_5` | internal, `cloudflared`-facing only, no host port | `TRAEFIK_PORT_5` | 9080 |
+| `TRAEFIK_ENTRYPOINT_6` | internal, ping/dashboard-API only, no host port | `TRAEFIK_PORT_6` | 8080 |
+
+**Ask the user, every time a new service is added: does this need to be
+reachable beyond your own private access (family/guest/friends), or is
+private-only (the default) correct?** If they want an additional tier, add
+a **separate router label block per entrypoint** - e.g.
+`traefik.http.routers.<service>-family.*` alongside
+`traefik.http.routers.<service>.*` (which stays `private`) - never a single
+router with a comma-separated `entrypoints` value (Traefik GitHub issue
+#11889: this doesn't bind cleanly to a single router in practice). Each
+additional router block needs its own `tls.certresolver` label too, per the
+gotcha above.
+
 ## Host references (NAS)
 Never hardcode host IPs in a committed compose file - reference them as
 variables, with the real values in `.env` / Portainer stack env:

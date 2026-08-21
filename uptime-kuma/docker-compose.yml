@@ -12,6 +12,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.uptime-kuma.rule: "Host(`${UPTIME_KUMA_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.uptime-kuma.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.uptime-kuma.tls: "true"
+      traefik.http.routers.uptime-kuma.tls.certresolver: "cf_dns"
+      traefik.http.routers.uptime-kuma.service: "uptime-kuma"
+      traefik.http.services.uptime-kuma.loadbalancer.server.port: "3001"
+      traefik.docker.network: "traefik-proxy"
     healthcheck:
       test: ["CMD", "node", "/app/extra/healthcheck.js"]
       interval: 30s
@@ -23,4 +33,7 @@ services:
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

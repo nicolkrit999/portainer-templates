@@ -61,6 +61,26 @@ networks:
 - Internal-only services (databases, caches, etc.) do **not** need this network - use the default bridge network or a named internal network instead.
 - When a service has both internal dependencies and external access, include both the cloudflare network and any internal networks.
 
+**Traefik reverse-proxy network - default, additive to Cloudflare, not a replacement:** every user-facing service also gets a Traefik router on the `private` tier by default, attached alongside `cloudflare_web_network`, not instead of it. Full detail, the entrypoint variable table, and the `${<SERVICE>_SUBDOMAIN}` naming rule live in `.claude/rules/networking.md` ("Traefik reverse-proxy network" section) - read it before adding any service's networking. The short version:
+
+```yaml
+networks:
+  - traefik_proxy_network
+labels:
+  traefik.enable: "true"
+  traefik.http.routers.<service>.rule: "Host(`${<SERVICE>_SUBDOMAIN}.${DOMAIN}`)"
+  traefik.http.routers.<service>.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+  traefik.http.routers.<service>.tls: "true"
+  traefik.http.routers.<service>.tls.certresolver: "cf_dns"
+  traefik.http.routers.<service>.service: "<service>"
+  traefik.http.services.<service>.loadbalancer.server.port: "<internal_port>"
+  traefik.docker.network: "traefik-proxy"
+```
+
+⚠️ **`tls.certresolver` must be explicit on every router, always** - a router with its own `tls: "true"` silently overrides the entrypoint's default certresolver and falls back to Traefik's self-signed cert with zero error logged (confirmed production incident, 2026-08-21). Never omit it.
+
+**Ask the user on every new service: private-only (default), or should it also reach `family`/`guest`/`friends`?** Additional tiers get their own separate router label block each (`<service>-family`, `<service>-guest`, ...) - never a comma-separated `entrypoints` value on one router.
+
 **Host IPs** (use when services need to reference the host): never hardcode IPs. Use:
 - `${NAS_IP}` - local network IP of the host machine
 - `${DOCKER_GATEWAY_IP}` - Docker bridge gateway IP
@@ -161,10 +181,10 @@ Example: the NAS web UI (`nas.${DOMAIN}`) on host port 9443 → `https://host.do
 ## WORKFLOW
 
 ### Adding a new service:
-1. Ask clarifying questions if the service requirements are unclear (external access needed? specific version? existing data to migrate?).
+1. Ask clarifying questions if the service requirements are unclear (external access needed? specific version? existing data to migrate?). Include: should this be reachable beyond your own private Traefik access (`family`/`guest`/`friends`), or is private-only correct?
 2. Research the official Docker image, correct environment variables, required volumes, and exposed ports.
 3. Suggest volume paths and ask for user confirmation.
-4. Create the `docker-compose.yml` following all rules above.
+4. Create the `docker-compose.yml` following all rules above - Cloudflare network AND Traefik-private network both attached by default, per Rule 2.
 5. List all `${VARIABLE_NAME}` references you've used so the user knows what to configure in Portainer.
 
 ### Modifying an existing service:
@@ -188,6 +208,9 @@ Before finalizing any compose file, verify:
 - [ ] No hardcoded opinionated values - TZ, volume paths, domain, IPs, UIDs, usernames all use `${VAR}`
 - [ ] All `${VARIABLE_NAME}` references are documented
 - [ ] Cloudflare network block present if external access needed
+- [ ] Traefik network + private-tier router present by default (unless the service is internal-only, same exemption as Cloudflare) - additional tiers only if the user asked
+- [ ] Router's `tls.certresolver` set explicitly, not just `tls: "true"`
+- [ ] `${<SERVICE>_SUBDOMAIN}` used in the router rule, not a hardcoded hostname segment
 - [ ] `container_name` on every service
 - [ ] `restart` policy on every service
 - [ ] Healthchecks included where applicable

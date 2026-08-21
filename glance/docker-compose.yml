@@ -42,10 +42,25 @@ services:
       - ${DOCKER_CONFIG_DIR}/glance/assets:/app/assets
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.glance.rule: "Host(`${GLANCE_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.glance.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.glance.tls: "true"
+      traefik.http.routers.glance.tls.certresolver: "cf_dns"
+      traefik.http.routers.glance.service: "glance"
+      traefik.http.services.glance.loadbalancer.server.port: "8080"
+      traefik.docker.network: "traefik-proxy"
+
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
 
 networks:
   cloudflare_web_network:
     external: true
     name: cloudflare-web
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true

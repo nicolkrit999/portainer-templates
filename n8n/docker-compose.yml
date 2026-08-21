@@ -90,10 +90,23 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.n8n.rule: "Host(`${N8N_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.n8n.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.n8n.tls: "true"
+      traefik.http.routers.n8n.tls.certresolver: "cf_dns"
+      traefik.http.routers.n8n.service: "n8n"
+      traefik.http.services.n8n.loadbalancer.server.port: "5678"
+      traefik.docker.network: "traefik-proxy"
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

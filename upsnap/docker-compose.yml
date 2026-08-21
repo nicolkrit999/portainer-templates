@@ -13,4 +13,12 @@ services:
       - UPSNAP_PORT=8090
     volumes:
       - ${DOCKER_CONFIG_DIR}/upsnap:/app/pb_data:rw
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.upsnap.rule: "Host(`${UPSNAP_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.upsnap.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.upsnap.tls: "true"
+      traefik.http.routers.upsnap.tls.certresolver: "cf_dns"
+      traefik.http.routers.upsnap.service: "upsnap"
+      traefik.http.services.upsnap.loadbalancer.server.url: "http://${NAS_IP}:8090"
 

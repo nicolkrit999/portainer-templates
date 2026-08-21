@@ -28,6 +28,26 @@ services:
     restart: always
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.immich-family.rule: "Host(`${IMMICH_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.immich-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.immich-family.tls: "true"
+      traefik.http.routers.immich-family.tls.certresolver: "cf_dns"
+      traefik.http.routers.immich-family.service: "immich"
+      traefik.http.routers.immich-guest.rule: "Host(`${IMMICH_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.immich-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
+      traefik.http.routers.immich-guest.tls: "true"
+      traefik.http.routers.immich-guest.tls.certresolver: "cf_dns"
+      traefik.http.routers.immich-guest.service: "immich"
+      traefik.http.routers.immich-friends.rule: "Host(`${IMMICH_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.immich-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
+      traefik.http.routers.immich-friends.tls: "true"
+      traefik.http.routers.immich-friends.tls.certresolver: "cf_dns"
+      traefik.http.routers.immich-friends.service: "immich"
+      traefik.http.services.immich.loadbalancer.server.port: "2283"
+      traefik.docker.network: "traefik-proxy"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:2283/api/server/ping >/dev/null || exit 1"]
       interval: 30s
@@ -101,4 +121,7 @@ services:
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

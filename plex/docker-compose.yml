@@ -14,9 +14,32 @@ services:
       - ${DOCKER_DATA_DIR}/jellyfin/movies:/movie
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.plex-family.rule: "Host(`${PLEX_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.plex-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.plex-family.tls: "true"
+      traefik.http.routers.plex-family.tls.certresolver: "cf_dns"
+      traefik.http.routers.plex-family.service: "plex"
+      traefik.http.routers.plex-guest.rule: "Host(`${PLEX_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.plex-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
+      traefik.http.routers.plex-guest.tls: "true"
+      traefik.http.routers.plex-guest.tls.certresolver: "cf_dns"
+      traefik.http.routers.plex-guest.service: "plex"
+      traefik.http.routers.plex-friends.rule: "Host(`${PLEX_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.plex-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
+      traefik.http.routers.plex-friends.tls: "true"
+      traefik.http.routers.plex-friends.tls.certresolver: "cf_dns"
+      traefik.http.routers.plex-friends.service: "plex"
+      traefik.http.services.plex.loadbalancer.server.port: "32400"
+      traefik.docker.network: "traefik-proxy"
     restart: unless-stopped
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

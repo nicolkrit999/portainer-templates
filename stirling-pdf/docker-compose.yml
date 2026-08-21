@@ -29,8 +29,21 @@ services:
     restart: unless-stopped
     networks:
       - cloudflare_web_services
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.stirling-pdf.rule: "Host(`${STIRLING_PDF_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.stirling-pdf.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.stirling-pdf.tls: "true"
+      traefik.http.routers.stirling-pdf.tls.certresolver: "cf_dns"
+      traefik.http.routers.stirling-pdf.service: "stirling-pdf"
+      traefik.http.services.stirling-pdf.loadbalancer.server.port: "8080"
+      traefik.docker.network: "traefik-proxy"
 
 networks:
   cloudflare_web_services:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

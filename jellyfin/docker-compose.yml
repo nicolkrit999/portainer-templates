@@ -15,12 +15,35 @@ services:
       - "127.0.0.1:${JELLYFIN_HOST_PORT}:8096"
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
     devices:
       - /dev/dri/renderD128:/dev/dri/renderD128
       - /dev/dri/card0:/dev/dri/card0
       - /dev/dri:/dev/dri
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.jellyfin-family.rule: "Host(`${JELLYFIN_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.jellyfin-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.jellyfin-family.tls: "true"
+      traefik.http.routers.jellyfin-family.tls.certresolver: "cf_dns"
+      traefik.http.routers.jellyfin-family.service: "jellyfin"
+      traefik.http.routers.jellyfin-guest.rule: "Host(`${JELLYFIN_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.jellyfin-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
+      traefik.http.routers.jellyfin-guest.tls: "true"
+      traefik.http.routers.jellyfin-guest.tls.certresolver: "cf_dns"
+      traefik.http.routers.jellyfin-guest.service: "jellyfin"
+      traefik.http.routers.jellyfin-friends.rule: "Host(`${JELLYFIN_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.jellyfin-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
+      traefik.http.routers.jellyfin-friends.tls: "true"
+      traefik.http.routers.jellyfin-friends.tls.certresolver: "cf_dns"
+      traefik.http.routers.jellyfin-friends.service: "jellyfin"
+      traefik.http.services.jellyfin.loadbalancer.server.port: "8096"
+      traefik.docker.network: "traefik-proxy"
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

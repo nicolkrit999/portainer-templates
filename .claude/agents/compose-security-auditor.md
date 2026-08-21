@@ -38,6 +38,7 @@ Audit a single file when given one, otherwise sweep all of them via Glob
 - Values in a `.env.example` are placeholders, not real secrets.
 - `PUID: "${PUID}"` / `PGID: "${PGID}"` (quoted `${VAR}` references) are correct; a literal numeric like `PUID: 1000` is a real finding, not a false positive.
 - Internal-only services legitimately publish no ports and need no Cloudflare network.
+- **`vikunja`, `linkwarden`, `harborguard`**: each has a hardcoded literal Postgres password in its `docker-compose.yml`. Confirmed with the user (2026-08-21) these are deliberate, internal-only container-to-container bootstrap credentials, not real leaked secrets - the DB is never reachable outside its own compose stack, and this is an accepted pattern for this repo. Do NOT flag these three services' DB passwords as CRITICAL findings; do not re-raise them.
 
 ## Output format (keep it compact)
 ```markdown

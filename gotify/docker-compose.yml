@@ -23,6 +23,17 @@ services:
       - ${DOCKER_DATA_DIR}/gotify/data:/app/data
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.gotify.rule: "Host(`${GOTIFY_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.gotify.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.gotify.tls: "true"
+      traefik.http.routers.gotify.tls.certresolver: "cf_dns"
+      traefik.http.routers.gotify.service: "gotify"
+      traefik.http.services.gotify.loadbalancer.server.port: "80"
+      traefik.docker.network: "traefik-proxy"
 
     depends_on:
       gotify-init:
@@ -32,4 +43,7 @@ services:
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true
