@@ -27,6 +27,8 @@ services:
     command:
       - "--address=/${DNS_WILDCARD_DOMAIN}/${DNS_TARGET_IP}"
       - "--log-facility=-"
+      - "--listen-address=${DNS_TARGET_IP}"
+      - "--bind-interfaces"
     logging:
       options:
         max-size: "10m"

@@ -38,6 +38,28 @@ that hardware exists.
   usual patterns. Used judgment to skip per repo rule allowance.
 - `cap_add: [NET_ADMIN]` required per upstream image docs.
 
+### Fixed 2026-08-21: port-53 bind conflict with host's systemd-resolved
+
+Container failed to start: `dnsmasq: failed to create listening socket for
+port 53: Address in use`. Root cause: dnsmasq's default bind behavior is
+wildcard/all-interfaces (`0.0.0.0:53`, effectively `bind-dynamic`), which
+includes loopback - and `systemd-resolved`'s stub resolver was already bound
+to `127.0.0.1:53` on the host (common default on Linux, and this container
+uses `network_mode: host` so it shares the host's interfaces/ports
+directly). The NAS's actual LAN IP (`${DNS_TARGET_IP}`) was free; only the
+loopback binding collided.
+
+Fix: added two more `command:` args, additive to the existing
+`--address=...` and `--log-facility=-`:
+```
+--listen-address=${DNS_TARGET_IP}
+--bind-interfaces
+```
+`--listen-address` names the address(es) dnsmasq should serve on;
+`--bind-interfaces` makes it actually bind only to that address instead of
+wildcard-bind-then-filter, which is what avoids the loopback collision.
+Nothing else in the file changed.
+
 ## Tooling gotcha: writing `.env.example` files
 
 The `Write` tool has a deny rule blocking any path matching `.env*` exactly
