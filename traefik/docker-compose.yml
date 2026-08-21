@@ -23,12 +23,15 @@ services:
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.certresolver=cf_dns"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.domains[0].main=${DOMAIN}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.domains[0].sans=*.${DOMAIN}"
-      # TRAEFIK_PORT_3's value (8444) is intentionally NOT the port used to reach
-      # the private tier externally anymore (see the "ports:" block below - it's
-      # published as 443 on ${TRAEFIK_PRIVATE_IP} instead). It has to stay a
-      # distinct internal-only port because this entrypoint's wildcard bind
-      # would otherwise collide with the family entrypoint's own wildcard :443
-      # bind inside this same container - do not "simplify" this to 443.
+      # TRAEFIK_PORT_3's value (8444) stays a distinct internal-only port -
+      # this entrypoint's wildcard bind would otherwise collide with the
+      # family entrypoint's own wildcard :443 bind inside this container.
+      # Clean, no-port external access to the private tier (443 on its own
+      # dedicated IP) is handled entirely by the separate
+      # `traefik-private-forwarder` service (a macvlan TCP-passthrough
+      # sidecar forwarding to this container's :${TRAEFIK_PORT_3} over the
+      # shared traefik-proxy network) - not by anything in this file. Do not
+      # "simplify" this entrypoint's own address to 443.
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.address=:${TRAEFIK_PORT_3}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.asDefault=true"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.http.tls.certresolver=cf_dns"
