@@ -14,9 +14,10 @@ services:
       - "5006:5006"
     labels:
       traefik.enable: "true"
-      traefik.http.routers.actual-budget.rule: "Host(`budget.${DOMAIN}`)"
-      traefik.http.routers.actual-budget.entrypoints: "family"
+      traefik.http.routers.actual-budget.rule: "Host(`${ACTUAL_BUDGET_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-budget.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
       traefik.http.routers.actual-budget.tls: "true"
+      traefik.http.routers.actual-budget.tls.certresolver: "cf_dns"
       traefik.http.routers.actual-budget.service: "actual-budget"
       traefik.http.services.actual-budget.loadbalancer.server.port: "5006"
       traefik.docker.network: "traefik-proxy"
