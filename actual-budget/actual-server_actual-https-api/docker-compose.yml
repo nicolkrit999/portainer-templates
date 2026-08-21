@@ -4,13 +4,22 @@ services:
     container_name: ActualBudget
     restart: always
     environment:
-      - TZ=${TZ}
+      TZ: "${TZ}"
     volumes:
       - ${DOCKER_CONFIG_DIR}/actual-budget/actual-data:/data
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
     ports:
       - "5006:5006"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.actual-budget.rule: "Host(`actual-budget.${DOMAIN}`)"
+      traefik.http.routers.actual-budget.entrypoints: "family"
+      traefik.http.routers.actual-budget.tls: "true"
+      traefik.http.routers.actual-budget.service: "actual-budget"
+      traefik.http.services.actual-budget.loadbalancer.server.port: "5006"
+      traefik.docker.network: "traefik-proxy"
 
   actual_api:
     image: jhonderson/actual-http-api:26.8.0
@@ -19,12 +28,12 @@ services:
     ports:
       - "5007:5007"
     environment:
-      - PORT=5007
-      - ACTUAL_SERVER_URL=http://ActualBudget:5006
-      - ACTUAL_SERVER_PASSWORD=${ACTUAL_SERVER_PASSWORD}
-      - API_KEY=${ACTUAL_API_PASSWORD}
-      - NODE_OPTIONS=--max-old-space-size=4096
-      - ACTUAL_DATA_DIR=/data
+      PORT: "5007"
+      ACTUAL_SERVER_URL: "http://ActualBudget:5006"
+      ACTUAL_SERVER_PASSWORD: "${ACTUAL_SERVER_PASSWORD}"
+      API_KEY: "${ACTUAL_API_PASSWORD}"
+      NODE_OPTIONS: "--max-old-space-size=4096"
+      ACTUAL_DATA_DIR: "/data"
     volumes:
       - ${DOCKER_CONFIG_DIR}/actual-budget/api-data:/data
     networks:
@@ -33,4 +42,7 @@ services:
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

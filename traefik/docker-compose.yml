@@ -1,0 +1,94 @@
+services:
+  fix-permissions:
+    image: alpine:latest
+    container_name: Traefik-init
+    user: root
+    restart: "no"
+    volumes:
+      - ${VOLUME_CONFIG}/traefik/acme.json:/fix/acme.json
+    command: "chown root:root /fix/acme.json && chmod 600 /fix/acme.json && echo done"
+
+  traefik:
+    image: traefik:v3.7.11
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--global.checknewversion=false"
+      - "--global.sendanonymoususage=false"
+      - "--entryPoints.family.address=:443"
+      - "--entryPoints.family.http.tls.certresolver=cf_dns"
+      - "--entryPoints.family.http.tls.domains[0].main=${DOMAIN}"
+      - "--entryPoints.family.http.tls.domains[0].sans=*.${DOMAIN}"
+      - "--entryPoints.guest.address=:8443"
+      - "--entryPoints.guest.http.tls.certresolver=cf_dns"
+      - "--entryPoints.guest.http.tls.domains[0].main=${DOMAIN}"
+      - "--entryPoints.guest.http.tls.domains[0].sans=*.${DOMAIN}"
+      - "--entryPoints.private.address=:8444"
+      - "--entryPoints.private.asDefault=true"
+      - "--entryPoints.private.http.tls.certresolver=cf_dns"
+      - "--entryPoints.private.http.tls.domains[0].main=${DOMAIN}"
+      - "--entryPoints.private.http.tls.domains[0].sans=*.${DOMAIN}"
+      - "--entryPoints.friends.address=:8445"
+      - "--entryPoints.friends.http.tls.certresolver=cf_dns"
+      - "--entryPoints.friends.http.tls.domains[0].main=${DOMAIN}"
+      - "--entryPoints.friends.http.tls.domains[0].sans=*.${DOMAIN}"
+      - "--entryPoints.cloudflared.address=:9080"
+      - "--entryPoints.traefik.address=:8080"
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      - "--ping=true"
+      - "--ping.entryPoint=traefik"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.watch=true"
+      - "--certificatesresolvers.cf_dns.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.cf_dns.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.cf_dns.acme.dnschallenge=true"
+      - "--certificatesresolvers.cf_dns.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.cf_dns.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+      - "--log.level=INFO"
+      - "--accesslog=false"
+    environment:
+      TZ: "${TZ}"
+      CF_DNS_API_TOKEN: "${CF_DNS_API_TOKEN}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${VOLUME_CONFIG}/traefik/acme.json:/letsencrypt/acme.json
+    ports:
+      - "443:443"
+      - "8443:8443"
+      - "8444:8444"
+      - "8445:8445"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.traefik-dashboard.rule: "Host(`traefik.${DOMAIN}`)"
+      traefik.http.routers.traefik-dashboard.entrypoints: "private"
+      traefik.http.routers.traefik-dashboard.tls: "true"
+      traefik.http.routers.traefik-dashboard.service: "api@internal"
+      traefik.http.routers.traefik-dashboard.middlewares: "traefik-auth"
+      traefik.http.middlewares.traefik-auth.basicauth.users: "${TRAEFIK_DASHBOARD_HTPASSWD}"
+      traefik.docker.network: "traefik-proxy"
+    networks:
+      - traefik_proxy_network
+      - cloudflare_web_network
+    depends_on:
+      fix-permissions:
+        condition: service_completed_successfully
+
+networks:
+  traefik_proxy_network:
+    name: traefik-proxy
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
