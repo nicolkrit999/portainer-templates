@@ -58,9 +58,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${VOLUME_CONFIG}/traefik/acme.json:/letsencrypt/acme.json
     ports:
-      - "${TRAEFIK_PORT_1}:${TRAEFIK_PORT_1}"
+      - "${NAS_IP}:${TRAEFIK_PORT_1}:${TRAEFIK_PORT_1}"
       - "${TRAEFIK_PORT_2}:${TRAEFIK_PORT_2}"
-      - "${TRAEFIK_PORT_3}:${TRAEFIK_PORT_3}"
+      - "${TRAEFIK_PRIVATE_IP}:443:${TRAEFIK_PORT_3}"
       - "${TRAEFIK_PORT_4}:${TRAEFIK_PORT_4}"
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
