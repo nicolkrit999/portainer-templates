@@ -1,0 +1,57 @@
+services:
+  # TCP-passthrough sidecar so the household member's private-tier Traefik
+  # access works at a clean `hostname:443` URL, with no port number to
+  # remember and no macvlan/IP-binding changes on Traefik's own container.
+  #
+  # Traefik itself is completely unchanged: it still listens internally,
+  # wildcard-bound, on its existing private entrypoint at container-internal
+  # port ${TRAEFIK_PORT_3} (8444), reachable over the shared traefik-proxy
+  # network at hostname `traefik`. Giving Traefik's own container a second,
+  # specific macvlan IP bind alongside its existing wildcard bind was
+  # deliberately avoided - confirmed risk of a wildcard-vs-specific-bind
+  # conflict on the same container. Instead, this narrow single-purpose
+  # sidecar gets its own dedicated macvlan LAN IP and just forwards raw
+  # bytes on 443 to traefik:${TRAEFIK_PORT_3}.
+  #
+  # This is pure SNI-passthrough TCP forwarding via socat - it does NOT
+  # terminate, inspect, or touch the TLS handshake in any way. All TLS/cert
+  # work still happens on Traefik's end, exactly as it does today.
+  #
+  # Deliberately NOT attached to cloudflare-web (this sidecar isn't meant to
+  # be reached via the tunnel - only via its own dedicated LAN IP) and has
+  # no Traefik router labels on itself (it's infrastructure that exposes an
+  # IP, not a routed application - Traefik on the other end of the forward
+  # already owns routing/TLS for whatever it forwards to).
+  traefik-private-forwarder:
+    image: alpine/socat:1.8.0.3
+    container_name: traefik-private-forwarder
+    command: "TCP-LISTEN:443,fork,reuseaddr TCP:traefik:${TRAEFIK_PORT_3}"
+    networks:
+      traefik_forwarder_net:
+        ipv4_address: "${TRAEFIK_PRIVATE_IP}"
+      traefik_proxy_network:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "443"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  traefik_forwarder_net:
+    driver: macvlan
+    driver_opts:
+      parent: "${LAN_INTERFACE}"
+    ipam:
+      config:
+        - subnet: "${LAN_SUBNET}"
+          gateway: "${LAN_GATEWAY}"
+          ip_range: "${TRAEFIK_PRIVATE_IP}/32"
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true
