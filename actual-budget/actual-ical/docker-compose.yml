@@ -17,8 +17,21 @@ services:
       - ${DOCKER_CONFIG_DIR}/actualical:/app/.actual-cache
     networks:
       - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.actual-ical.rule: "Host(`${ACTUAL_ICAL_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-ical.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.actual-ical.tls: "true"
+      traefik.http.routers.actual-ical.tls.certresolver: "cf_dns"
+      traefik.http.routers.actual-ical.service: "actual-ical"
+      traefik.http.services.actual-ical.loadbalancer.server.port: "3000"
+      traefik.docker.network: "traefik-proxy"
 
 networks:
   cloudflare_web_network:
     name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

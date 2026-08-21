@@ -12,3 +12,12 @@ services:
       - ACTUAL_SYNC_ID=${ACTUAL_SYNC_ID}
       - API_KEY=${API_KEY}
       - ACTUAL_ENCRYPTION_PASSWORD=${ACTUAL_ENCRYPTION_PASSWORD}
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.actual-tap.rule: "Host(`${ACTUAL_TAP_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-tap.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.actual-tap.tls: "true"
+      traefik.http.routers.actual-tap.tls.certresolver: "cf_dns"
+      traefik.http.routers.actual-tap.service: "actual-tap"
+      traefik.http.services.actual-tap.loadbalancer.server.url: "http://host.docker.internal:3001"
