@@ -1,8 +1,10 @@
 services:
-  # STOPGAP: this container provides a single wildcard DNS override for the
-  # household's LAN while no UniFi gateway is in place. Once a UniFi gateway
-  # is installed, its built-in DNS Records feature should replace this
-  # entirely - this is not meant to be a permanent piece of infrastructure.
+  # PERMANENT INFRASTRUCTURE (confirmed 2026-08-22): provides the wildcard
+  # DNS override for the household's LAN/tailnet split-DNS. UniFi's gateway
+  # UI does not support wildcard DNS natively - the long-term plan is either
+  # migrating this ruleset into the gateway's own internal dnsmasq, or
+  # having UniFi's "Forward Domain" feature delegate nicolkrit.ch to this
+  # container - either way, this container itself is not going away.
   #
   # Deliberately NOT attached to cloudflare-web or traefik-proxy: this is a
   # raw DNS (port 53) service, not HTTP, and is not meant to be reachable
@@ -12,14 +14,13 @@ services:
   # the NAS's existing LAN IP and never goes stale the way a macvlan static
   # IP assignment did for a sibling service.
   #
-  # Deliberately restart: "no" - this is started/stopped manually via
-  # Portainer/docker start whenever actively testing, and must NOT come
-  # back automatically after a host reboot or crash.
+  # restart: always - split-DNS for the whole household now depends on this
+  # container; it must come back automatically after a host reboot or crash.
   dnsmasq:
     image: 4km3/dnsmasq:2.90-r3
     container_name: dnsmasq
     network_mode: host
-    restart: "no"
+    restart: always
     cap_add:
       - NET_ADMIN
     # ENTRYPOINT of this image is already ["/usr/sbin/dnsmasq", "--keep-in-foreground"];
