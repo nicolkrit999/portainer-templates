@@ -78,6 +78,10 @@ services:
       traefik.http.routers.traefik-dashboard.service: "api@internal"
       traefik.http.routers.traefik-dashboard.middlewares: "traefik-auth"
       traefik.http.middlewares.traefik-auth.basicauth.users: "${TRAEFIK_DASHBOARD_HTPASSWD}"
+      traefik.http.routers.traefik-dashboard-cf.rule: "Host(`traefik.${DOMAIN}`)"
+      traefik.http.routers.traefik-dashboard-cf.entrypoints: "cloudflared"
+      traefik.http.routers.traefik-dashboard-cf.service: "api@internal"
+      traefik.http.routers.traefik-dashboard-cf.middlewares: "traefik-auth"
       traefik.docker.network: "traefik-proxy"
     networks:
       - traefik_proxy_network
