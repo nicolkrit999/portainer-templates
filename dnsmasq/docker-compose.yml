@@ -1,0 +1,33 @@
+services:
+  # STOPGAP: this container provides a single wildcard DNS override for the
+  # household's LAN while no UniFi gateway is in place. Once a UniFi gateway
+  # is installed, its built-in DNS Records feature should replace this
+  # entirely - this is not meant to be a permanent piece of infrastructure.
+  #
+  # Deliberately NOT attached to cloudflare-web or traefik-proxy: this is a
+  # raw DNS (port 53) service, not HTTP, and is not meant to be reachable
+  # through either tunnel/proxy.
+  #
+  # Deliberately network_mode: host (not macvlan) so it binds directly to
+  # the NAS's existing LAN IP and never goes stale the way a macvlan static
+  # IP assignment did for a sibling service.
+  #
+  # Deliberately restart: "no" - this is started/stopped manually via
+  # Portainer/docker start whenever actively testing, and must NOT come
+  # back automatically after a host reboot or crash.
+  dnsmasq:
+    image: 4km3/dnsmasq:2.90-r3
+    container_name: dnsmasq
+    network_mode: host
+    restart: "no"
+    cap_add:
+      - NET_ADMIN
+    # ENTRYPOINT of this image is already ["/usr/sbin/dnsmasq", "--keep-in-foreground"];
+    # command: here is appended as extra dnsmasq CLI args, not a replacement.
+    command:
+      - "--address=/${DNS_WILDCARD_DOMAIN}/${DNS_TARGET_IP}"
+      - "--log-facility=-"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
