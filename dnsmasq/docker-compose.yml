@@ -29,6 +29,16 @@ services:
       - "--log-facility=-"
       - "--listen-address=${DNS_TARGET_IP}"
       - "--bind-interfaces"
+      # This resolver only ever answers for ${DNS_WILDCARD_DOMAIN} (queries reach
+      # it only via the Tailscale restricted nameserver or manual LAN testing),
+      # so filtering these record types globally is safe here. Without this,
+      # AAAA/HTTPS/SVCB queries fall through to the real upstream and leak
+      # Cloudflare's actual public edge (IPv6 address, ECH config, etc.) even
+      # though the A record is correctly overridden - defeating the whole
+      # point of this override for IPv6-preferring clients.
+      - "--filter-AAAA"
+      - "--filter-rr=HTTPS"
+      - "--filter-rr=SVCB"
     logging:
       options:
         max-size: "10m"
