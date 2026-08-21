@@ -10,12 +10,6 @@ services:
       - ${VOLUME_CONFIG}/portainer:/data
     ports:
       - "9000:9000"
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/api/status"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     logging:
       options:
         max-size: "10m"
