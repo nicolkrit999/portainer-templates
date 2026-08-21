@@ -58,7 +58,7 @@ services:
       - "--address=/gocron.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/gotify.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/harborguard.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
-      - "--address=/holyclaude.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
+      - "--address=/claude.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/home-assistant.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/it-tools.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/radarr.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
