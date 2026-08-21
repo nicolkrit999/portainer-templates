@@ -76,6 +76,12 @@ services:
       traefik.http.routers.easy-appointments-guest.tls.certresolver: "cf_dns"
       traefik.http.routers.easy-appointments-guest.service: "easy-appointments"
       traefik.http.services.easy-appointments.loadbalancer.server.port: "80"
+      traefik.http.routers.easy-appointments-private.rule: "Host(`${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.easy-appointments-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.easy-appointments-private.tls: "true"
+      traefik.http.routers.easy-appointments-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.easy-appointments-private.service: "easy-appointments-private"
+      traefik.http.services.easy-appointments-private.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
 
   mysql:

@@ -38,6 +38,12 @@ services:
       traefik.http.routers.surmai-friends.tls.certresolver: "cf_dns"
       traefik.http.routers.surmai-friends.service: "surmai"
       traefik.http.services.surmai.loadbalancer.server.port: "8080"
+      traefik.http.routers.surmai-private.rule: "Host(`${SURMAI_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.surmai-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.surmai-private.tls: "true"
+      traefik.http.routers.surmai-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.surmai-private.service: "surmai-private"
+      traefik.http.services.surmai-private.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
 
 networks:

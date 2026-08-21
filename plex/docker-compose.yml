@@ -33,6 +33,12 @@ services:
       traefik.http.routers.plex-friends.tls.certresolver: "cf_dns"
       traefik.http.routers.plex-friends.service: "plex"
       traefik.http.services.plex.loadbalancer.server.port: "32400"
+      traefik.http.routers.plex-private.rule: "Host(`${PLEX_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.plex-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.plex-private.tls: "true"
+      traefik.http.routers.plex-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.plex-private.service: "plex-private"
+      traefik.http.services.plex-private.loadbalancer.server.port: "32400"
       traefik.docker.network: "traefik-proxy"
     restart: unless-stopped
 

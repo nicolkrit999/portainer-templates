@@ -39,6 +39,12 @@ services:
       traefik.http.routers.navidrome-guest.tls.certresolver: "cf_dns"
       traefik.http.routers.navidrome-guest.service: "navidrome"
       traefik.http.services.navidrome.loadbalancer.server.port: "4533"
+      traefik.http.routers.navidrome-private.rule: "Host(`${NAVIDROME_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.navidrome-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.navidrome-private.tls: "true"
+      traefik.http.routers.navidrome-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.navidrome-private.service: "navidrome-private"
+      traefik.http.services.navidrome-private.loadbalancer.server.port: "4533"
       traefik.docker.network: "traefik-proxy"
 
 networks:
