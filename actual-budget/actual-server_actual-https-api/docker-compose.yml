@@ -20,6 +20,12 @@ services:
       traefik.http.routers.actual-budget.tls.certresolver: "cf_dns"
       traefik.http.routers.actual-budget.service: "actual-budget"
       traefik.http.services.actual-budget.loadbalancer.server.port: "5006"
+      traefik.http.routers.actual-budget-private.rule: "Host(`${ACTUAL_BUDGET_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-budget-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.actual-budget-private.tls: "true"
+      traefik.http.routers.actual-budget-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.actual-budget-private.service: "actual-budget-private"
+      traefik.http.services.actual-budget-private.loadbalancer.server.port: "5006"
       traefik.docker.network: "traefik-proxy"
 
   actual_api:
@@ -48,6 +54,12 @@ services:
       traefik.http.routers.actual-api.tls.certresolver: "cf_dns"
       traefik.http.routers.actual-api.service: "actual-api"
       traefik.http.services.actual-api.loadbalancer.server.port: "5007"
+      traefik.http.routers.actual-api-private.rule: "Host(`${ACTUAL_API_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-api-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.actual-api-private.tls: "true"
+      traefik.http.routers.actual-api-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.actual-api-private.service: "actual-api-private"
+      traefik.http.services.actual-api-private.loadbalancer.server.port: "5007"
       traefik.docker.network: "traefik-proxy"
 
 networks:

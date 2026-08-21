@@ -42,6 +42,12 @@ services:
       traefik.http.routers.owncloud.tls.certresolver: "cf_dns"
       traefik.http.routers.owncloud.service: "owncloud"
       traefik.http.services.owncloud.loadbalancer.server.port: "8080"
+      traefik.http.routers.owncloud-private.rule: "Host(`${OWNCLOUD_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.owncloud-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.owncloud-private.tls: "true"
+      traefik.http.routers.owncloud-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.owncloud-private.service: "owncloud-private"
+      traefik.http.services.owncloud-private.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
 
   mariadb:

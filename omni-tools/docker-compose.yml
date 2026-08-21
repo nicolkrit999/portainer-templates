@@ -16,6 +16,12 @@ services:
       traefik.http.routers.omni-tools.tls.certresolver: "cf_dns"
       traefik.http.routers.omni-tools.service: "omni-tools"
       traefik.http.services.omni-tools.loadbalancer.server.port: "80"
+      traefik.http.routers.omni-tools-private.rule: "Host(`${OMNI_TOOLS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.omni-tools-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.omni-tools-private.tls: "true"
+      traefik.http.routers.omni-tools-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.omni-tools-private.service: "omni-tools-private"
+      traefik.http.services.omni-tools-private.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
 
 networks:

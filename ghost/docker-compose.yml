@@ -62,6 +62,12 @@ services:
             traefik.http.routers.ghost-guest.tls.certresolver: "cf_dns"
             traefik.http.routers.ghost-guest.service: "ghost"
             traefik.http.services.ghost.loadbalancer.server.port: "2368"
+            traefik.http.routers.ghost-private.rule: "Host(`${GHOST_SUBDOMAIN}.${DOMAIN}`)"
+            traefik.http.routers.ghost-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+            traefik.http.routers.ghost-private.tls: "true"
+            traefik.http.routers.ghost-private.tls.certresolver: "cf_dns"
+            traefik.http.routers.ghost-private.service: "ghost-private"
+            traefik.http.services.ghost-private.loadbalancer.server.port: "2368"
             traefik.docker.network: "traefik-proxy"
 
 networks:

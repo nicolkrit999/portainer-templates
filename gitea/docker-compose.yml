@@ -32,6 +32,12 @@ services:
             traefik.http.routers.gitea-guest.tls.certresolver: "cf_dns"
             traefik.http.routers.gitea-guest.service: "gitea"
             traefik.http.services.gitea.loadbalancer.server.port: "3000"
+            traefik.http.routers.gitea-private.rule: "Host(`${GITEA_SUBDOMAIN}.${DOMAIN}`)"
+            traefik.http.routers.gitea-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+            traefik.http.routers.gitea-private.tls: "true"
+            traefik.http.routers.gitea-private.tls.certresolver: "cf_dns"
+            traefik.http.routers.gitea-private.service: "gitea-private"
+            traefik.http.services.gitea-private.loadbalancer.server.port: "3000"
             traefik.docker.network: "traefik-proxy"
         healthcheck:
             test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]

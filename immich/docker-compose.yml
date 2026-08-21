@@ -47,6 +47,12 @@ services:
       traefik.http.routers.immich-friends.tls.certresolver: "cf_dns"
       traefik.http.routers.immich-friends.service: "immich"
       traefik.http.services.immich.loadbalancer.server.port: "2283"
+      traefik.http.routers.immich-private.rule: "Host(`${IMMICH_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.immich-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.immich-private.tls: "true"
+      traefik.http.routers.immich-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.immich-private.service: "immich-private"
+      traefik.http.services.immich-private.loadbalancer.server.port: "2283"
       traefik.docker.network: "traefik-proxy"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:2283/api/server/ping >/dev/null || exit 1"]

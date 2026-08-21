@@ -42,6 +42,12 @@ services:
       traefik.http.routers.mealie-guest.tls.certresolver: "cf_dns"
       traefik.http.routers.mealie-guest.service: "mealie"
       traefik.http.services.mealie.loadbalancer.server.port: "9000"
+      traefik.http.routers.mealie-private.rule: "Host(`${MEALIE_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.mealie-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.mealie-private.tls: "true"
+      traefik.http.routers.mealie-private.tls.certresolver: "cf_dns"
+      traefik.http.routers.mealie-private.service: "mealie-private"
+      traefik.http.services.mealie-private.loadbalancer.server.port: "9000"
       traefik.docker.network: "traefik-proxy"
 
 networks:
