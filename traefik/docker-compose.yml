@@ -23,6 +23,12 @@ services:
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.certresolver=cf_dns"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.domains[0].main=${DOMAIN}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.domains[0].sans=*.${DOMAIN}"
+      # TRAEFIK_PORT_3's value (8444) is intentionally NOT the port used to reach
+      # the private tier externally anymore (see the "ports:" block below - it's
+      # published as 443 on ${TRAEFIK_PRIVATE_IP} instead). It has to stay a
+      # distinct internal-only port because this entrypoint's wildcard bind
+      # would otherwise collide with the family entrypoint's own wildcard :443
+      # bind inside this same container - do not "simplify" this to 443.
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.address=:${TRAEFIK_PORT_3}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.asDefault=true"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.http.tls.certresolver=cf_dns"
@@ -58,9 +64,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${VOLUME_CONFIG}/traefik/acme.json:/letsencrypt/acme.json
     ports:
-      - "${NAS_IP}:${TRAEFIK_PORT_1}:${TRAEFIK_PORT_1}"
+      - "${TRAEFIK_PORT_1}:${TRAEFIK_PORT_1}"
       - "${TRAEFIK_PORT_2}:${TRAEFIK_PORT_2}"
-      - "${TRAEFIK_PRIVATE_IP}:443:${TRAEFIK_PORT_3}"
+      - "${TRAEFIK_PORT_3}:${TRAEFIK_PORT_3}"
       - "${TRAEFIK_PORT_4}:${TRAEFIK_PORT_4}"
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
