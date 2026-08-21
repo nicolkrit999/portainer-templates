@@ -14,7 +14,7 @@ services:
       - "5006:5006"
     labels:
       traefik.enable: "true"
-      traefik.http.routers.actual-budget.rule: "Host(`actual-budget.${DOMAIN}`)"
+      traefik.http.routers.actual-budget.rule: "Host(`budget.${DOMAIN}`)"
       traefik.http.routers.actual-budget.entrypoints: "family"
       traefik.http.routers.actual-budget.tls: "true"
       traefik.http.routers.actual-budget.service: "actual-budget"
