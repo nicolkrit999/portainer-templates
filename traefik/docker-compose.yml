@@ -56,6 +56,33 @@ services:
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.http.tls.domains[0].sans=*.${DOMAIN}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_5}.address=:${TRAEFIK_PORT_5}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_6}.address=:${TRAEFIK_PORT_6}"
+      # Internal-only entrypoint dedicated to tailnet-sourced admin traffic,
+      # reached exclusively via the traefik-tailnet-forwarder sidecar (see
+      # ../traefik-tailnet-forwarder/docker-compose.yml) over the
+      # traefik-proxy network at this container's static
+      # ${TRAEFIK_INTERNAL_IP}. No `ports:` host publish - same internal-only
+      # pattern as entrypoints 5 and 6.
+      #
+      # proxyProtocol.trustedIPs=172.27.0.1/32 trusts PROXY-protocol headers
+      # only from the traefik-proxy bridge network's own gateway address.
+      # That address is expected here because the tailnet forwarder runs
+      # network_mode: host and connects to this container from the host's
+      # own interface on the traefik-proxy bridge - which sources from the
+      # bridge's gateway IP, not a routable client address. This is a
+      # DIFFERENT, intentional, PROXY-protocol-verified use of the exact
+      # same address class that caused the original bug (docker-proxy
+      # silently rewriting real tailnet client IPs to a Docker gateway
+      # address before Traefik ever saw them, defeating the
+      # tailnet-admin-only ipallowlist). Here the real client IP is never
+      # inferred from the raw TCP source at all - it travels inside the
+      # PROXY protocol header injected by haproxy's send-proxy-v2 directive,
+      # and Traefik only trusts that header when it arrives from this one
+      # known gateway address.
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.address=:${TRAEFIK_PORT_7}"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.certresolver=cf_dns"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.domains[0].main=${DOMAIN}"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.domains[0].sans=*.${DOMAIN}"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.proxyProtocol.trustedIPs=172.27.0.1/32"
       - "--api.dashboard=true"
       - "--api.insecure=false"
       - "--ping=true"
@@ -125,16 +152,30 @@ services:
       traefik.http.routers.traefik-dashboard-cf.entrypoints: "${TRAEFIK_ENTRYPOINT_5}"
       traefik.http.routers.traefik-dashboard-cf.service: "api@internal"
       traefik.http.routers.traefik-dashboard-cf.middlewares: "hsts-headers@docker,traefik-auth"
+      # Step 0 pilot: moved off ${TRAEFIK_ENTRYPOINT_1} (the shared family
+      # entrypoint) onto the new dedicated ${TRAEFIK_ENTRYPOINT_7} tailnet
+      # entrypoint, reachable only via the traefik-tailnet-forwarder sidecar
+      # - this routes around the confirmed docker-proxy source-IP rewrite
+      # bug that made tailnet-admin-only reject legitimate Tailscale clients
+      # on every one of Traefik's published ports. Middleware chain and
+      # ordering kept exactly as-is - hsts-headers@docker MUST stay first,
+      # this repo has hit a middleware-ordering bug from reordering this
+      # exact chain twice already.
       traefik.http.routers.traefik-dashboard-tailnet.rule: "Host(`traefik.${DOMAIN}`)"
-      traefik.http.routers.traefik-dashboard-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.traefik-dashboard-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.traefik-dashboard-tailnet.tls: "true"
       traefik.http.routers.traefik-dashboard-tailnet.tls.certresolver: "cf_dns"
       traefik.http.routers.traefik-dashboard-tailnet.service: "api@internal"
       traefik.http.routers.traefik-dashboard-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker,traefik-auth"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - traefik_proxy_network
-      - cloudflare_web_network
+      # Static IP required so the host-networked traefik-tailnet-forwarder
+      # sidecar (network_mode: host is mutually exclusive with joining
+      # traefik-proxy by name/DNS) has a fixed address to target. The
+      # cloudflare_web_network entry stays a plain list entry, unchanged.
+      traefik_proxy_network:
+        ipv4_address: "${TRAEFIK_INTERNAL_IP}"
+      cloudflare_web_network:
     depends_on:
       fix-permissions:
         condition: service_completed_successfully
@@ -142,6 +183,12 @@ services:
 networks:
   traefik_proxy_network:
     name: traefik-proxy
+    # Explicit IPAM subnet (confirmed live) so traefik's ipv4_address
+    # assignment above is valid - required for the static IP the
+    # host-networked traefik-tailnet-forwarder sidecar targets.
+    ipam:
+      config:
+        - subnet: "172.27.0.0/16"
   cloudflare_web_network:
     name: cloudflare-web
     external: true

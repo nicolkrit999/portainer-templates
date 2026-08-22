@@ -1,0 +1,87 @@
+services:
+  # TAILNET-FACING SIBLING of ../traefik-private-forwarder/docker-compose.yml -
+  # same overall purpose (a narrow TCP-passthrough sidecar so a client reaches
+  # Traefik's private tier at a clean `hostname:443` URL without Traefik's own
+  # container needing a second network bind), but this instance exists to
+  # solve a DIFFERENT problem than the LAN macvlan sidecar: Tailscale's
+  # `tailscale0` interface is a TUN device, not a real L2 NIC, so macvlan
+  # (which requires attaching to a physical/bridge parent interface) cannot
+  # be used here at all. This sidecar instead uses network_mode: host so it
+  # can bind directly to the Tailscale node's own IP.
+  #
+  # Root cause this fixes (confirmed 2026-08-22): Traefik's tailnet-admin-only
+  # ipallowlist middleware rejects legitimate Tailscale-sourced requests
+  # because Docker's userland-proxy (docker-proxy) rewrites the connection's
+  # source IP to a Docker bridge gateway address before Traefik ever sees it
+  # - this affects every published port on Traefik's own container, including
+  # the shared family entrypoint the admin-only tailnet routers currently sit
+  # on. Routing tailnet traffic through this host-networked sidecar instead
+  # means the real client IP never passes through docker-proxy's NAT at all;
+  # it is preserved end-to-end via the PROXY protocol (see the send-proxy-v2
+  # directive in haproxy.cfg, and the matching
+  # --entryPoints.${TRAEFIK_ENTRYPOINT_7}.proxyProtocol.trustedIPs flag in
+  # ../traefik/docker-compose.yml) instead of being inferred from the raw TCP
+  # source.
+  #
+  # network_mode: host is mutually exclusive with joining any other Docker
+  # network in Compose - this container CANNOT also be attached to
+  # traefik-proxy by name/DNS. It reaches Traefik's container via a STATIC
+  # IP instead (${TRAEFIK_INTERNAL_IP}, set on Traefik's own container in
+  # ../traefik/docker-compose.yml specifically to give this sidecar a fixed
+  # target).
+  #
+  # Unlike socat (used by the LAN sidecar), HAProxy cannot be driven by a
+  # bare command: one-liner for this job - PROXY protocol injection needs a
+  # real config file. haproxy.cfg (bind-mounted below) must contain:
+  #
+  #   global
+  #       log stdout format raw local0
+  #
+  #   defaults
+  #       mode tcp
+  #       timeout connect 5s
+  #       timeout client 30s
+  #       timeout server 30s
+  #       log global
+  #
+  #   frontend tailnet_admin_in
+  #       bind ${TAILSCALE_IP}:443
+  #       default_backend traefik_admin
+  #
+  #   backend traefik_admin
+  #       server traefik ${TRAEFIK_INTERNAL_IP}:${TRAEFIK_PORT_7} send-proxy-v2
+  #
+  # HAProxy config files do NOT support ${VAR} shell-style interpolation at
+  # runtime - the placeholders above must be substituted with real, literal
+  # values when haproxy.cfg is actually created on the host filesystem at
+  # ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg. Compose does not
+  # (and cannot) template this file's contents for you.
+  #
+  # Deliberately NOT attached to cloudflare-web (not tunnel-reachable - same
+  # reasoning as traefik-private-forwarder) and has no Traefik router labels
+  # of its own (pure infrastructure, not a routed application).
+  traefik-tailnet-forwarder:
+    image: haproxy:alpine
+    container_name: traefik-tailnet-forwarder
+    # Required so this container can bind directly to the Tailscale node's
+    # own interface IP (${TAILSCALE_IP}) - tailscale0 is a TUN device, not a
+    # macvlan-attachable L2 NIC, so the LAN sidecar's macvlan approach cannot
+    # be reused here. NOTE: network_mode: host means this service cannot
+    # also declare a `networks:` block - do not add traefik-proxy here.
+    network_mode: host
+    volumes:
+      - ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    restart: unless-stopped
+    healthcheck:
+      # HAProxy alpine images don't reliably ship nc/curl, so this validates
+      # config syntax only (`haproxy -c -f ...`) rather than live
+      # connectivity - unlike the LAN sidecar's nc-based reachability check.
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
