@@ -63,26 +63,33 @@ services:
       # ${TRAEFIK_INTERNAL_IP}. No `ports:` host publish - same internal-only
       # pattern as entrypoints 5 and 6.
       #
-      # proxyProtocol.trustedIPs=172.27.0.1/32 trusts PROXY-protocol headers
-      # only from the traefik-proxy bridge network's own gateway address.
-      # That address is expected here because the tailnet forwarder runs
-      # network_mode: host and connects to this container from the host's
-      # own interface on the traefik-proxy bridge - which sources from the
-      # bridge's gateway IP, not a routable client address. This is a
-      # DIFFERENT, intentional, PROXY-protocol-verified use of the exact
-      # same address class that caused the original bug (docker-proxy
-      # silently rewriting real tailnet client IPs to a Docker gateway
-      # address before Traefik ever saw them, defeating the
-      # tailnet-admin-only ipallowlist). Here the real client IP is never
-      # inferred from the raw TCP source at all - it travels inside the
-      # PROXY protocol header injected by haproxy's send-proxy-v2 directive,
-      # and Traefik only trusts that header when it arrives from this one
-      # known gateway address.
+      # proxyProtocol.trustedIPs=${TAILSCALE_ADMIN_INTERNAL_IP}/32 trusts
+      # PROXY-protocol headers only from the tailscale-admin sidecar's own
+      # static IP on the traefik-proxy network (../tailscale-admin/docker-compose.yml).
+      # The tailnet forwarder (../traefik-tailnet-forwarder) no longer runs
+      # network_mode: host - that design was reverted after it conflicted
+      # with Traefik's own wildcard bind on the family entrypoint in the
+      # same host network namespace. It now runs as an ordinary
+      # network_mode: container:tailscale-admin sidecar, so its outbound
+      # connection to Traefik sources from tailscale-admin's own address on
+      # traefik-proxy, not from the bridge gateway. Confirmed live via
+      # `docker inspect` before this fix: tailscale-admin's Docker-assigned
+      # IP was 172.27.0.49, a dynamic address - it is now pinned static (see
+      # that compose file's own ipv4_address) precisely so this trustedIPs
+      # value never silently goes stale on a container recreate. This is a
+      # DIFFERENT, intentional, PROXY-protocol-verified trust boundary from
+      # the original bug (docker-proxy silently rewriting real tailnet
+      # client IPs to a Docker gateway address before Traefik ever saw
+      # them, defeating the tailnet-admin-only ipallowlist). Here the real
+      # client IP is never inferred from the raw TCP source at all - it
+      # travels inside the PROXY protocol header injected by haproxy's
+      # send-proxy-v2 directive, and Traefik only trusts that header when
+      # it arrives from this one known, static sidecar address.
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.address=:${TRAEFIK_PORT_7}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.certresolver=cf_dns"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.domains[0].main=${DOMAIN}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.domains[0].sans=*.${DOMAIN}"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.proxyProtocol.trustedIPs=172.27.0.1/32"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.proxyProtocol.trustedIPs=${TAILSCALE_ADMIN_INTERNAL_IP}/32"
       - "--api.dashboard=true"
       - "--api.insecure=false"
       - "--ping=true"
