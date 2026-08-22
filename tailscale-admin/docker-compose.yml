@@ -1,0 +1,101 @@
+services:
+  # SECOND, INDEPENDENT Tailscale identity - deliberately NOT a reuse of the
+  # primary node in ../tailscale/docker-compose.yml. Two reasons this has to
+  # be a separate container with its own tailnet device entry rather than
+  # sharing the primary node:
+  #
+  #   1. tailscale0 is a TUN device, not a real L2 NIC - it cannot be
+  #      macvlan'd or otherwise shared/split across multiple containers the
+  #      way a physical interface can.
+  #   2. The primary node (../tailscale/docker-compose.yml) runs
+  #      network_mode: host. ../traefik-tailnet-forwarder/docker-compose.yml
+  #      previously also used network_mode: host to bind directly to that
+  #      same host network namespace, which put it in direct conflict with
+  #      Traefik's own docker-proxy already wildcard-binding 0.0.0.0:443 for
+  #      the family entrypoint in that same namespace (confirmed live -
+  #      a wildcard bind and a specific-IP bind cannot coexist on the same
+  #      port in one network namespace). That attempt was reverted.
+  #
+  # This container fixes it by using ORDINARY (non-host) Docker networking
+  # instead, per Tailscale's own documented sidecar pattern
+  # (https://tailscale.com/blog/docker-tailscale-guide). Other containers -
+  # specifically ../traefik-tailnet-forwarder's haproxy service - join THIS
+  # container's network namespace via `network_mode: service:tailscale-admin`
+  # rather than communicating with it over the network. That gives the
+  # forwarder a real, isolated namespace of its own (separate from the host
+  # and separate from Traefik's namespace), with zero risk of a bind
+  # collision against Traefik's wildcard listener.
+  #
+  # This node will appear as its own distinct device in the Tailscale admin
+  # console (its TS_HOSTNAME is set below for a clear name) and, depending
+  # on tailnet device-approval settings, may require manual approval there
+  # before it can communicate.
+  #
+  # Deliberately does NOT advertise any subnet routes (no TS_EXTRA_ARGS /
+  # --advertise-routes here, unlike the primary node) - this node is not
+  # acting as a LAN gateway, it only needs to be reachable at its own
+  # tailnet IP directly so the forwarder sharing its namespace can bind
+  # 100.x.x.x:443.
+  tailscale-admin:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-admin
+    # NOT network_mode: host - see comment block above. Ordinary bridge
+    # networking (via traefik_proxy_network below) is what makes this a
+    # genuinely separate, non-conflicting namespace.
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      TS_AUTHKEY: "${TS_AUTHKEY_ADMIN}"
+      TS_STATE_DIR: "/var/lib/tailscale"
+      TS_USERSPACE: "false"
+      TS_HOSTNAME: "${TS_HOSTNAME_ADMIN}"
+    volumes:
+      - ${VOLUME_CONFIG}/tailscale-admin/state:/var/lib/tailscale
+    # Only network attachment this container needs. traefik-proxy gives it:
+    #   (a) a route to Traefik's static IP (${TRAEFIK_INTERNAL_IP}, assigned
+    #       in ../traefik/docker-compose.yml) for the forwarder sharing this
+    #       namespace to reach, and
+    #   (b) normal outbound NAT/internet access to reach Tailscale's own
+    #       coordination servers.
+    # A container using network_mode: service:tailscale-admin (the forwarder)
+    # cannot declare its own networks: block, so this is also the only place
+    # traefik-proxy attachment needs to be declared for that shared stack.
+    networks:
+      - traefik_proxy_network
+    # SECURITY FIX for the forwarder's privileged-port bind, scoped to this
+    # container's network namespace only (not host-wide, safe on a
+    # non-host-mode container): lets a non-root process bound to THIS
+    # namespace - i.e. the traefik-tailnet-forwarder HAProxy container once
+    # it joins via network_mode: service:tailscale-admin - bind port 443
+    # without needing cap_add: NET_BIND_SERVICE or running as root. Both of
+    # those were tried previously on the forwarder itself and either didn't
+    # work (the capability alone, confirmed live against haproxy:alpine's
+    # su-exec user-drop behavior) or triggered a security-review finding
+    # (running as root, user: "0:0"). This sysctl is the documented,
+    # namespace-scoped Linux mechanism to fix that at the root instead of
+    # working around it - it benefits the forwarder joining this namespace,
+    # not this container itself, which doesn't bind any low ports.
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: "0"
+    # Critical-path for all tailnet admin access (same criticality tier as
+    # Traefik itself and the forwarder that shares this namespace) - must
+    # come back after a host reboot unconditionally, not just after a crash.
+    restart: always
+    healthcheck:
+      test: ["CMD", "tailscale", "status", "--json"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true
