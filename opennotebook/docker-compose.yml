@@ -47,7 +47,6 @@ services:
       traefik.http.routers.open_notebook.rule: "Host(`${OPENNOTEBOOK_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.open_notebook.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.open_notebook.tls: "true"
-      traefik.http.routers.open_notebook.tls.certresolver: "cf_dns"
       traefik.http.routers.open_notebook.service: "open_notebook"
       traefik.http.routers.open_notebook.middlewares: "hsts-headers@docker"
       traefik.http.services.open_notebook.loadbalancer.server.port: "8502"

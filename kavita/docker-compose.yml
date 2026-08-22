@@ -18,7 +18,6 @@ services:
       traefik.http.routers.kavita.rule: "Host(`${KAVITA_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.kavita.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.kavita.tls: "true"
-      traefik.http.routers.kavita.tls.certresolver: "cf_dns"
       traefik.http.routers.kavita.service: "kavita"
       traefik.http.routers.kavita.middlewares: "hsts-headers@docker"
       traefik.http.services.kavita.loadbalancer.server.port: "5000"

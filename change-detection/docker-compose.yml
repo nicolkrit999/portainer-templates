@@ -25,7 +25,6 @@ services:
       traefik.http.routers.changedetection.rule: "Host(`${CHANGE_DETECTION_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.changedetection.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.changedetection.tls: "true"
-      traefik.http.routers.changedetection.tls.certresolver: "cf_dns"
       traefik.http.routers.changedetection.service: "changedetection"
       traefik.http.routers.changedetection.middlewares: "hsts-headers@docker"
       traefik.http.services.changedetection.loadbalancer.server.port: "5000"

@@ -24,7 +24,6 @@ services:
       traefik.http.routers.ytptube.rule: "Host(`${YTPTUBE_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.ytptube.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.ytptube.tls: "true"
-      traefik.http.routers.ytptube.tls.certresolver: "cf_dns"
       traefik.http.routers.ytptube.service: "ytptube"
       traefik.http.routers.ytptube.middlewares: "hsts-headers@docker"
       traefik.http.services.ytptube.loadbalancer.server.port: "8081"

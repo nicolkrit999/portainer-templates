@@ -29,7 +29,6 @@ services:
       traefik.http.routers.holyclaude.rule: "Host(`${HOLYCLAUDE_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.holyclaude.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.holyclaude.tls: "true"
-      traefik.http.routers.holyclaude.tls.certresolver: "cf_dns"
       traefik.http.routers.holyclaude.service: "holyclaude"
       traefik.http.routers.holyclaude.middlewares: "hsts-headers@docker"
       traefik.http.services.holyclaude.loadbalancer.server.port: "3001"

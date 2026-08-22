@@ -19,7 +19,6 @@ services:
       traefik.http.routers.snapotter.rule: "Host(`${SNAPOTTER_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.snapotter.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.snapotter.tls: "true"
-      traefik.http.routers.snapotter.tls.certresolver: "cf_dns"
       traefik.http.routers.snapotter.service: "snapotter"
       traefik.http.routers.snapotter.middlewares: "hsts-headers@docker"
       traefik.http.services.snapotter.loadbalancer.server.port: "1349"

@@ -14,7 +14,6 @@ services:
       traefik.http.routers.datetime_app.rule: "Host(`${DATETIME_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.datetime_app.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.datetime_app.tls: "true"
-      traefik.http.routers.datetime_app.tls.certresolver: "cf_dns"
       traefik.http.routers.datetime_app.service: "datetime_app"
       traefik.http.routers.datetime_app.middlewares: "hsts-headers@docker"
       traefik.http.services.datetime_app.loadbalancer.server.port: "3000"

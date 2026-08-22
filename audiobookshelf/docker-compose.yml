@@ -24,7 +24,6 @@ services:
       traefik.http.routers.audiobookshelf.rule: "Host(`${AUDIOBOOKSHELF_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.audiobookshelf.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.audiobookshelf.tls: "true"
-      traefik.http.routers.audiobookshelf.tls.certresolver: "cf_dns"
       traefik.http.routers.audiobookshelf.service: "audiobookshelf"
       traefik.http.routers.audiobookshelf.middlewares: "hsts-headers@docker"
       traefik.http.services.audiobookshelf.loadbalancer.server.port: "80"

@@ -130,7 +130,6 @@ services:
       traefik.http.routers.paperless.rule: "Host(`${PAPERLESS_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.paperless.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.paperless.tls: "true"
-      traefik.http.routers.paperless.tls.certresolver: "cf_dns"
       traefik.http.routers.paperless.service: "paperless"
       traefik.http.routers.paperless.middlewares: "hsts-headers@docker"
       traefik.http.services.paperless.loadbalancer.server.port: "8000"
