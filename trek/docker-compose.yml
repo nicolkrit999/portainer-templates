@@ -58,7 +58,7 @@ services:
       traefik.http.services.trek.loadbalancer.server.port: "3000"
       traefik.http.services.trek.loadbalancer.server.scheme: "https"
       traefik.http.services.trek.loadbalancer.serverstransport: "trek-insecure@docker"
-      traefik.http.serversTransports.trek-insecure.insecuretls: "true"
+      traefik.http.serversTransports.trek-insecure.insecureSkipVerify: "true"
       traefik.http.routers.trek-private.rule: "Host(`${TREK_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.trek-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.trek-private.tls: "true"
