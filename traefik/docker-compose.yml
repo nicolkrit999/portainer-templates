@@ -88,7 +88,7 @@ services:
       traefik.http.routers.traefik-dashboard.tls: "true"
       traefik.http.routers.traefik-dashboard.tls.certresolver: "cf_dns"
       traefik.http.routers.traefik-dashboard.service: "api@internal"
-      traefik.http.routers.traefik-dashboard.middlewares: "traefik-auth,hsts-headers@docker"
+      traefik.http.routers.traefik-dashboard.middlewares: "hsts-headers@docker,traefik-auth"
       traefik.http.middlewares.traefik-auth.basicauth.users: "${TRAEFIK_DASHBOARD_HTPASSWD}"
       traefik.http.middlewares.hsts-headers.headers.stsSeconds: "31536000"
       traefik.http.middlewares.hsts-headers.headers.stsIncludeSubdomains: "true"
@@ -97,7 +97,7 @@ services:
       traefik.http.routers.traefik-dashboard-cf.rule: "Host(`traefik.${DOMAIN}`)"
       traefik.http.routers.traefik-dashboard-cf.entrypoints: "${TRAEFIK_ENTRYPOINT_5}"
       traefik.http.routers.traefik-dashboard-cf.service: "api@internal"
-      traefik.http.routers.traefik-dashboard-cf.middlewares: "traefik-auth,hsts-headers@docker"
+      traefik.http.routers.traefik-dashboard-cf.middlewares: "hsts-headers@docker,traefik-auth"
       traefik.docker.network: "traefik-proxy"
     networks:
       - traefik_proxy_network
