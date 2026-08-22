@@ -23,9 +23,18 @@ that hardware exists.
   the stale-static-IP problem a sibling service hit with macvlan. No
   `ports:`, no `networks:` block at all - not on `cloudflare_web_network` or
   `traefik_proxy_network` (it's raw DNS on port 53, not HTTP).
-- **`restart: "no"`** - deliberate. Household member starts/stops manually via
-  Portainer; must not auto-resurrect after host reboot/crash. This is an
-  intentional exception to Rule 4's `unless-stopped` default.
+- **`restart: "no"` at creation time** - deliberate then. Household member
+  started/stopped manually via Portainer; must not auto-resurrect after host
+  reboot/crash. This was an intentional exception to Rule 4's
+  `unless-stopped` default.
+  **STALE, corrected 2026-08-22: this was later upgraded to `restart:
+  always`** once the household came to depend on it for split-DNS -
+  `traefik/docker-compose.yml`-era doc note: "split-DNS for the whole
+  household now depends on this container; it must come back automatically
+  after a host reboot or crash." **Always check the live file before citing
+  this container's restart policy** - a same-day mistake fed this stale
+  info into `dnsmasq-tailnet`'s own initial restart policy, caught and fixed
+  by the household member.
 - **Wildcard DNS rule**: `--address=/${DNS_WILDCARD_DOMAIN}/${DNS_TARGET_IP}`
   as a `command:` arg - dnsmasq's `/domain/ip` syntax natively covers the
   domain and all subdomains, no separate wildcard syntax needed. Both values
@@ -88,8 +97,11 @@ original's long per-hostname list.
   uses against systemd-resolved, just against a different collision source.
 - Same `--filter-AAAA --filter-rr=HTTPS --filter-rr=SVCB` and same TZ
   no-op comment as the original (verified: still no tzdata in this image).
-- `restart: "no"` here too - this is newer/more experimental than even the
-  original's stopgap status, manual start/stop by the household member.
+- **`restart: always`** - corrected 2026-08-22 (was initially written as
+  `"no"`, based on stale info about the *original* dnsmasq's policy - see
+  the correction above). This fixes Tailscale reachability for every device
+  household-wide, not a one-off experiment, so it gets `always` from the
+  start.
 - Root-cause fix here is a workaround, not a real fix - the actual hairpin
   limitation needs root/iptables/sysctl access on the NAS host that no one
   doing this work currently has. If that access is ever obtained, this
