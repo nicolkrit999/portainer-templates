@@ -30,7 +30,10 @@ services:
       traefik_forwarder_net:
         ipv4_address: "${TRAEFIK_PRIVATE_IP}"
       traefik_proxy_network:
-    restart: unless-stopped
+    # Critical-path for all private-tier Traefik access (same criticality
+    # tier as Traefik itself, which also uses restart: always) - must come
+    # back after a host reboot unconditionally, not just after a crash.
+    restart: always
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "443"]
       interval: 30s
