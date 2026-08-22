@@ -52,14 +52,29 @@ services:
   #       server traefik ${TRAEFIK_INTERNAL_IP}:${TRAEFIK_PORT_7} send-proxy-v2
   #
   # HAProxy config files do NOT support ${VAR} shell-style interpolation at
-  # runtime - the placeholders above must be substituted with real, literal
-  # values when haproxy.cfg is actually created on the host filesystem at
-  # ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg. Compose does not
-  # (and cannot) template this file's contents for you.
+  # runtime - the placeholders above are real, literal values. Substitution
+  # is handled automatically by the haproxy-config-init service below (a
+  # one-shot init container, same pattern as ../traefik/docker-compose.yml's
+  # fix-permissions service), which writes haproxy.cfg to the host
+  # filesystem at ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg the
+  # first time it's missing (fresh deploy, wiped volume, etc.) and leaves it
+  # untouched on every subsequent run so manual edits are never clobbered.
   #
   # Deliberately NOT attached to cloudflare-web (not tunnel-reachable - same
   # reasoning as traefik-private-forwarder) and has no Traefik router labels
   # of its own (pure infrastructure, not a routed application).
+  haproxy-config-init:
+    image: alpine:latest
+    container_name: traefik-tailnet-forwarder-init
+    restart: "no"
+    environment:
+      TAILSCALE_IP: "${TAILSCALE_IP}"
+      TRAEFIK_INTERNAL_IP: "${TRAEFIK_INTERNAL_IP}"
+      TRAEFIK_PORT_7: "${TRAEFIK_PORT_7}"
+    volumes:
+      - ${VOLUME_CONFIG}/traefik-tailnet-forwarder:/target
+    command: "if [ -f /target/haproxy.cfg ]; then echo \"haproxy.cfg already exists, skipping\"; else mkdir -p /target && cat > /target/haproxy.cfg << EOF\nglobal\n    log stdout format raw local0\n\ndefaults\n    mode tcp\n    timeout connect 5s\n    timeout client 30s\n    timeout server 30s\n    log global\n\nfrontend tailnet_admin_in\n    bind $TAILSCALE_IP:443\n    default_backend traefik_admin\n\nbackend traefik_admin\n    server traefik $TRAEFIK_INTERNAL_IP:$TRAEFIK_PORT_7 send-proxy-v2\nEOF\nchmod 644 /target/haproxy.cfg; fi; cat /target/haproxy.cfg"
+
   traefik-tailnet-forwarder:
     image: haproxy:alpine
     container_name: traefik-tailnet-forwarder
@@ -71,7 +86,13 @@ services:
     network_mode: host
     volumes:
       - ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    restart: unless-stopped
+    # Critical-path for all tailnet admin access (same criticality tier as
+    # Traefik itself, which also uses restart: always) - must come back
+    # after a host reboot unconditionally, not just after a crash.
+    restart: always
+    depends_on:
+      haproxy-config-init:
+        condition: service_completed_successfully
     healthcheck:
       # HAProxy alpine images don't reliably ship nc/curl, so this validates
       # config syntax only (`haproxy -c -f ...`) rather than live
