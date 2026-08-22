@@ -18,7 +18,6 @@ services:
       traefik.http.routers.convertx.rule: "Host(`${CONVERTX_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.convertx.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.convertx.tls: "true"
-      traefik.http.routers.convertx.tls.certresolver: "cf_dns"
       traefik.http.routers.convertx.service: "convertx"
       traefik.http.routers.convertx.middlewares: "hsts-headers@docker"
       traefik.http.services.convertx.loadbalancer.server.port: "3000"

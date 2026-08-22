@@ -19,7 +19,6 @@ services:
       traefik.http.routers.withoutbg.rule: "Host(`${WITHOUTBG_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.withoutbg.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.withoutbg.tls: "true"
-      traefik.http.routers.withoutbg.tls.certresolver: "cf_dns"
       traefik.http.routers.withoutbg.service: "withoutbg"
       traefik.http.routers.withoutbg.middlewares: "hsts-headers@docker"
       traefik.http.services.withoutbg.loadbalancer.server.port: "80"

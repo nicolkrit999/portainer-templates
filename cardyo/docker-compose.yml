@@ -13,7 +13,6 @@ services:
       traefik.http.routers.cardyo.rule: "Host(`${CARDYO_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.cardyo.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.cardyo.tls: "true"
-      traefik.http.routers.cardyo.tls.certresolver: "cf_dns"
       traefik.http.routers.cardyo.service: "cardyo"
       traefik.http.routers.cardyo.middlewares: "hsts-headers@docker"
       traefik.http.services.cardyo.loadbalancer.server.port: "3000"

@@ -112,7 +112,6 @@ services:
       traefik.http.routers.sparkyfitness.rule: "Host(`${SPARKYFITNESS_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.sparkyfitness.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.sparkyfitness.tls: "true"
-      traefik.http.routers.sparkyfitness.tls.certresolver: "cf_dns"
       traefik.http.routers.sparkyfitness.service: "sparkyfitness"
       traefik.http.routers.sparkyfitness.middlewares: "hsts-headers@docker"
       traefik.http.services.sparkyfitness.loadbalancer.server.port: "80"

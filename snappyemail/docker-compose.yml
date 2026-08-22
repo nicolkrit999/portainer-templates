@@ -12,7 +12,6 @@ services:
       traefik.http.routers.snappymail.rule: "Host(`${SNAPPYEMAIL_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.snappymail.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.snappymail.tls: "true"
-      traefik.http.routers.snappymail.tls.certresolver: "cf_dns"
       traefik.http.routers.snappymail.service: "snappymail"
       traefik.http.routers.snappymail.middlewares: "hsts-headers@docker"
       traefik.http.services.snappymail.loadbalancer.server.port: "8888"

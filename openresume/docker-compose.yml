@@ -15,7 +15,6 @@ services:
       traefik.http.routers.openresume.rule: "Host(`${OPENRESUME_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.openresume.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.openresume.tls: "true"
-      traefik.http.routers.openresume.tls.certresolver: "cf_dns"
       traefik.http.routers.openresume.service: "openresume"
       traefik.http.routers.openresume.middlewares: "hsts-headers@docker"
       traefik.http.services.openresume.loadbalancer.server.port: "3000"

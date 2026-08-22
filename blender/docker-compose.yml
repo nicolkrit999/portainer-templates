@@ -30,7 +30,6 @@ services:
       traefik.http.routers.blender.rule: "Host(`${BLENDER_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.blender.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.blender.tls: "true"
-      traefik.http.routers.blender.tls.certresolver: "cf_dns"
       traefik.http.routers.blender.service: "blender"
       traefik.http.routers.blender.middlewares: "hsts-headers@docker"
       traefik.http.services.blender.loadbalancer.server.port: "8082"

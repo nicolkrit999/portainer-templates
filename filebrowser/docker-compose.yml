@@ -19,7 +19,6 @@ services:
       traefik.http.routers.filebrowser.rule: "Host(`${FILEBROWSER_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.filebrowser.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.filebrowser.tls: "true"
-      traefik.http.routers.filebrowser.tls.certresolver: "cf_dns"
       traefik.http.routers.filebrowser.service: "filebrowser"
       traefik.http.routers.filebrowser.middlewares: "hsts-headers@docker"
       traefik.http.services.filebrowser.loadbalancer.server.port: "80"

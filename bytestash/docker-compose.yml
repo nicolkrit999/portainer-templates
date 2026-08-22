@@ -20,7 +20,6 @@ services:
       traefik.http.routers.bytestash.rule: "Host(`${BYTESTASH_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.bytestash.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.bytestash.tls: "true"
-      traefik.http.routers.bytestash.tls.certresolver: "cf_dns"
       traefik.http.routers.bytestash.service: "bytestash"
       traefik.http.routers.bytestash.middlewares: "hsts-headers@docker"
       traefik.http.services.bytestash.loadbalancer.server.port: "5000"

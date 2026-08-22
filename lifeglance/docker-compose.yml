@@ -19,7 +19,6 @@ services:
       traefik.http.routers.lifeglance.rule: "Host(`${LIFEGLANCE_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.lifeglance.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.lifeglance.tls: "true"
-      traefik.http.routers.lifeglance.tls.certresolver: "cf_dns"
       traefik.http.routers.lifeglance.service: "lifeglance"
       traefik.http.routers.lifeglance.middlewares: "hsts-headers@docker"
       traefik.http.services.lifeglance.loadbalancer.server.port: "80"

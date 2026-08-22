@@ -24,7 +24,6 @@ services:
             traefik.http.routers.fossflow.rule: "Host(`${FOSSFLOW_SUBDOMAIN}.${DOMAIN}`)"
             traefik.http.routers.fossflow.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
             traefik.http.routers.fossflow.tls: "true"
-            traefik.http.routers.fossflow.tls.certresolver: "cf_dns"
             traefik.http.routers.fossflow.service: "fossflow"
             traefik.http.routers.fossflow.middlewares: "hsts-headers@docker"
             traefik.http.services.fossflow.loadbalancer.server.port: "80"

@@ -43,7 +43,6 @@ services:
       traefik.http.routers.grocy-private.rule: "Host(`${GROCY_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.grocy-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.grocy-private.tls: "true"
-      traefik.http.routers.grocy-private.tls.certresolver: "cf_dns"
       traefik.http.routers.grocy-private.service: "grocy-private"
       traefik.http.routers.grocy-private.middlewares: "hsts-headers@docker"
       traefik.http.services.grocy-private.loadbalancer.server.port: "80"

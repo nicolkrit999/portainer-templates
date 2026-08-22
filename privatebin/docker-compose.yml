@@ -30,7 +30,6 @@ services:
       traefik.http.routers.privatebin.rule: "Host(`${PRIVATEBIN_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.privatebin.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.privatebin.tls: "true"
-      traefik.http.routers.privatebin.tls.certresolver: "cf_dns"
       traefik.http.routers.privatebin.service: "privatebin"
       traefik.http.routers.privatebin.middlewares: "hsts-headers@docker"
       traefik.http.services.privatebin.loadbalancer.server.port: "8080"
