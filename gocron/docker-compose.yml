@@ -20,6 +20,7 @@ services:
       traefik.http.routers.gocron.tls: "true"
       traefik.http.routers.gocron.tls.certresolver: "cf_dns"
       traefik.http.routers.gocron.service: "gocron"
+      traefik.http.routers.gocron.middlewares: "hsts-headers@docker"
       traefik.http.services.gocron.loadbalancer.server.port: "8156"
       traefik.docker.network: "traefik-proxy"
     healthcheck:

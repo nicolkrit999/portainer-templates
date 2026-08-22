@@ -34,6 +34,7 @@ services:
       traefik.http.routers.pocket-id.tls: "true"
       traefik.http.routers.pocket-id.tls.certresolver: "cf_dns"
       traefik.http.routers.pocket-id.service: "pocket-id"
+      traefik.http.routers.pocket-id.middlewares: "hsts-headers@docker"
       traefik.http.services.pocket-id.loadbalancer.server.port: "1411"
       traefik.docker.network: "traefik-proxy"
 

@@ -19,6 +19,7 @@ services:
       traefik.http.routers.sonarr.tls: "true"
       traefik.http.routers.sonarr.tls.certresolver: "cf_dns"
       traefik.http.routers.sonarr.service: "sonarr"
+      traefik.http.routers.sonarr.middlewares: "hsts-headers@docker"
       traefik.http.services.sonarr.loadbalancer.server.port: "8989"
       traefik.docker.network: "traefik-proxy"
     restart: unless-stopped

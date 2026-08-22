@@ -13,6 +13,7 @@ services:
             traefik.http.routers.excalidraw.tls: "true"
             traefik.http.routers.excalidraw.tls.certresolver: "cf_dns"
             traefik.http.routers.excalidraw.service: "excalidraw"
+            traefik.http.routers.excalidraw.middlewares: "hsts-headers@docker"
             traefik.http.services.excalidraw.loadbalancer.server.port: "80"
             traefik.docker.network: "traefik-proxy"
         networks:

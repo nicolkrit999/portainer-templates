@@ -20,6 +20,7 @@ services:
       traefik.http.routers.kavita.tls: "true"
       traefik.http.routers.kavita.tls.certresolver: "cf_dns"
       traefik.http.routers.kavita.service: "kavita"
+      traefik.http.routers.kavita.middlewares: "hsts-headers@docker"
       traefik.http.services.kavita.loadbalancer.server.port: "5000"
       traefik.docker.network: "traefik-proxy"
 

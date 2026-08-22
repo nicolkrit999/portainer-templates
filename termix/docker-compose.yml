@@ -17,6 +17,7 @@ services:
       traefik.http.routers.termix.tls: "true"
       traefik.http.routers.termix.tls.certresolver: "cf_dns"
       traefik.http.routers.termix.service: "termix"
+      traefik.http.routers.termix.middlewares: "hsts-headers@docker"
       traefik.http.services.termix.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
     healthcheck:

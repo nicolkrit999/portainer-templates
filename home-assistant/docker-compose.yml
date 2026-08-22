@@ -21,4 +21,5 @@ services:
       traefik.http.routers.homeassistant.tls: "true"
       traefik.http.routers.homeassistant.tls.certresolver: "cf_dns"
       traefik.http.routers.homeassistant.service: "homeassistant"
+      traefik.http.routers.homeassistant.middlewares: "hsts-headers@docker"
       traefik.http.services.homeassistant.loadbalancer.server.url: "http://host.docker.internal:8123"

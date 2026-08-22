@@ -43,6 +43,7 @@ services:
       traefik.http.routers.affine.tls: "true"
       traefik.http.routers.affine.tls.certresolver: "cf_dns"
       traefik.http.routers.affine.service: "affine"
+      traefik.http.routers.affine.middlewares: "hsts-headers@docker"
       traefik.http.services.affine.loadbalancer.server.port: "3010"
       traefik.docker.network: "traefik-proxy"
     networks:

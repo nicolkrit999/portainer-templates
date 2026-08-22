@@ -18,6 +18,7 @@ services:
       traefik.http.routers.duplicati.tls: "true"
       traefik.http.routers.duplicati.tls.certresolver: "cf_dns"
       traefik.http.routers.duplicati.service: "duplicati"
+      traefik.http.routers.duplicati.middlewares: "hsts-headers@docker"
       traefik.http.services.duplicati.loadbalancer.server.port: "8200"
       traefik.docker.network: "traefik-proxy"
 

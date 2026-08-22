@@ -114,6 +114,7 @@ services:
       traefik.http.routers.sparkyfitness.tls: "true"
       traefik.http.routers.sparkyfitness.tls.certresolver: "cf_dns"
       traefik.http.routers.sparkyfitness.service: "sparkyfitness"
+      traefik.http.routers.sparkyfitness.middlewares: "hsts-headers@docker"
       traefik.http.services.sparkyfitness.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
     networks:

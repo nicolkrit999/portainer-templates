@@ -19,6 +19,7 @@ services:
       traefik.http.routers.adguard.tls: "true"
       traefik.http.routers.adguard.tls.certresolver: "cf_dns"
       traefik.http.routers.adguard.service: "adguard"
+      traefik.http.routers.adguard.middlewares: "hsts-headers@docker"
       traefik.http.services.adguard.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
 

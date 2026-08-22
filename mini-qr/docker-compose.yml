@@ -13,11 +13,13 @@ services:
       traefik.http.routers.mini-qr-private.tls: "true"
       traefik.http.routers.mini-qr-private.tls.certresolver: "cf_dns"
       traefik.http.routers.mini-qr-private.service: "mini-qr"
+      traefik.http.routers.mini-qr-private.middlewares: "hsts-headers@docker"
       traefik.http.routers.mini-qr-family.rule: "Host(`${MINI_QR_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.mini-qr-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
       traefik.http.routers.mini-qr-family.tls: "true"
       traefik.http.routers.mini-qr-family.tls.certresolver: "cf_dns"
       traefik.http.routers.mini-qr-family.service: "mini-qr"
+      traefik.http.routers.mini-qr-family.middlewares: "hsts-headers@docker"
       traefik.http.services.mini-qr.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
 

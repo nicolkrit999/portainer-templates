@@ -32,6 +32,7 @@ services:
       traefik.http.routers.privatebin.tls: "true"
       traefik.http.routers.privatebin.tls.certresolver: "cf_dns"
       traefik.http.routers.privatebin.service: "privatebin"
+      traefik.http.routers.privatebin.middlewares: "hsts-headers@docker"
       traefik.http.services.privatebin.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
 

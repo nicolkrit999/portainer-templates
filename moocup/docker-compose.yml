@@ -21,6 +21,7 @@ services:
       traefik.http.routers.moocup.tls: "true"
       traefik.http.routers.moocup.tls.certresolver: "cf_dns"
       traefik.http.routers.moocup.service: "moocup"
+      traefik.http.routers.moocup.middlewares: "hsts-headers@docker"
       traefik.http.services.moocup.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
 

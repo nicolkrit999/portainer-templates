@@ -17,6 +17,7 @@ services:
       traefik.http.routers.drawio.tls: "true"
       traefik.http.routers.drawio.tls.certresolver: "cf_dns"
       traefik.http.routers.drawio.service: "drawio"
+      traefik.http.routers.drawio.middlewares: "hsts-headers@docker"
       traefik.http.services.drawio.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
 

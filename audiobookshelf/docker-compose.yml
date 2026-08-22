@@ -26,6 +26,7 @@ services:
       traefik.http.routers.audiobookshelf.tls: "true"
       traefik.http.routers.audiobookshelf.tls.certresolver: "cf_dns"
       traefik.http.routers.audiobookshelf.service: "audiobookshelf"
+      traefik.http.routers.audiobookshelf.middlewares: "hsts-headers@docker"
       traefik.http.services.audiobookshelf.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
 

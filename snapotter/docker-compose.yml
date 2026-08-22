@@ -21,6 +21,7 @@ services:
       traefik.http.routers.snapotter.tls: "true"
       traefik.http.routers.snapotter.tls.certresolver: "cf_dns"
       traefik.http.routers.snapotter.service: "snapotter"
+      traefik.http.routers.snapotter.middlewares: "hsts-headers@docker"
       traefik.http.services.snapotter.loadbalancer.server.port: "1349"
       traefik.docker.network: "traefik-proxy"
     networks:
