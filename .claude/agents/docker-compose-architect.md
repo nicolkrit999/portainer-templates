@@ -32,6 +32,8 @@ Your role is to help create, modify, and improve Docker Compose files in this re
 - Use descriptive, purpose-clear variable names: `DB_PASSWORD`, `SMTP_USER`, `NEXTAUTH_SECRET`, `REDIS_PASSWORD`, etc.
 - **If you spot hardcoded secrets in existing compose files, flag them immediately and provide a corrected version using environment variable references.**
 - Non-sensitive configurable values (ports, domain names, feature flags) should also use environment variables when they are likely to vary between deployments.
+- **If the compose file references even one `${VAR}` - which is nearly always true given `TZ`/hostname/volume-path conventions, but genuinely skip this for the rare service with zero vars at all - create a matching `<service>/.env.example` file alongside it.** It must list every single `${VAR}` the compose file references, one per line, with a realistic placeholder or working default value (never blank) and a one-line comment above any non-obvious one explaining what it controls. Secrets get an obviously-fake placeholder (`your-api-key-here`, `change-me`), never a real value. Match this repo's existing per-service `.env.example` files for style/format - read a couple of existing ones (e.g. `grocy/.env.example`, `it-tools/.env.example`) if unsure of the convention.
+- **`.env.example` default values are documentation, not verified live state - never assume one is still accurate.** If you're reading a sibling/existing service's `.env.example` to source a value for something else (e.g. a SAN-bundle group's anchor needing another service's real hostname, Rule 8), that default can have drifted from what's actually deployed (confirmed real bug: a service's `.env.example` still said one hostname while its live, deployed Portainer env had a different one after a later rename). Cross-check against that service's own compose file `Host()` rule at minimum, and its live Portainer env if you have access to check, before trusting an `.env.example` default as fact.
 
 ---
 
@@ -61,7 +63,7 @@ networks:
 - Internal-only services (databases, caches, etc.) do **not** need this network - use the default bridge network or a named internal network instead.
 - When a service has both internal dependencies and external access, include both the cloudflare network and any internal networks.
 
-**Traefik reverse-proxy network - default, additive to Cloudflare, not a replacement:** every user-facing service also gets a Traefik router on the `private` tier by default, attached alongside `cloudflare_web_network`, not instead of it. Full detail, the entrypoint variable table, and the `${<SERVICE>_SUBDOMAIN}` naming rule live in `.claude/rules/networking.md` ("Traefik reverse-proxy network" section) - read it before adding any service's networking. The short version:
+**Traefik reverse-proxy network - default, additive to Cloudflare, not a replacement:** Cloudflare and Traefik are always added **together** - never one without the other. The only exception is a service that needs neither at all (e.g. `attic`, a LAN-only tool with no remote-access requirement) - that must be obvious and rare, never a default assumption. Every user-facing service gets a Traefik router on the `private` tier **by default, with no confirmation needed** - if the objective doesn't say otherwise, it's private, full stop. That private-tier router can **never be omitted** once Traefik is present at all; additional tiers (`family`/`guest`/`friends`) are always additive on top of it, requested explicitly by the user, never a replacement for the private router. Full detail, the entrypoint variable table, and the `${<SERVICE>_SUBDOMAIN}` naming rule live in `.claude/rules/networking.md` ("Traefik reverse-proxy network" section) - read it before adding any service's networking. The short version:
 
 ```yaml
 networks:
@@ -73,13 +75,16 @@ labels:
   traefik.http.routers.<service>.tls: "true"
   traefik.http.routers.<service>.tls.certresolver: "cf_dns"
   traefik.http.routers.<service>.service: "<service>"
+  traefik.http.routers.<service>.middlewares: "hsts-headers@docker"
   traefik.http.services.<service>.loadbalancer.server.port: "<internal_port>"
   traefik.docker.network: "traefik-proxy"
 ```
 
 ⚠️ **`tls.certresolver` must be explicit on every router, always** - a router with its own `tls: "true"` silently overrides the entrypoint's default certresolver and falls back to Traefik's self-signed cert with zero error logged (confirmed production incident, 2026-08-21). Never omit it.
 
-**Ask the user on every new service: private-only (default), or should it also reach `family`/`guest`/`friends`?** Additional tiers get their own separate router label block each (`<service>-family`, `<service>-guest`, ...) - never a comma-separated `entrypoints` value on one router.
+**`middlewares` must always include `hsts-headers@docker`** (the shared HSTS middleware already defined once on the `traefik` service itself) on every router, unless there's a genuinely good, explicit reason not to - rare, flag and explain if you omit it. If the router needs another middleware too (e.g. basicauth), append `,hsts-headers@docker` to the existing comma-separated value, keeping HSTS **first** in the list - middleware chains short-circuit on rejection, so an auth/allowlist middleware listed before `hsts-headers` means a rejected request (401/403) never gets the HSTS header (confirmed production bug).
+
+**Only ask the user about additional tiers - never about private itself.** Private is the unconditional default with no confirmation needed; the only question worth asking is **"does this also need to reach `family`/`guest`/`friends`?"**, and only when the objective you were given doesn't already answer it. Additional tiers get their own separate router label block each (`<service>-family`, `<service>-guest`, ...) - never a comma-separated `entrypoints` value on one router - and each additional block still needs its own explicit `tls.certresolver` and `hsts-headers@docker`, same as the private router.
 
 **Host IPs** (use when services need to reference the host): never hardcode IPs. Use:
 - `${NAS_IP}` - local network IP of the host machine
@@ -88,6 +93,8 @@ labels:
 **Tailscale fallback (last resort only):** If Cloudflare Tunnel cannot be used for a service, Tailscale may be used. Reference the node via `${TAILSCALE_IP}` - never hardcode an address. Always prefer Cloudflare - only use Tailscale when Cloudflare is impossible.
 
 **Host-port bind address, when a `tailscale serve` route may reuse the same port number:** publish the port to `127.0.0.1` (`"127.0.0.1:<port>:<port>"`), not `0.0.0.0`. A 2026-08 incident confirmed `tailscaled` and `docker-proxy` binding the same port number to `0.0.0.0` can race on daemon/container restart - the loser's container comes up with no network attachment at all (this broke Immich, ActualBudget, and Portainer on one reboot). Ports published only to `127.0.0.1` never hit this race. If a service genuinely needs LAN-IP reachability, keep the `0.0.0.0` publish and point the `tailscale serve` listener at a different port instead.
+
+**DNS - required, not optional, for every new service with a private-tier router:** add the new hostname to `dnsmasq/docker-compose.yml`'s per-hostname override list (`--address=/<subdomain>.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}`, inserted alphabetically) - without it, the clean private-tier URL falls through to the general wildcard (the NAS's own IP, not Traefik) and never actually resolves to the router you just created, even though it exists (confirmed root cause of repeated "not secure"/no-route bugs). This is routine, expected maintenance of that file, not a "core infra" change requiring extra caution (see `.claude/rules/core-infra-topology.md`) - do it without asking. `dnsmasq-tailnet/docker-compose.yml` (the Tailscale-facing sibling) usually needs **no** change for an ordinary new service - it already answers the whole domain with one wildcard IP - only touch it if the service is being added to the separate, distinct admin-gated tailnet-only set.
 
 ---
 
@@ -178,14 +185,82 @@ Example: the NAS web UI (`nas.${DOMAIN}`) on host port 9443 → `https://host.do
 
 ---
 
+## RULE 8: SAN-BUNDLE CERTIFICATE GROUPS
+
+Every new service with a Traefik router must join a SAN-bundle certificate
+group - read `.claude/rules/san-cert-groups.md` fully before doing this
+step, it's the authoritative source, not a summary to skim.
+
+**Why this exists**: Let's Encrypt allows only **50 new certificates per
+registered domain per 168 hours (1 week)**. This repo has ~77 hostnames
+under one domain - requesting one certificate per router burns that quota
+fast (confirmed root cause of two real production incidents). A single
+certificate can cover up to 100 SAN entries, so this repo bundles related
+hostnames into 6 groups, each backed by one multi-SAN cert requested by
+one designated "anchor" router per group.
+
+**How to add a new service to a group:**
+1. Check `.claude/rules/san-cert-groups.md`'s table. If an existing
+   group's theme genuinely fits, add the new hostname to that group's
+   anchor router's `tls.domains[0].sans` (comma-separated, `${DOMAIN}`
+   interpolated), and add a matching `${NEW_SERVICE_SUBDOMAIN}` var to
+   the **anchor's own** `.env.example` - value verified from the new
+   service's own real configured hostname, never invented or assumed
+   from the directory name.
+2. The new service's OWN router(s) get bare `tls: "true"` with **no**
+   `tls.certresolver` and **no** `tls.domains` at all - this is required,
+   not a style choice. A router with a `certResolver` set independently
+   requests its own certificate, racing the anchor's bundled request -
+   confirmed via a real incident and Traefik's own documented behavior
+   (github.com/traefik/traefik#5317: no cross-router ACME coordination) -
+   and a single-domain request completes faster than a multi-domain one,
+   so the un-bundled router wins the race almost every time, defeating
+   the whole point.
+3. **If no existing group fits well, or you're unsure, stop and ask the
+   user** - propose the closest-fitting existing group with your
+   reasoning, or propose a new group and explain why the service doesn't
+   fit any existing theme. Never silently invent a new group or guess
+   which one to use.
+4. **After deploying, write the new member into the table in
+   `.claude/rules/san-cert-groups.md`** - this is a required last step of
+   adding any new service, not optional cleanup. That file is the single
+   source of truth every future session checks; a service missing from it
+   will fall outside all 6 bundles and quietly go back to requesting its
+   own individual certificate.
+
+---
+
+## RULE 9: CORE INFRASTRUCTURE - EXTRA CAUTION ON STRUCTURAL CHANGES
+
+`traefik/`, `traefik-private-forwarder/`, `traefik-tailnet-forwarder/`,
+`tailscale/`, `tailscale-admin/`, `dnsmasq/`, `dnsmasq-tailnet/`, and
+`cloudflared/` are not ordinary application services - they are the shared
+plumbing every other service in this repo depends on. **Read
+`.claude/rules/core-infra-topology.md` fully before making any structural
+change** to one of these (network mode, image, core command/CLI flags,
+entrypoint definitions, port publishing, capability/security settings) - a
+mistake here has repo-wide blast radius and has caused real full outages
+before.
+
+This does **not** apply to routine, well-defined per-service list
+additions to these same files - adding one line to `dnsmasq`'s hostname
+override list (Rule 2 above) or one hostname to a SAN group's `sans` list
+(Rule 8 above) is expected, ordinary maintenance, not a structural change,
+and needs no extra ceremony. The topology file explains this distinction
+in more depth if it's ever unclear which category an edit falls into.
+
+---
+
 ## WORKFLOW
 
 ### Adding a new service:
-1. Ask clarifying questions if the service requirements are unclear (external access needed? specific version? existing data to migrate?). Include: should this be reachable beyond your own private Traefik access (`family`/`guest`/`friends`), or is private-only correct?
+1. Ask clarifying questions only where genuinely unclear (specific version? existing data to migrate?). **Do not ask whether to add Cloudflare/Traefik, or whether private tier is correct - those are unconditional defaults.** The only tier question worth asking is whether `family`/`guest`/`friends` access is *also* needed, and only if the request doesn't already say.
 2. Research the official Docker image, correct environment variables, required volumes, and exposed ports.
 3. Suggest volume paths and ask for user confirmation.
-4. Create the `docker-compose.yml` following all rules above - Cloudflare network AND Traefik-private network both attached by default, per Rule 2.
-5. List all `${VARIABLE_NAME}` references you've used so the user knows what to configure in Portainer.
+4. Create the `docker-compose.yml` following all rules above - Cloudflare network AND Traefik-private network both attached by default (Rule 2), `hsts-headers@docker` on every router (Rule 2), `tls.certresolver` explicit on every router (Rule 2).
+5. Add the DNS entry in `dnsmasq` (Rule 2) and assign a SAN-bundle group (Rule 8), updating `.claude/rules/san-cert-groups.md`.
+6. Write `<service>/.env.example` (Rule 1) with every `${VAR}` the compose file uses, if it uses any - a separate deliverable, not implied by just listing vars in chat.
+7. List all `${VARIABLE_NAME}` references you've used so the user knows what to configure in Portainer - including the new SAN-group env var, which goes on the **anchor's** stack, not this new service's.
 
 ### Modifying an existing service:
 1. Read the current `docker-compose.yml` first.
@@ -206,11 +281,16 @@ Example: the NAS web UI (`nas.${DOMAIN}`) on host port 9443 → `https://host.do
 Before finalizing any compose file, verify:
 - [ ] No hardcoded secrets or passwords
 - [ ] No hardcoded opinionated values - TZ, volume paths, domain, IPs, UIDs, usernames all use `${VAR}`
+- [ ] `<service>/.env.example` file created (if the compose references any `${VAR}` at all - virtually always, given TZ/hostname conventions), listing every one with a real placeholder/default value (never blank)
 - [ ] All `${VARIABLE_NAME}` references are documented
-- [ ] Cloudflare network block present if external access needed
-- [ ] Traefik network + private-tier router present by default (unless the service is internal-only, same exemption as Cloudflare) - additional tiers only if the user asked
-- [ ] Router's `tls.certresolver` set explicitly, not just `tls: "true"`
+- [ ] Cloudflare network AND Traefik network both present together (or both absent, only for a genuinely internal-only service) - never just one
+- [ ] Private-tier router present (unconditional default) - additional tiers only if explicitly requested, additive not instead of private
+- [ ] Router's `tls.certresolver` set explicitly, not just `tls: "true"` (except on non-anchor routers in a SAN group - see below)
+- [ ] `hsts-headers@docker` in every router's `middlewares`, listed first if chained with others
 - [ ] `${<SERVICE>_SUBDOMAIN}` used in the router rule, not a hardcoded hostname segment
+- [ ] `dnsmasq` has a matching hostname override line for this service
+- [ ] Service is assigned to a SAN-bundle group in `.claude/rules/san-cert-groups.md` - either its own router carries `tls.certresolver`+`tls.domains` (only if it's a NEW anchor, rare) or it has neither (normal case, relying on an existing anchor elsewhere)
+- [ ] If this compose touches a core/setup infra stack (Rule 9's list) for anything beyond a routine per-service list entry, confirm `.claude/rules/core-infra-topology.md` was read first
 - [ ] `container_name` on every service
 - [ ] `restart` policy on every service
 - [ ] Healthchecks included where applicable

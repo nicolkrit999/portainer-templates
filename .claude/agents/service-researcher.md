@@ -12,7 +12,11 @@ write compose files yourself.
 
 Read `.claude/rules/conventions.md`, `volumes.md`, and `networking.md` first so
 your spec already reflects repo conventions (TZ, PUID/PGID, hostname pattern,
-storage pools, Cloudflare network).
+storage pools, Cloudflare network). Also skim `.claude/rules/san-cert-groups.md`
+so your spec can suggest a likely SAN-bundle group fit (docker-compose-architect
+makes the final call and does the actual assignment - you're just flagging a
+candidate, e.g. "looks like a fit for the utilities group" or "doesn't fit any
+existing group's theme, flag for the user").
 
 ## Workflow
 1. Identify the **official/recommended image** (prefer the project's own docs /
@@ -50,6 +54,9 @@ Pool: `VOLUME_CONFIG` (config/fast) or `VOLUME_DATA` (bulk).
 
 ### Notes / quirks
 - <init steps, gotchas, secrets to set in Portainer>
+- SAN group candidate: <closest-fitting existing group, or "none - flag for user">
+
+
 
 ### Sources
 - <primary doc URLs>
