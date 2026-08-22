@@ -1,0 +1,71 @@
+services:
+  # TAILNET-FACING SIBLING of ../dnsmasq/docker-compose.yml - same image, same
+  # network_mode: host pattern, same overall purpose (wildcard DNS override
+  # for the household's split-DNS), but this instance exists to route around
+  # a confirmed hairpin-NAT bug rather than to serve LAN clients.
+  #
+  # Root cause (confirmed via SSH diagnosis 2026-08-22): any device connected
+  # over Tailscale gets DNS answers pointing at the NAS's LAN IP, same as
+  # everyone else - but the NAS's own host network stack cannot hairpin back
+  # to its own LAN IP on Traefik's published port (curl to the LAN IP from
+  # the NAS itself times out; curl to 127.0.0.1 with the same Host header
+  # works fine). Tailscale's subnet-router forwarding hits this exact same
+  # hairpin limitation when relaying tailnet traffic back out to the LAN IP.
+  # Traefik itself is not the problem - its entrypoints already bind broadly
+  # and would happily accept a connection arriving directly on the tailnet
+  # interface, no forwarding hop involved.
+  #
+  # Fix: answer DNS with the NAS's own tailnet IP instead of its LAN IP for
+  # any Tailscale-connected client. Traffic then arrives directly on
+  # tailscale0 and hits Traefik's broad port binding with no hairpin hop at
+  # all. This is a separate, independent dnsmasq instance (not a change to
+  # the original) so it can bind specifically to the tailnet IP without
+  # touching or depending on the LAN-facing one - both already run
+  # network_mode: host on the NAS, so a second instance is safe.
+  #
+  # No per-hostname private-tier overrides here (unlike the original): once
+  # traffic is arriving directly on tailscale0, the LAN's family/private-tier
+  # forwarder split is irrelevant - every hostname should resolve to the same
+  # tailnet IP for tailnet clients.
+  #
+  # Deliberately NOT attached to cloudflare-web or traefik-proxy: this is a
+  # raw DNS (port 53) service, not HTTP, and is not meant to be reachable
+  # through either tunnel/proxy.
+  #
+  # restart: "no" - stopgap/experimental infra, matching the original
+  # dnsmasq's own manual start/stop convention for non-permanent pieces;
+  # started/stopped by hand by a household member, not auto-recovered.
+  dnsmasq-tailnet:
+    image: 4km3/dnsmasq:2.90-r3
+    container_name: dnsmasq-tailnet
+    network_mode: host
+    restart: "no"
+    cap_add:
+      - NET_ADMIN
+    # ENTRYPOINT of this image is already ["/usr/sbin/dnsmasq", "--keep-in-foreground"];
+    # command: here is appended as extra dnsmasq CLI args, not a replacement.
+    command:
+      - "--address=/${DNS_WILDCARD_DOMAIN}/${TAILNET_IP}"
+      - "--log-facility=-"
+      # --listen-address + --bind-interfaces here binds specifically to the
+      # NAS's tailnet IP instead of wildcard-binding port 53, which would
+      # otherwise collide with the original dnsmasq's own bind to
+      # DNS_TARGET_IP (the LAN IP) - the same non-collision pattern the
+      # original already uses to avoid colliding with systemd-resolved's
+      # loopback bind.
+      - "--listen-address=${TAILNET_IP}"
+      - "--bind-interfaces"
+      # Same reasoning as the original: this resolver only ever answers for
+      # ${DNS_WILDCARD_DOMAIN}, so filtering these record types globally is
+      # safe here. Without this, AAAA/HTTPS/SVCB queries fall through to the
+      # real upstream and leak Cloudflare's actual public edge (IPv6
+      # address, ECH config, etc.) even though the A record is correctly
+      # overridden - defeating the point of this override for
+      # IPv6-preferring clients.
+      - "--filter-AAAA"
+      - "--filter-rr=HTTPS"
+      - "--filter-rr=SVCB"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
