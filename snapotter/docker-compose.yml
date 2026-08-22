@@ -21,6 +21,11 @@ services:
       traefik.http.routers.snapotter.tls: "true"
       traefik.http.routers.snapotter.service: "snapotter"
       traefik.http.routers.snapotter.middlewares: "hsts-headers@docker"
+      traefik.http.routers.snapotter-tailnet.rule: "Host(`${SNAPOTTER_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.snapotter-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.snapotter-tailnet.tls: "true"
+      traefik.http.routers.snapotter-tailnet.service: "snapotter"
+      traefik.http.routers.snapotter-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.snapotter.loadbalancer.server.port: "1349"
       traefik.docker.network: "traefik-proxy"
     networks:

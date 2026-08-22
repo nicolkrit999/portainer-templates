@@ -19,6 +19,11 @@ services:
       traefik.http.routers.tugtainer.tls: "true"
       traefik.http.routers.tugtainer.service: "tugtainer"
       traefik.http.routers.tugtainer.middlewares: "hsts-headers@docker"
+      traefik.http.routers.tugtainer-tailnet.rule: "Host(`${TUGTAINER_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.tugtainer-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.tugtainer-tailnet.tls: "true"
+      traefik.http.routers.tugtainer-tailnet.service: "tugtainer"
+      traefik.http.routers.tugtainer-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.tugtainer.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
 
