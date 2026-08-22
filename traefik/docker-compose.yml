@@ -15,6 +15,15 @@ services:
     command:
       - "--global.checknewversion=false"
       - "--global.sendanonymoususage=false"
+      # Plain-HTTP entrypoint on the well-known port 80. Redirect-only, never
+      # serves real app traffic - without this, Traefik has NO listener on
+      # port 80 at all, so any client defaulting to http:// for a bare-typed
+      # address (common iOS Safari/Firefox and general browser behavior) gets
+      # connection-refused instead of a clean redirect to HTTPS. Confirmed
+      # root cause of a "could not connect to server" report, 2026-08-22.
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.web.http.redirections.entryPoint.to=${TRAEFIK_ENTRYPOINT_1}"
+      - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.address=:${TRAEFIK_PORT_1}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.http.tls.certresolver=cf_dns"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.http.tls.domains[0].main=${DOMAIN}"
@@ -67,6 +76,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${VOLUME_CONFIG}/traefik/acme.json:/letsencrypt/acme.json
     ports:
+      - "80:80"
       - "${TRAEFIK_PORT_1}:${TRAEFIK_PORT_1}"
       - "${TRAEFIK_PORT_2}:${TRAEFIK_PORT_2}"
       - "${TRAEFIK_PORT_3}:${TRAEFIK_PORT_3}"
