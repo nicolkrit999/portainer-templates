@@ -1,6 +1,6 @@
 ---
 name: traefik-tailnet-forwarder-service
-description: New sibling stack fixing Tailscale-source-IP rewrite bug via HAProxy host-networked sidecar + Traefik entrypoint 7 + static IP on traefik-proxy
+description: HAProxy sidecar fixing Tailscale-source-IP rewrite bug, now joins tailscale-admin's namespace (network_mode service:X) instead of network_mode host - the host-mode version conflicted with Traefik's own wildcard bind and was reverted
 metadata:
   type: project
 ---
@@ -68,3 +68,48 @@ memory is the fix side of that finding).
 original note) still required - Write and Edit both blocked directly;
 write to a differently-named temp file then `mv` over `.env.example` via
 Bash works for both new-file creation AND full-file edits.
+
+## REVISION 2026-08-22 (same day, later): network_mode: host reverted
+
+Deployed `network_mode: host` (above) turned out to be a real bug, not just
+a documentation gap: it put this container in the SAME network namespace as
+the HOST itself, which is also where Traefik's own `docker-proxy` already
+wildcard-binds `0.0.0.0:443` for the family entrypoint - a wildcard bind and
+this sidecar's specific-IP bind (`${TAILSCALE_IP}:443`) cannot coexist on
+the same port in one namespace. Confirmed live conflict; forwarder was
+stopped/reverted.
+
+**Fix (verified against https://tailscale.com/blog/docker-tailscale-guide):**
+create a SECOND, independent Tailscale identity as its own sidecar using
+ORDINARY (non-host) networking - see [[tailscale-admin-service]] (new memory,
+same session) - and have this forwarder join THAT container's namespace via
+`network_mode: service:tailscale-admin` instead of `network_mode: host`. A
+real, isolated namespace this time (separate from both the host's and
+Traefik's own), zero collision risk.
+
+Changes made to `traefik-tailnet-forwarder/docker-compose.yml`:
+- `network_mode: host` → `network_mode: service:tailscale-admin`.
+- Removed `user: "0:0"` (root-user workaround) entirely - no longer needed.
+  `tailscale-admin` sets `sysctls: net.ipv4.ip_unprivileged_port_start: "0"`
+  on the namespace this container now shares, which lets haproxy's non-root
+  process bind port 443 cleanly instead.
+- No `networks:` block was ever present on this service (host mode
+  precluded it before, `service:X` mode precludes it now too) - nothing to
+  remove there.
+- Added `depends_on: tailscale-admin: condition: service_healthy` (that
+  image now has a `tailscale status --json` healthcheck) - documented as
+  best-effort only: Compose `depends_on` doesn't enforce cross-stack
+  ordering in Portainer, since `tailscale-admin` lives in its own separate
+  stack/compose file. Real ordering must be done by deploying
+  `tailscale-admin` first, manually.
+- **Deployment-time gotcha, not yet resolved in any file**: `TAILSCALE_IP`
+  in this stack's env now must be `tailscale-admin`'s NEW tailnet IP (a
+  different node than the primary `tailscale/` node used before), known
+  only after `tailscale-admin` is deployed and approved in the admin
+  console. The existing `haproxy.cfg` already on the NAS filesystem at
+  `${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg` has the OLD IP
+  baked in and `haproxy-config-init` only writes it if missing - it will
+  NOT self-correct. Whoever redeploys next must delete that file first (or
+  hand-edit it) once the real new IP is known.
+- Not deployed by this session - compose files only, user reviews and
+  deploys.
