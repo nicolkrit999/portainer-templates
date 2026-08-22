@@ -31,6 +31,7 @@ services:
             traefik.http.routers.sosse.tls: "true"
             traefik.http.routers.sosse.tls.certresolver: "cf_dns"
             traefik.http.routers.sosse.service: "sosse"
+            traefik.http.routers.sosse.middlewares: "hsts-headers@docker"
             traefik.http.services.sosse.loadbalancer.server.port: "80"
             traefik.docker.network: "traefik-proxy"
         healthcheck:

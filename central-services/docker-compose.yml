@@ -12,6 +12,7 @@ services:
       traefik.http.routers.mailpit.tls: "true"
       traefik.http.routers.mailpit.tls.certresolver: "cf_dns"
       traefik.http.routers.mailpit.service: "mailpit"
+      traefik.http.routers.mailpit.middlewares: "hsts-headers@docker"
       traefik.http.services.mailpit.loadbalancer.server.port: "8025"
       traefik.docker.network: "traefik-proxy"
     networks:
@@ -75,6 +76,7 @@ services:
       traefik.http.routers.phpldapadmin.tls: "true"
       traefik.http.routers.phpldapadmin.tls.certresolver: "cf_dns"
       traefik.http.routers.phpldapadmin.service: "phpldapadmin"
+      traefik.http.routers.phpldapadmin.middlewares: "hsts-headers@docker"
       traefik.http.services.phpldapadmin.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
     networks:

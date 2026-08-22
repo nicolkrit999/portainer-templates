@@ -29,4 +29,5 @@ services:
       traefik.http.routers.qbit-torrent.tls: "true"
       traefik.http.routers.qbit-torrent.tls.certresolver: "cf_dns"
       traefik.http.routers.qbit-torrent.service: "qbit-torrent"
+      traefik.http.routers.qbit-torrent.middlewares: "hsts-headers@docker"
       traefik.http.services.qbit-torrent.loadbalancer.server.url: "http://host.docker.internal:${WEBUI_PORT}"

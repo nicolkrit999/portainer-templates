@@ -27,6 +27,7 @@ services:
       traefik.http.routers.changedetection.tls: "true"
       traefik.http.routers.changedetection.tls.certresolver: "cf_dns"
       traefik.http.routers.changedetection.service: "changedetection"
+      traefik.http.routers.changedetection.middlewares: "hsts-headers@docker"
       traefik.http.services.changedetection.loadbalancer.server.port: "5000"
       traefik.docker.network: "traefik-proxy"
     networks:

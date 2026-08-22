@@ -20,5 +20,6 @@ services:
       traefik.http.routers.upsnap.tls: "true"
       traefik.http.routers.upsnap.tls.certresolver: "cf_dns"
       traefik.http.routers.upsnap.service: "upsnap"
+      traefik.http.routers.upsnap.middlewares: "hsts-headers@docker"
       traefik.http.services.upsnap.loadbalancer.server.url: "http://host.docker.internal:8090"
 

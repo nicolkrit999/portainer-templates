@@ -31,6 +31,7 @@ services:
       traefik.http.routers.holyclaude.tls: "true"
       traefik.http.routers.holyclaude.tls.certresolver: "cf_dns"
       traefik.http.routers.holyclaude.service: "holyclaude"
+      traefik.http.routers.holyclaude.middlewares: "hsts-headers@docker"
       traefik.http.services.holyclaude.loadbalancer.server.port: "3001"
       traefik.docker.network: "traefik-proxy"
     networks:

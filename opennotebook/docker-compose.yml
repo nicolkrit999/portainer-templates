@@ -49,6 +49,7 @@ services:
       traefik.http.routers.open_notebook.tls: "true"
       traefik.http.routers.open_notebook.tls.certresolver: "cf_dns"
       traefik.http.routers.open_notebook.service: "open_notebook"
+      traefik.http.routers.open_notebook.middlewares: "hsts-headers@docker"
       traefik.http.services.open_notebook.loadbalancer.server.port: "8502"
       traefik.docker.network: "traefik-proxy"
     logging:

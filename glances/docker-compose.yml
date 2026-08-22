@@ -22,4 +22,5 @@ services:
       traefik.http.routers.glances.tls: "true"
       traefik.http.routers.glances.tls.certresolver: "cf_dns"
       traefik.http.routers.glances.service: "glances"
+      traefik.http.routers.glances.middlewares: "hsts-headers@docker"
       traefik.http.services.glances.loadbalancer.server.url: "http://host.docker.internal:61208"
