@@ -108,10 +108,29 @@ services:
       traefik.http.middlewares.hsts-headers.headers.stsIncludeSubdomains: "true"
       traefik.http.middlewares.hsts-headers.headers.stsPreload: "true"
       traefik.http.middlewares.hsts-headers.headers.forceSTSHeader: "true"
+      # Shared IP-allowlist middleware restricting access to the household
+      # admin's own known Tailscale device IPs only - NOT the full Tailscale
+      # CGNAT range (100.64.0.0/10), which would let ANY future tailnet
+      # identity (e.g. a family member's phone, once a family Tailscale
+      # grant exists) through automatically. This specific device list must
+      # be updated manually if a device is removed/re-added to the tailnet
+      # or its node key is reset - a rare, deliberate event, not something
+      # that happens silently. No ipStrategy override - matches the raw
+      # direct TCP RemoteAddr only, never X-Forwarded-For. Used to gate
+      # clean-URL tailnet access to private-tier-only services on the
+      # family entrypoint without touching that entrypoint's own binding or
+      # its existing routers at all.
+      traefik.http.middlewares.tailnet-admin-only.ipallowlist.sourcerange: "${TAILNET_ADMIN_IPS}"
       traefik.http.routers.traefik-dashboard-cf.rule: "Host(`traefik.${DOMAIN}`)"
       traefik.http.routers.traefik-dashboard-cf.entrypoints: "${TRAEFIK_ENTRYPOINT_5}"
       traefik.http.routers.traefik-dashboard-cf.service: "api@internal"
       traefik.http.routers.traefik-dashboard-cf.middlewares: "hsts-headers@docker,traefik-auth"
+      traefik.http.routers.traefik-dashboard-tailnet.rule: "Host(`traefik.${DOMAIN}`)"
+      traefik.http.routers.traefik-dashboard-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.traefik-dashboard-tailnet.tls: "true"
+      traefik.http.routers.traefik-dashboard-tailnet.tls.certresolver: "cf_dns"
+      traefik.http.routers.traefik-dashboard-tailnet.service: "api@internal"
+      traefik.http.routers.traefik-dashboard-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker,traefik-auth"
       traefik.docker.network: "traefik-proxy"
     networks:
       - traefik_proxy_network
