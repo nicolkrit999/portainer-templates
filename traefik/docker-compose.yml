@@ -181,14 +181,22 @@ services:
         condition: service_completed_successfully
 
 networks:
+  # Deliberately NO explicit `ipam:` block here, even though Traefik's own
+  # service below requests a static ipv4_address on this network - adding
+  # one caused a real incident (2026-08-22): Compose treats an added ipam
+  # block as a network config change and tries to REMOVE + recreate the
+  # network to apply it, even when the declared subnet exactly matches the
+  # live one. Docker blocked the removal (network has ~55 other active
+  # container endpoints) and the whole redeploy failed, leaving Traefik's
+  # container removed with nothing to replace it - a real outage. This
+  # network already exists live with subnet 172.27.0.0/16 (confirmed via
+  # direct inspection) and is NOT external: true, so Compose reuses the
+  # existing network as-is when the file's declared config doesn't diverge
+  # from what's already there - Docker validates the ipv4_address below
+  # against the network's REAL live IPAM at connect time, not against
+  # anything declared in this file. Do not re-add an ipam block here.
   traefik_proxy_network:
     name: traefik-proxy
-    # Explicit IPAM subnet (confirmed live) so traefik's ipv4_address
-    # assignment above is valid - required for the static IP the
-    # host-networked traefik-tailnet-forwarder sidecar targets.
-    ipam:
-      config:
-        - subnet: "172.27.0.0/16"
   cloudflare_web_network:
     name: cloudflare-web
     external: true
