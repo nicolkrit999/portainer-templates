@@ -81,6 +81,20 @@ services:
       # explanation and the scaling note (add more "/hostname.${DNS_WILDCARD_DOMAIN}"
       # segments here as more admin-gated services onboard).
       - "--address=/traefik.${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}"
+      # Exceptions: hostnames deliberately Cloudflare-Tunnel-ONLY, never
+      # migrated to Traefik (Cloudflare Access SSH applications, in this
+      # case) - the wildcard rule above would otherwise intercept these too
+      # and point tailnet clients straight at this NAS instead of letting
+      # them resolve via real public DNS to Cloudflare's edge. Confirmed
+      # broken this way 2026-08-23 for gitea-ssh.nicolkrit.ch (same fix
+      # applied to the LAN-facing dnsmasq/docker-compose.yml sibling - keep
+      # both in sync). `--server=/domain/ip` forwards matching queries to
+      # the named upstream instead of answering locally; more specific than
+      # the wildcard `--address` rule above, so it wins for these labels
+      # only. Check the Cloudflare Tunnel dashboard's public hostname list
+      # (not this repo) if another Cloudflare-only application needs adding.
+      - "--server=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
+      - "--server=/ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
       - "--log-facility=-"
       # --listen-address + --bind-interfaces here binds specifically to the
       # NAS's tailnet IP instead of wildcard-binding port 53, which would

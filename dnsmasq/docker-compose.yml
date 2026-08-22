@@ -110,6 +110,25 @@ services:
       - "--address=/withoutbg.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/ytptube.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/traefik.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
+      # Exceptions: hostnames that are deliberately Cloudflare-Tunnel-ONLY
+      # and were never migrated to Traefik (Cloudflare Access SSH
+      # applications, in this case) - the general wildcard rule above would
+      # otherwise intercept them too and point LAN/tailnet clients straight
+      # at this NAS instead of letting them resolve via real public DNS to
+      # Cloudflare's edge, which is what these hostnames actually need.
+      # Confirmed broken this way 2026-08-23: `cloudflared access ssh
+      # --hostname gitea-ssh.nicolkrit.ch` was hitting Traefik directly
+      # (which has no router/cert for this hostname, by design) instead of
+      # Cloudflare Access, because local DNS answered with this NAS's own
+      # IP. `--server=/domain/ip` forwards matching queries to the named
+      # upstream instead of answering locally - more specific than the
+      # wildcard `--address` rule above, so it wins for these exact labels
+      # only (same precedence rule as the private-tier overrides above).
+      # If another Cloudflare-only, non-Traefik application is added later
+      # (check the Cloudflare Tunnel dashboard's public hostname list, not
+      # this repo, since that config lives there), add its hostname here too.
+      - "--server=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
+      - "--server=/ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
       - "--log-facility=-"
       - "--listen-address=${DNS_TARGET_IP}"
       - "--bind-interfaces"
