@@ -32,14 +32,17 @@ services:
   # raw DNS (port 53) service, not HTTP, and is not meant to be reachable
   # through either tunnel/proxy.
   #
-  # restart: "no" - stopgap/experimental infra, matching the original
-  # dnsmasq's own manual start/stop convention for non-permanent pieces;
-  # started/stopped by hand by a household member, not auto-recovered.
+  # restart: always - the original dnsmasq was itself upgraded from "no" to
+  # always once the household came to depend on it for split-DNS ("must come
+  # back automatically after a host reboot or crash"). This sibling exists to
+  # fix Tailscale reachability for every device, not a one-off experiment, so
+  # it gets the same always-on treatment from the start rather than starting
+  # as a manual stopgap and needing a second upgrade later.
   dnsmasq-tailnet:
     image: 4km3/dnsmasq:2.90-r3
     container_name: dnsmasq-tailnet
     network_mode: host
-    restart: "no"
+    restart: always
     cap_add:
       - NET_ADMIN
     # ENTRYPOINT of this image is already ["/usr/sbin/dnsmasq", "--keep-in-foreground"];
