@@ -114,6 +114,11 @@ services:
       traefik.http.routers.sparkyfitness.tls: "true"
       traefik.http.routers.sparkyfitness.service: "sparkyfitness"
       traefik.http.routers.sparkyfitness.middlewares: "hsts-headers@docker"
+      traefik.http.routers.sparkyfitness-tailnet.rule: "Host(`${SPARKYFITNESS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.sparkyfitness-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.sparkyfitness-tailnet.tls: "true"
+      traefik.http.routers.sparkyfitness-tailnet.service: "sparkyfitness"
+      traefik.http.routers.sparkyfitness-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.sparkyfitness.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
     networks:

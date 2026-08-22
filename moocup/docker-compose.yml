@@ -21,6 +21,11 @@ services:
       traefik.http.routers.moocup.tls: "true"
       traefik.http.routers.moocup.service: "moocup"
       traefik.http.routers.moocup.middlewares: "hsts-headers@docker"
+      traefik.http.routers.moocup-tailnet.rule: "Host(`${MOOCUP_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.moocup-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.moocup-tailnet.tls: "true"
+      traefik.http.routers.moocup-tailnet.service: "moocup"
+      traefik.http.routers.moocup-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.moocup.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
 
