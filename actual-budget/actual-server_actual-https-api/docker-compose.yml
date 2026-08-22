@@ -14,6 +14,22 @@ services:
       - "5006:5006"
     labels:
       traefik.enable: "true"
+      # --- SAN-bundle cert (group "budgeting", 1 of 6 repo-wide groups) ---
+      # Bundles this router's cert to also cover the other actual-budget
+      # ecosystem hostnames (actual-ical, actual-tap, actual-api) as SANs on
+      # ONE certificate, to stay under Let's Encrypt's 50-certs/168h rate
+      # limit (this repo hit it requesting a near-separate cert per router
+      # across ~77 hostnames). This is the CORRECT mechanism: per-router
+      # `tls.domains[]` labels on a single anchor router. Do NOT reintroduce
+      # resolver-level CLI flags on Traefik's own container
+      # (`--certificatesresolvers.cf_dns.acme.domains[N].main=...`) - that
+      # crashed Traefik outright with `field not found, node: domains` and
+      # was reverted. Traefik's cert store is keyed globally by hostname, so
+      # actual-ical/actual-tap/actual-api's own routers need ZERO label
+      # changes to pick up this bundled cert - do not "clean up" this block
+      # thinking it's redundant.
+      traefik.http.routers.actual-budget.tls.domains[0].main: "${ACTUAL_BUDGET_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.actual-budget.tls.domains[0].sans: "${ACTUAL_ICAL_SUBDOMAIN}.${DOMAIN},${ACTUAL_TAP_SUBDOMAIN}.${DOMAIN},${ACTUAL_API_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.actual-budget.rule: "Host(`${ACTUAL_BUDGET_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.actual-budget.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
       traefik.http.routers.actual-budget.tls: "true"

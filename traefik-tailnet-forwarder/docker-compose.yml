@@ -77,6 +77,45 @@ services:
   #   backend traefik_admin
   #       server traefik ${TRAEFIK_INTERNAL_IP}:${TRAEFIK_PORT_7} send-proxy-v2
   #
+  #   frontend tailnet_web_in
+  #       bind ${TAILSCALE_IP}:80
+  #       default_backend traefik_web
+  #
+  #   backend traefik_web
+  #       server traefik ${TRAEFIK_INTERNAL_IP}:80
+  #
+  # BUG FIXED 2026-08-22 (confirmed live): this file originally had no
+  # listener on port 80 at all, so `curl http://traefik.${DOMAIN}/` (which
+  # now resolves to THIS forwarder's tailnet IP via the dnsmasq-tailnet split)
+  # got connection-refused instead of the expected redirect to HTTPS - the
+  # exact same bare-HTTP-request bug already fixed once earlier the same day
+  # for the shared `web`/family entrypoint, just regressed for this one
+  # hostname because it's now routed through this forwarder instead of
+  # hitting Traefik's wildcard bind directly. The tailnet_web_in/traefik_web
+  # pair above is a plain TCP passthrough (no send-proxy-v2) that forwards
+  # straight to Traefik's own `web` entrypoint (../traefik/docker-compose.yml,
+  # hardcoded `--entryPoints.web.address=:80`, not parameterized by port
+  # number anywhere in this repo), which already does the bare-HTTP->HTTPS
+  # redirect correctly for every other hostname. PROXY protocol is
+  # unnecessary here for two reasons: (1) this hop is plain container-to-
+  # container traffic on the traefik-proxy bridge network, which never goes
+  # through Docker's host-port-publish/docker-proxy NAT path (that path is
+  # what caused the ORIGINAL source-IP-rewrite bug this whole stack exists to
+  # fix - it only affects HOST-published ports, not container-to-container
+  # traffic), so there's no source-IP corruption risk to correct for; and
+  # (2) the redirect itself isn't gated by the tailnet-admin-only
+  # ipallowlist or any other check that needs the real client IP - it's just
+  # an unconditional redirect to HTTPS.
+  #
+  # ⚠️ OPERATIONAL STEP REQUIRED: haproxy-config-init only writes haproxy.cfg
+  # if it's missing (idempotent by design, see below) - it will NOT
+  # regenerate the file to add this new frontend/backend pair on its own.
+  # The stale haproxy.cfg already on the NAS filesystem at
+  # ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg (missing this
+  # fix) MUST be deleted manually before the next redeploy, or this fix will
+  # not take effect - same manual step already performed once tonight for a
+  # different value change (see the TAILSCALE_IP note above).
+  #
   # HAProxy config files do NOT support ${VAR} shell-style interpolation at
   # runtime - the placeholders above are real, literal values. Substitution
   # is handled automatically by the haproxy-config-init service below (a
@@ -102,7 +141,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "if [ -f /target/haproxy.cfg ]; then echo \"haproxy.cfg already exists, skipping\"; else mkdir -p /target && cat > /target/haproxy.cfg << EOF\nglobal\n    log stdout format raw local0\n\ndefaults\n    mode tcp\n    timeout connect 5s\n    timeout client 30s\n    timeout server 30s\n    log global\n\nfrontend tailnet_admin_in\n    bind $TAILSCALE_IP:443\n    default_backend traefik_admin\n\nbackend traefik_admin\n    server traefik $TRAEFIK_INTERNAL_IP:$TRAEFIK_PORT_7 send-proxy-v2\nEOF\nchmod 644 /target/haproxy.cfg; fi; cat /target/haproxy.cfg"
+      - "if [ -f /target/haproxy.cfg ]; then echo \"haproxy.cfg already exists, skipping\"; else mkdir -p /target && cat > /target/haproxy.cfg << EOF\nglobal\n    log stdout format raw local0\n\ndefaults\n    mode tcp\n    timeout connect 5s\n    timeout client 30s\n    timeout server 30s\n    log global\n\nfrontend tailnet_admin_in\n    bind $TAILSCALE_IP:443\n    default_backend traefik_admin\n\nbackend traefik_admin\n    server traefik $TRAEFIK_INTERNAL_IP:$TRAEFIK_PORT_7 send-proxy-v2\n\nfrontend tailnet_web_in\n    bind $TAILSCALE_IP:80\n    default_backend traefik_web\n\nbackend traefik_web\n    server traefik $TRAEFIK_INTERNAL_IP:80\nEOF\nchmod 644 /target/haproxy.cfg; fi; cat /target/haproxy.cfg"
 
   traefik-tailnet-forwarder:
     image: haproxy:alpine
