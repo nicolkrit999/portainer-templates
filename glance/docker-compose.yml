@@ -48,7 +48,6 @@ services:
       traefik.http.routers.glance.rule: "Host(`${GLANCE_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.glance.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.glance.tls: "true"
-      traefik.http.routers.glance.tls.certresolver: "cf_dns"
       traefik.http.routers.glance.service: "glance"
       traefik.http.routers.glance.middlewares: "hsts-headers@docker"
       traefik.http.services.glance.loadbalancer.server.port: "8080"

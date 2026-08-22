@@ -15,7 +15,6 @@ services:
       traefik.http.routers.webcheck.rule: "Host(`${WEB_CHECK_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.webcheck.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.webcheck.tls: "true"
-      traefik.http.routers.webcheck.tls.certresolver: "cf_dns"
       traefik.http.routers.webcheck.service: "webcheck"
       traefik.http.routers.webcheck.middlewares: "hsts-headers@docker"
       traefik.http.services.webcheck.loadbalancer.server.port: "3000"

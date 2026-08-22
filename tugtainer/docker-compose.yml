@@ -17,7 +17,6 @@ services:
       traefik.http.routers.tugtainer.rule: "Host(`${TUGTAINER_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.tugtainer.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.tugtainer.tls: "true"
-      traefik.http.routers.tugtainer.tls.certresolver: "cf_dns"
       traefik.http.routers.tugtainer.service: "tugtainer"
       traefik.http.routers.tugtainer.middlewares: "hsts-headers@docker"
       traefik.http.services.tugtainer.loadbalancer.server.port: "80"

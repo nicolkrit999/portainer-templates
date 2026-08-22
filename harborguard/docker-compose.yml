@@ -50,7 +50,6 @@ services:
       traefik.http.routers.harborguard.rule: "Host(`${HARBORGUARD_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.harborguard.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.harborguard.tls: "true"
-      traefik.http.routers.harborguard.tls.certresolver: "cf_dns"
       traefik.http.routers.harborguard.service: "harborguard"
       traefik.http.routers.harborguard.middlewares: "hsts-headers@docker"
       traefik.http.services.harborguard.loadbalancer.server.port: "3000"
