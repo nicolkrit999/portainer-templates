@@ -10,6 +10,7 @@ services:
       - ${VOLUME_CONFIG}/portainer:/data
     ports:
       - "9000:9000"
+      - "9444:9443"
     logging:
       options:
         max-size: "10m"
