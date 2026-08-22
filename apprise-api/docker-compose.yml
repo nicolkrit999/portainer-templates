@@ -19,7 +19,6 @@ services:
       traefik.http.routers.apprise-api.rule: "Host(`${APPRISE_API_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.apprise-api.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.apprise-api.tls: "true"
-      traefik.http.routers.apprise-api.tls.certresolver: "cf_dns"
       traefik.http.routers.apprise-api.service: "apprise-api"
       traefik.http.routers.apprise-api.middlewares: "hsts-headers@docker"
       traefik.http.services.apprise-api.loadbalancer.server.port: "8000"

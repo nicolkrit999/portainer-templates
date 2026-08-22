@@ -30,7 +30,6 @@ services:
       traefik.http.routers.gotify.rule: "Host(`${GOTIFY_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.gotify.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.gotify.tls: "true"
-      traefik.http.routers.gotify.tls.certresolver: "cf_dns"
       traefik.http.routers.gotify.service: "gotify"
       traefik.http.routers.gotify.middlewares: "hsts-headers@docker"
       traefik.http.services.gotify.loadbalancer.server.port: "80"

@@ -17,7 +17,6 @@ services:
       traefik.http.routers.adguard.rule: "Host(`${ADGUARD_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.adguard.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.adguard.tls: "true"
-      traefik.http.routers.adguard.tls.certresolver: "cf_dns"
       traefik.http.routers.adguard.service: "adguard"
       traefik.http.routers.adguard.middlewares: "hsts-headers@docker"
       traefik.http.services.adguard.loadbalancer.server.port: "80"

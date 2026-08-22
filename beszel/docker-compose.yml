@@ -14,7 +14,6 @@ services:
       traefik.http.routers.beszel.rule: "Host(`${BESZEL_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.beszel.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.beszel.tls: "true"
-      traefik.http.routers.beszel.tls.certresolver: "cf_dns"
       traefik.http.routers.beszel.service: "beszel"
       traefik.http.routers.beszel.middlewares: "hsts-headers@docker"
       traefik.http.services.beszel.loadbalancer.server.port: "8090"

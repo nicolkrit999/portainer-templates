@@ -18,7 +18,6 @@ services:
       traefik.http.routers.gocron.rule: "Host(`${GOCRON_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.gocron.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.gocron.tls: "true"
-      traefik.http.routers.gocron.tls.certresolver: "cf_dns"
       traefik.http.routers.gocron.service: "gocron"
       traefik.http.routers.gocron.middlewares: "hsts-headers@docker"
       traefik.http.services.gocron.loadbalancer.server.port: "8156"

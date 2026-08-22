@@ -15,7 +15,6 @@ services:
       traefik.http.routers.dockpeek.rule: "Host(`${DOCKPEEK_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.dockpeek.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.dockpeek.tls: "true"
-      traefik.http.routers.dockpeek.tls.certresolver: "cf_dns"
       traefik.http.routers.dockpeek.service: "dockpeek"
       traefik.http.routers.dockpeek.middlewares: "hsts-headers@docker"
       traefik.http.services.dockpeek.loadbalancer.server.port: "8000"
