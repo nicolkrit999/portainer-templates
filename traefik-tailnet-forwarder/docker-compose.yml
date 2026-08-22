@@ -73,7 +73,10 @@ services:
       TRAEFIK_PORT_7: "${TRAEFIK_PORT_7}"
     volumes:
       - ${VOLUME_CONFIG}/traefik-tailnet-forwarder:/target
-    command: "if [ -f /target/haproxy.cfg ]; then echo \"haproxy.cfg already exists, skipping\"; else mkdir -p /target && cat > /target/haproxy.cfg << EOF\nglobal\n    log stdout format raw local0\n\ndefaults\n    mode tcp\n    timeout connect 5s\n    timeout client 30s\n    timeout server 30s\n    log global\n\nfrontend tailnet_admin_in\n    bind $TAILSCALE_IP:443\n    default_backend traefik_admin\n\nbackend traefik_admin\n    server traefik $TRAEFIK_INTERNAL_IP:$TRAEFIK_PORT_7 send-proxy-v2\nEOF\nchmod 644 /target/haproxy.cfg; fi; cat /target/haproxy.cfg"
+    command:
+      - "sh"
+      - "-c"
+      - "if [ -f /target/haproxy.cfg ]; then echo \"haproxy.cfg already exists, skipping\"; else mkdir -p /target && cat > /target/haproxy.cfg << EOF\nglobal\n    log stdout format raw local0\n\ndefaults\n    mode tcp\n    timeout connect 5s\n    timeout client 30s\n    timeout server 30s\n    log global\n\nfrontend tailnet_admin_in\n    bind $TAILSCALE_IP:443\n    default_backend traefik_admin\n\nbackend traefik_admin\n    server traefik $TRAEFIK_INTERNAL_IP:$TRAEFIK_PORT_7 send-proxy-v2\nEOF\nchmod 644 /target/haproxy.cfg; fi; cat /target/haproxy.cfg"
 
   traefik-tailnet-forwarder:
     image: haproxy:alpine
