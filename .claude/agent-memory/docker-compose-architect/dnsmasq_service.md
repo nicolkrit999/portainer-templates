@@ -111,6 +111,44 @@ original's long per-hostname list.
   `TAILNET_IP` (the NAS's own Tailscale IP, from `tailscale status` - not a
   LAN IP).
 
+### Updated 2026-08-22: admin-gated hostname override added
+
+"No per-hostname overrides needed" above is now partially superseded. A
+second Tailscale identity (`tailscale-admin`, `../tailscale-admin/`) fronts
+admin-gated services via its own forwarder + Traefik entrypoint
+(`../traefik-tailnet-forwarder/`, `TRAEFIK_ENTRYPOINT_7`). Added a SECOND,
+more-specific `--address=` rule alongside the existing wildcard one (not
+replacing it):
+```
+--address=/traefik.${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}
+```
+Confirmed against dnsmasq's own man page (`--server` section, which
+`--address` shares matching logic with): "More specific domains take
+precedence over less specific domains... Matching of domains is normally
+done on complete labels" - so this exact-hostname rule wins only for
+`traefik.${DNS_WILDCARD_DOMAIN}` queries; every other subdomain still falls
+through to the wildcard rule unchanged, since they don't match the
+exact-label rule at all. Currently only `traefik.${DNS_WILDCARD_DOMAIN}` (the
+pilot admin-gated service) uses this. Scaling note: dnsmasq's `--address`
+syntax supports multiple domains in one directive
+(`-A, --address=/<domain>[/<domain>...]/[<ipaddr>]`), so future admin-gated
+hostnames should be added as more `/hostname/` segments on this SAME rule
+rather than one new rule per hostname - keeps them all declared in one place
+as the rollout scales toward 54 services.
+
+New env var: `TAILSCALE_ADMIN_IP` - the tailscale-admin node's own tailnet
+IP (100.64.0.0/10-range), added to `.env.example` with a comment explicitly
+distinguishing it from `TAILSCALE_ADMIN_INTERNAL_IP` (a different,
+Docker-internal 172.x address used elsewhere for the traefik-proxy trust
+boundary - do not confuse the two).
+
+**Naming gotcha caught this session**: the task prose referred to
+`${DOMAIN}` generically, but this stack's own domain variable is
+`DNS_WILDCARD_DOMAIN`, not `DOMAIN` (unlike `traefik/` and most other
+services, which do define `${DOMAIN}`). Always check which domain variable
+a given stack's `.env.example` actually defines before assuming `${DOMAIN}`
+- each stack has its own independent env in Portainer.
+
 ## Tooling gotcha: writing `.env.example` files
 
 The `Write` tool has a deny rule blocking any path matching `.env*` exactly
