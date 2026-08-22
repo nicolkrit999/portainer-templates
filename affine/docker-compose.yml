@@ -42,6 +42,24 @@ services:
       traefik.http.routers.affine.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.affine.tls: "true"
       traefik.http.routers.affine.tls.certresolver: "cf_dns"
+      # SAN-bundle (group "productivity-creative", anchor router): this router
+      # is the anchor for a single multi-SAN Let's Encrypt certificate
+      # covering 11 low-traffic services, to stay under LE's 50-certs/168h
+      # rate limit that Traefik previously hit issuing near-one cert per
+      # router. Mechanism is per-router tls.domains labels (the correct
+      # approach) - NOT resolver-level CLI flags on Traefik's own
+      # container/config, which crashed Traefik once already
+      # ("field not found, node: domains") and was reverted.
+      # Once this router obtains the cert, every other router below is
+      # covered automatically via the SAN list - those routers need no label
+      # changes at all.
+      # Bundled hostnames (this anchor + 10 others): affine, draw-io,
+      # excalidraw, fossflow, opennotebook, paperlessngx (rule label uses
+      # PAPERLESS_SUBDOMAIN), linkwarden, holyclaude (currently deployed at
+      # hostname "holyclaude", not "claude" - see note below), blender,
+      # lifeglance, ghost (rule label uses GHOST_SUBDOMAIN, default "blog").
+      traefik.http.routers.affine.tls.domains[0].main: "${AFFINE_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.affine.tls.domains[0].sans: "${DRAWIO_SUBDOMAIN}.${DOMAIN},${EXCALIDRAW_SUBDOMAIN}.${DOMAIN},${FOSSFLOW_SUBDOMAIN}.${DOMAIN},${OPENNOTEBOOK_SUBDOMAIN}.${DOMAIN},${PAPERLESS_SUBDOMAIN}.${DOMAIN},${LINKWARDEN_SUBDOMAIN}.${DOMAIN},${HOLYCLAUDE_SUBDOMAIN}.${DOMAIN},${BLENDER_SUBDOMAIN}.${DOMAIN},${LIFEGLANCE_SUBDOMAIN}.${DOMAIN},${GHOST_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.affine.service: "affine"
       traefik.http.routers.affine.middlewares: "hsts-headers@docker"
       traefik.http.services.affine.loadbalancer.server.port: "3010"
