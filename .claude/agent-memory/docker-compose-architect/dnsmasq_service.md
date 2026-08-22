@@ -60,6 +60,45 @@ Fix: added two more `command:` args, additive to the existing
 wildcard-bind-then-filter, which is what avoids the loopback collision.
 Nothing else in the file changed.
 
+## dnsmasq-tailnet/docker-compose.yml (added 2026-08-22)
+
+Independent sibling of `dnsmasq/` created to route around a confirmed
+hairpin-NAT bug: the NAS's own host network stack cannot hairpin back to its
+own LAN IP on Traefik's published port, so any Tailscale subnet-router
+forwarding (which relays tailnet traffic back out to the LAN IP) hits the
+same limitation and times out for every Tailscale-connected client, not one
+specific device. Confirmed via SSH: `curl https://<LAN_IP>:443/` from the
+NAS itself times out; `curl https://127.0.0.1:443/` with the same Host
+header works. Traefik's entrypoints are not at fault - already bind broadly
+enough to accept a connection arriving directly on `tailscale0`.
+
+Fix implemented: a second, fully independent `4km3/dnsmasq:2.90-r3`
+instance, `network_mode: host` (same as the original and as `tailscale`
+itself, all coexist fine on host networking), that answers the *same*
+wildcard domain with the NAS's tailnet IP (`${TAILNET_IP}`) instead of its
+LAN IP. No per-hostname private-tier overrides needed here - once traffic
+arrives directly on `tailscale0`, the LAN's family/private-tier IP split is
+irrelevant, so this file has exactly one `--address=` rule instead of the
+original's long per-hostname list.
+
+- `--listen-address=${TAILNET_IP} --bind-interfaces` avoids colliding with
+  the *original* dnsmasq's own bind to `${DNS_TARGET_IP}` (both instances
+  are host-networked, so without pinned listen addresses they'd fight over
+  wildcard-binding port 53) - same non-collision technique as the original
+  uses against systemd-resolved, just against a different collision source.
+- Same `--filter-AAAA --filter-rr=HTTPS --filter-rr=SVCB` and same TZ
+  no-op comment as the original (verified: still no tzdata in this image).
+- `restart: "no"` here too - this is newer/more experimental than even the
+  original's stopgap status, manual start/stop by the household member.
+- Root-cause fix here is a workaround, not a real fix - the actual hairpin
+  limitation needs root/iptables/sysctl access on the NAS host that no one
+  doing this work currently has. If that access is ever obtained, this
+  entire second dnsmasq instance could potentially be retired in favor of
+  fixing the hairpin directly.
+- `${VAR}`s needed in Portainer for this stack: `TZ`, `DNS_WILDCARD_DOMAIN`,
+  `TAILNET_IP` (the NAS's own Tailscale IP, from `tailscale status` - not a
+  LAN IP).
+
 ## Tooling gotcha: writing `.env.example` files
 
 The `Write` tool has a deny rule blocking any path matching `.env*` exactly
