@@ -60,11 +60,22 @@ services:
     #       namespace to reach, and
     #   (b) normal outbound NAT/internet access to reach Tailscale's own
     #       coordination servers.
-    # A container using network_mode: service:tailscale-admin (the forwarder)
-    # cannot declare its own networks: block, so this is also the only place
-    # traefik-proxy attachment needs to be declared for that shared stack.
+    # A container using network_mode: container:tailscale-admin (the
+    # forwarder) cannot declare its own networks: block, so this is also the
+    # only place traefik-proxy attachment needs to be declared for that
+    # shared stack.
+    #
+    # STATIC IP required (not left to Docker's dynamic assignment): Traefik's
+    # proxyProtocol.trustedIPs (../traefik/docker-compose.yml) trusts PROXY
+    # protocol headers ONLY from this container's own IP - the forwarder
+    # sharing this namespace is what actually sends them, sourced from this
+    # container's address on traefik-proxy. A dynamically-assigned IP could
+    # silently change on any container recreate, breaking that trust
+    # boundary without warning (confirmed live: the address really did
+    # differ from what was assumed before this was made static).
     networks:
-      - traefik_proxy_network
+      traefik_proxy_network:
+        ipv4_address: "${TAILSCALE_ADMIN_INTERNAL_IP}"
     # SECURITY FIX for the forwarder's privileged-port bind, scoped to this
     # container's network namespace only (not host-wide, safe on a
     # non-host-mode container): lets a non-root process bound to THIS
