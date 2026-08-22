@@ -38,6 +38,22 @@ order and loop the review step - agents cannot call each other.
    > certresolver, with no error logged, and falls back to Traefik's
    > self-signed cert forever. Confirmed production bug, 2026-08-21.
 
+   Every router also needs `traefik.http.routers.<name>.middlewares` to
+   include `hsts-headers@docker` (the shared HSTS middleware defined once
+   on the `traefik` service itself, rolled out repo-wide 2026-08-22) - if
+   the router already needs another middleware (e.g. basicauth), append
+   `,hsts-headers@docker` to the existing comma-separated value rather than
+   replacing it.
+
+   If the service uses `network_mode: host`, the backend target must be
+   `traefik.http.services.<name>.loadbalancer.server.url: "http://host.docker.internal:<port>"`
+   - **never `${NAS_IP}`**. Confirmed 2026-08-22 by exec'ing into the
+   `traefik` container directly: its bridge networks cannot route to the
+   NAS's own LAN IP at all (connection times out), only to
+   `host.docker.internal` (Docker's host-gateway alias - requires
+   `extra_hosts: ["host.docker.internal:host-gateway"]` on the `traefik`
+   service itself, already present).
+
 3. **DNS** - dispatch `docker-compose-architect` again, this time to add a
    line to `dnsmasq/docker-compose.yml` for the new service's hostname:
    `--address=/<service-subdomain>.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}`,
