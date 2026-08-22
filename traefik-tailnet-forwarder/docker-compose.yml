@@ -87,6 +87,12 @@ services:
     # be reused here. NOTE: network_mode: host means this service cannot
     # also declare a `networks:` block - do not add traefik-proxy here.
     network_mode: host
+    # haproxy:alpine runs as a non-root user by default, which cannot bind
+    # a privileged port (443) without this capability - confirmed live:
+    # "cannot bind socket (Permission denied) for [100.101.189.91:443]".
+    # Minimal-privilege fix (this one capability only, not full root).
+    cap_add:
+      - NET_BIND_SERVICE
     volumes:
       - ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     # Critical-path for all tailnet admin access (same criticality tier as
