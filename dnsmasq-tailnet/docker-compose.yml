@@ -23,10 +23,36 @@ services:
   # touching or depending on the LAN-facing one - both already run
   # network_mode: host on the NAS, so a second instance is safe.
   #
-  # No per-hostname private-tier overrides here (unlike the original): once
-  # traffic is arriving directly on tailscale0, the LAN's family/private-tier
-  # forwarder split is irrelevant - every hostname should resolve to the same
-  # tailnet IP for tailnet clients.
+  # PARTIALLY SUPERSEDED 2026-08-22: the note above ("every hostname resolves
+  # to the same tailnet IP") no longer holds for admin-gated hostnames. A
+  # second, independent Tailscale identity (tailscale-admin, ../tailscale-admin/,
+  # tailnet IP ${TAILSCALE_ADMIN_IP}) now fronts admin-only-gated services via
+  # its own forwarder + Traefik entrypoint path (../traefik-tailnet-forwarder/,
+  # TRAEFIK_ENTRYPOINT_7 in ../traefik/docker-compose.yml). Those hostnames
+  # must resolve to the admin node's tailnet IP instead of the primary node's
+  # ${TAILNET_IP}, so they need their own more-specific --address= rule below,
+  # alongside (not replacing) the wildcard rule. dnsmasq resolves --address
+  # domain matching the same way it does for --server: most-specific
+  # (longest/exact) match wins, and matching is done on complete labels - see
+  # the dnsmasq man page's --server section ("More specific domains take
+  # precedence over less specific domains... Matching of domains is normally
+  # done on complete labels"). A rule for exactly "traefik.${DNS_WILDCARD_DOMAIN}" is
+  # strictly more specific than the wildcard rule for "${DNS_WILDCARD_DOMAIN}", so it wins
+  # ONLY for queries matching that exact label sequence - every other
+  # subdomain (all ~76 others) still falls through to the wildcard rule,
+  # completely unchanged, because they don't match the exact-hostname rule at
+  # all.
+  #
+  # Currently only traefik.${DNS_WILDCARD_DOMAIN} (Traefik's own dashboard, the pilot
+  # service for this admin-gated path) uses this override. Scaling to more
+  # admin-gated hostnames later: dnsmasq's --address syntax natively supports
+  # multiple domains in one directive - "-A, --address=/<domain>[/<domain>...]/
+  # [<ipaddr>]" - so add more "/hostname.${DNS_WILDCARD_DOMAIN}" segments to the SAME rule
+  # below (e.g. "--address=/traefik.${DNS_WILDCARD_DOMAIN}/host2.${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}")
+  # rather than adding a new rule per hostname. A separate rule per hostname
+  # would also work (matching is independent per rule) but one shared rule
+  # keeps all admin-gated hostnames declared in a single, easy-to-audit place
+  # as the private-tier rollout scales toward 54 services.
   #
   # Deliberately NOT attached to cloudflare-web or traefik-proxy: this is a
   # raw DNS (port 53) service, not HTTP, and is not meant to be reachable
@@ -49,6 +75,12 @@ services:
     # command: here is appended as extra dnsmasq CLI args, not a replacement.
     command:
       - "--address=/${DNS_WILDCARD_DOMAIN}/${TAILNET_IP}"
+      # More-specific override for admin-gated hostnames routed through the
+      # tailscale-admin/traefik-tailnet-forwarder path instead of the primary
+      # tailnet node - see the top-of-file comment block for the precedence
+      # explanation and the scaling note (add more "/hostname.${DNS_WILDCARD_DOMAIN}"
+      # segments here as more admin-gated services onboard).
+      - "--address=/traefik.${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}"
       - "--log-facility=-"
       # --listen-address + --bind-interfaces here binds specifically to the
       # NAS's tailnet IP instead of wildcard-binding port 53, which would
