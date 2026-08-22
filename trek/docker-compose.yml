@@ -56,17 +56,12 @@ services:
       traefik.http.routers.trek-friends.tls.certresolver: "cf_dns"
       traefik.http.routers.trek-friends.service: "trek"
       traefik.http.services.trek.loadbalancer.server.port: "3000"
-      traefik.http.services.trek.loadbalancer.server.scheme: "https"
-      traefik.http.services.trek.loadbalancer.serverstransport: "trek-insecure@docker"
-      traefik.http.serversTransports.trek-insecure.insecureSkipVerify: "true"
       traefik.http.routers.trek-private.rule: "Host(`${TREK_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.trek-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.trek-private.tls: "true"
       traefik.http.routers.trek-private.tls.certresolver: "cf_dns"
       traefik.http.routers.trek-private.service: "trek-private"
       traefik.http.services.trek-private.loadbalancer.server.port: "3000"
-      traefik.http.services.trek-private.loadbalancer.server.scheme: "https"
-      traefik.http.services.trek-private.loadbalancer.serverstransport: "trek-insecure@docker"
       traefik.docker.network: "traefik-proxy"
     logging:
       options:

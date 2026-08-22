@@ -1,6 +1,6 @@
 ---
 name: adding-compose-services
-description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules - Cloudflare Tunnel AND a private-tier Traefik router by default, plus family/guest/friends tiers if the user asks for them - runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off the Cloudflare Tunnel target plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
+description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules - Cloudflare Tunnel AND a private-tier Traefik router by default, plus family/guest/friends tiers if the user asks for them - adds the matching `dnsmasq` private-tier DNS override (required for every service, not optional, so the private-tier URL actually resolves to Traefik), runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off the Cloudflare Tunnel target plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
 ---
 
 # Adding a Compose Service
@@ -38,20 +38,37 @@ order and loop the review step - agents cannot call each other.
    > certresolver, with no error logged, and falls back to Traefik's
    > self-signed cert forever. Confirmed production bug, 2026-08-21.
 
-3. **REVIEW** - dispatch `compose-security-auditor` and
+3. **DNS** - dispatch `docker-compose-architect` again, this time to add a
+   line to `dnsmasq/docker-compose.yml` for the new service's hostname:
+   `--address=/<service-subdomain>.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}`,
+   inserted alphabetically among the existing per-hostname override lines.
+   **Every new service needs this entry, unconditionally** - not just
+   services without family/guest/friends access. Since every service now
+   gets a private-tier Traefik router by default (step 2), its clean private
+   URL only actually resolves to Traefik's private forwarder if dnsmasq has
+   this override; without it, the hostname falls through to the general
+   wildcard (the NAS's own IP, not Traefik) and the private router is
+   unreachable by hostname even though it exists. Confirmed as the root
+   cause of repeated "not secure"/no-route bugs across many services,
+   2026-08-22 - dnsmasq is confirmed permanent infrastructure here, not a
+   stopgap, so this step is not optional. Skip it only if the user
+   explicitly says this specific service must stay unreachable outside
+   Cloudflare/family/guest/friends tiers (rare - confirm before skipping).
+
+4. **REVIEW** - dispatch `compose-security-auditor` and
    `compose-consistency-linter` in parallel on the new file only. Both are
    read-only and never edit.
 
-4. **FIX** - send any findings from either reviewer back to
+5. **FIX** - send any findings from either reviewer back to
    `docker-compose-architect` as an exact list (file, finding, required fix).
    Reviewers never edit files themselves. Re-run only the reviewer(s) that had
    findings, scoped to the new service.
 
-5. Repeat steps 3→4 up to 3 cycles total. If findings remain after cycle 3,
+6. Repeat steps 4→5 up to 3 cycles total. If findings remain after cycle 3,
    stop looping and report the residual findings to the user instead of
    continuing to iterate.
 
-6. **HANDOFF** - close by stating:
+7. **HANDOFF** - close by stating:
    - the Cloudflare Tunnel connector target, `http://<container_name>:<internal_port>`,
      if the compose touches `cloudflare_web_network` (docker-compose-architect
      states this after any such change - surface it here);
@@ -71,6 +88,10 @@ order and loop the review step - agents cannot call each other.
      | `TRAEFIK_ENTRYPOINT_4` / `TRAEFIK_PORT_4` | friends | 8445 |
      | `TRAEFIK_ENTRYPOINT_5` / `TRAEFIK_PORT_5` | internal, `cloudflared`-facing only | 9080 |
      | `TRAEFIK_ENTRYPOINT_6` / `TRAEFIK_PORT_6` | internal, ping/dashboard-API only | 8080 |
+   - a reminder that **`dnsmasq` needs to be redeployed** (recreated, not
+     just restarted - it runs `restart: always` but a compose-file edit only
+     applies on recreate) before the new service's private-tier hostname will
+     actually resolve to Traefik.
 
 ## Exit condition
 
