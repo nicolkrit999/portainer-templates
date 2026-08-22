@@ -68,17 +68,27 @@ Each group is well under the 100-SAN-per-cert limit even at current size -
 split a group further only when it actually approaches that limit, not
 preemptively.
 
-**Deployment status as of 2026-08-22**: `budgeting` fully deployed and
-consolidated (real bundled cert confirmed issued). `media`, `utilities`,
-`productivity-creative` have the correct config deployed (Phase A: siblings
-stripped of certresolver) and are pending their bundled cert being issued
-(blocked on Let's Encrypt's rate limit clearing, not a config problem).
-`household-travel` has Phase A deployed but its individual member
-certificates haven't yet been deleted to force the bundle (Phase B not
-run). `infra-ops`/`portainer` anchor is written in `portainer/docker-compose.yml`
-but not yet deployed (Portainer itself isn't tracked as a normal Portainer
-stack - deploying compose changes to it needs a careful manual step, not
-a routine git-poll redeploy).
+**Deployment status as of 2026-08-22 evening (corrected)**: `budgeting`,
+`media`, `utilities`, `productivity-creative` all have Phase A deployed
+correctly (siblings stripped of `certresolver`, confirmed via logs to have
+fully stopped the sibling-router race - each anchor now fires exactly one
+bundled ACME request instead of N individual ones) and Phase B run (old
+individual certs deleted to force reissuance) - **but the bundled cert has
+NOT actually landed for any of the four yet**: all four are still being
+served Traefik's self-signed default cert as of this check, because every
+retry is hitting Let's Encrypt's 429 rate limit (confirmed via live
+Traefik logs, `retry after 2026-08-22 ~18:0x UTC` = ~20:0x CEST). An
+earlier note in this file claiming `budgeting`'s bundled cert was
+"confirmed issued" was premature/wrong - do not trust that claim, verify
+directly (`openssl s_client -connect <host>:443 -servername <host>` and
+check the issuer isn't `TRAEFIK DEFAULT CERT`) before telling the user any
+group is done. `household-travel` has Phase A deployed but its individual
+member certificates haven't yet been deleted to force the bundle (Phase B
+not run) - unaffected by the current rate-limit block since it never
+triggered new ACME requests. `infra-ops`/`portainer` anchor is written in
+`portainer/docker-compose.yml` but not yet deployed (Portainer itself isn't
+tracked as a normal Portainer stack - deploying compose changes to it needs
+a careful manual step, not a routine git-poll redeploy).
 
 ## Adding a new service - mandatory step
 
