@@ -68,27 +68,41 @@ Each group is well under the 100-SAN-per-cert limit even at current size -
 split a group further only when it actually approaches that limit, not
 preemptively.
 
-**Deployment status as of 2026-08-22 evening (corrected)**: `budgeting`,
-`media`, `utilities`, `productivity-creative` all have Phase A deployed
-correctly (siblings stripped of `certresolver`, confirmed via logs to have
-fully stopped the sibling-router race - each anchor now fires exactly one
-bundled ACME request instead of N individual ones) and Phase B run (old
-individual certs deleted to force reissuance) - **but the bundled cert has
-NOT actually landed for any of the four yet**: all four are still being
-served Traefik's self-signed default cert as of this check, because every
-retry is hitting Let's Encrypt's 429 rate limit (confirmed via live
-Traefik logs, `retry after 2026-08-22 ~18:0x UTC` = ~20:0x CEST). An
-earlier note in this file claiming `budgeting`'s bundled cert was
-"confirmed issued" was premature/wrong - do not trust that claim, verify
-directly (`openssl s_client -connect <host>:443 -servername <host>` and
-check the issuer isn't `TRAEFIK DEFAULT CERT`) before telling the user any
-group is done. `household-travel` has Phase A deployed but its individual
-member certificates haven't yet been deleted to force the bundle (Phase B
-not run) - unaffected by the current rate-limit block since it never
-triggered new ACME requests. `infra-ops`/`portainer` anchor is written in
-`portainer/docker-compose.yml` but not yet deployed (Portainer itself isn't
-tracked as a normal Portainer stack - deploying compose changes to it needs
-a careful manual step, not a routine git-poll redeploy).
+**Deployment status as of 2026-08-22/23 overnight**: 5 of 6 groups are
+**fully confirmed working** - `budgeting`, `media`, `household-travel`,
+`utilities`, `productivity-creative` all verified via direct
+`openssl s_client -connect <host>:443 -servername <host>` showing a real
+Let's Encrypt cert (not `TRAEFIK DEFAULT CERT`) with the complete member
+SAN list, re-verified stable after `infra-ops` work was done on top. Do
+not trust a "confirmed issued" claim in this file (or a memory) without
+that direct check - this file previously asserted `budgeting` was done
+when it wasn't, and separately jellyfin's leftover individual cert once
+looked like a "done" bundle from log success alone (it wasn't - the store
+held two competing certs for the same domain; had to delete the stale one
+and restart).
+
+`infra-ops`/`portainer`: **Phase A now deployed correctly** (all 18
+sibling routers across 17 files stripped of `certresolver`, confirmed via
+logs - anchor fires exactly ONE clean bundled request with all 22 correct
+hostnames, mechanism verified working). The anchor itself is deployed
+manually via UGOS's compose UI (Portainer isn't a git-tracked stack) -
+**its own `.env` on UGOS must carry a `${..._SUBDOMAIN}` var for every
+other member of its group**, not just `PORTAINER_SUBDOMAIN`/`DOMAIN`; this
+was missed on the first manual deploy and produced a garbage
+`.nicolkrit.ch` SAN list (empty subdomain vars), which Let's Encrypt
+rejected outright (`400 rejectedIdentifier`). See
+[[san-bundle-anchor-env-scoping]] for the general principle. Currently
+blocked purely on a **fresh Let's Encrypt 429 rate limit** from the
+combined redeploy/reissue activity across every group this same evening -
+retry-after **2026-08-23 00:46 UTC**. Once that clears, re-verify directly
+before declaring `infra-ops` done, same standard as the other 5.
+
+Also note: 4 of `infra-ops`'s listed members (`adguard`, `dockpeek`,
+`gocron`, `upsnap`) have compose files in this repo but are **not actually
+deployed** anywhere (no running container, no Portainer stack) - harmless
+for the SAN-bundle mechanism (a router with no live container just never
+matches any traffic), but worth knowing if their absence from `StackList`
+or `docker ps` output is ever confusing.
 
 ## Adding a new service - mandatory step
 
