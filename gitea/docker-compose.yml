@@ -21,11 +21,6 @@ services:
             - traefik_proxy_network
         labels:
             traefik.enable: "true"
-            traefik.http.routers.gitea-family.rule: "Host(`${GITEA_SUBDOMAIN}.${DOMAIN}`)"
-            traefik.http.routers.gitea-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-            traefik.http.routers.gitea-family.tls: "true"
-            traefik.http.routers.gitea-family.service: "gitea"
-            traefik.http.routers.gitea-family.middlewares: "hsts-headers@docker"
             traefik.http.routers.gitea-guest.rule: "Host(`${GITEA_SUBDOMAIN}.${DOMAIN}`)"
             traefik.http.routers.gitea-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
             traefik.http.routers.gitea-guest.tls: "true"
