@@ -134,6 +134,13 @@ identified in this session's work session; the docker daemon rejects the
 create silently-late (container just fails to start) rather than at compose
 lint time.
 
+**`pocket-id` deliberately has NO direct port** (removed 2026-08-24, was
+`1411:1411`) - it's an OIDC provider, and every app trusting it as an
+issuer is configured against its one fixed clean URL
+(`https://pocket-id.nicolkrit.ch`). A raw LAN/Tailscale link would be a
+genuinely different origin, breaking OIDC discovery/token validation for
+every relying app - never add a direct port back for this service.
+
 | Service | Host port | Notes |
 |---|---|---|
 | `actual-budget` (budget) | 5006 | |
@@ -164,7 +171,6 @@ lint time.
 | `jellyfin` | 8196 | has its own login |
 | `navidrome` | 4533 | |
 | `plex` | 32400 | not currently deployed |
-| `pocket-id` | 1411 | |
 | `portainer` | 9000 (http), 9444 (https) | |
 | `qbit-torrent` | 9865 | host-networked (`network_mode: host`) |
 | `stirling-pdf` | 8085 | moved from the conventional 8080 - that port is already used live by `easy-appointments`' phpMyAdmin sidecar container |
