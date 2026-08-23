@@ -89,6 +89,20 @@ services:
       # "holyclaude"), and "soketi-coolify" is coolify-realtime's real
       # hostname (not "coolify-realtime").
       - "--address=/traefik.${DNS_WILDCARD_DOMAIN}/adguard.${DNS_WILDCARD_DOMAIN}/affine.${DNS_WILDCARD_DOMAIN}/apprise-api.${DNS_WILDCARD_DOMAIN}/audiobookshelf.${DNS_WILDCARD_DOMAIN}/beszel.${DNS_WILDCARD_DOMAIN}/blender.${DNS_WILDCARD_DOMAIN}/bytestash.${DNS_WILDCARD_DOMAIN}/cardyo.${DNS_WILDCARD_DOMAIN}/mailpit.${DNS_WILDCARD_DOMAIN}/phpldapadmin.${DNS_WILDCARD_DOMAIN}/change-detection.${DNS_WILDCARD_DOMAIN}/convertx.${DNS_WILDCARD_DOMAIN}/coolify.${DNS_WILDCARD_DOMAIN}/soketi-coolify.${DNS_WILDCARD_DOMAIN}/datetime.${DNS_WILDCARD_DOMAIN}/dockpeek.${DNS_WILDCARD_DOMAIN}/draw-io.${DNS_WILDCARD_DOMAIN}/duplicati.${DNS_WILDCARD_DOMAIN}/excalidraw.${DNS_WILDCARD_DOMAIN}/filebrowser.${DNS_WILDCARD_DOMAIN}/fossflow.${DNS_WILDCARD_DOMAIN}/glance.${DNS_WILDCARD_DOMAIN}/glances.${DNS_WILDCARD_DOMAIN}/gocron.${DNS_WILDCARD_DOMAIN}/gotify.${DNS_WILDCARD_DOMAIN}/harborguard.${DNS_WILDCARD_DOMAIN}/claude.${DNS_WILDCARD_DOMAIN}/home-assistant.${DNS_WILDCARD_DOMAIN}/it-tools.${DNS_WILDCARD_DOMAIN}/radarr.${DNS_WILDCARD_DOMAIN}/sonarr.${DNS_WILDCARD_DOMAIN}/kavita.${DNS_WILDCARD_DOMAIN}/lifeglance.${DNS_WILDCARD_DOMAIN}/linkwarden.${DNS_WILDCARD_DOMAIN}/moocup.${DNS_WILDCARD_DOMAIN}/n8n.${DNS_WILDCARD_DOMAIN}/opennotebook.${DNS_WILDCARD_DOMAIN}/openresume.${DNS_WILDCARD_DOMAIN}/paperlessngx.${DNS_WILDCARD_DOMAIN}/pocket-id.${DNS_WILDCARD_DOMAIN}/portainer.${DNS_WILDCARD_DOMAIN}/privatebin.${DNS_WILDCARD_DOMAIN}/qbit-torrent.${DNS_WILDCARD_DOMAIN}/snapotter.${DNS_WILDCARD_DOMAIN}/snappyemail.${DNS_WILDCARD_DOMAIN}/sosse.${DNS_WILDCARD_DOMAIN}/sparkyfitness.${DNS_WILDCARD_DOMAIN}/stirling-pdf.${DNS_WILDCARD_DOMAIN}/termix.${DNS_WILDCARD_DOMAIN}/tugtainer.${DNS_WILDCARD_DOMAIN}/upsnap.${DNS_WILDCARD_DOMAIN}/uptime-kuma.${DNS_WILDCARD_DOMAIN}/web-check.${DNS_WILDCARD_DOMAIN}/withoutbg.${DNS_WILDCARD_DOMAIN}/ytptube.${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}"
+      # Exceptions: hostnames deliberately Cloudflare-Tunnel-ONLY, never
+      # migrated to Traefik (Cloudflare Access SSH applications, in this
+      # case) - the wildcard rule above would otherwise intercept these too
+      # and point tailnet clients straight at this NAS instead of letting
+      # them resolve via real public DNS to Cloudflare's edge. Confirmed
+      # broken this way 2026-08-23 for gitea-ssh.nicolkrit.ch (same fix
+      # applied to the LAN-facing dnsmasq/docker-compose.yml sibling - keep
+      # both in sync). `--server=/domain/ip` forwards matching queries to
+      # the named upstream instead of answering locally; more specific than
+      # the wildcard `--address` rule above, so it wins for these labels
+      # only. Check the Cloudflare Tunnel dashboard's public hostname list
+      # (not this repo) if another Cloudflare-only application needs adding.
+      - "--server=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
+      - "--server=/ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
       - "--log-facility=-"
       # --listen-address + --bind-interfaces here binds specifically to the
       # NAS's tailnet IP instead of wildcard-binding port 53, which would
