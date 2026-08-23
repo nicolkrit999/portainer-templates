@@ -67,6 +67,7 @@ specific service.
 | `homebox` | homebox | family, private | yes |
 | `homehub` | casa | family, private | yes |
 | `immich` | foto | family, guest, private, friends | yes |
+| `iperf3` | *(no Traefik router - Tailscale-grant-only, see port table)* | *(none - not a Traefik tier at all)* | yes |
 | `it-tools` | it-tools | private, tailnet-admin | yes |
 | `jellyfin` | jellyfin | family, guest, private, friends | yes |
 | `jellyfin-radarr` | radarr | private, tailnet-admin | yes |
@@ -151,6 +152,7 @@ lint time.
 | `home-assistant` | 8123 | host-networked (`network_mode: host`) |
 | `homehub` | 5000 | |
 | `immich` | 2283 | |
+| `iperf3` | 5201 (tcp+udp) | no Traefik router at all, no clean URL - reachable only via a direct Tailscale grant (`tag:family`/`tag:friends` -> NAS tailnet IP, both protocols), added 2026-08-23 for household bandwidth testing. No authentication of any kind - anyone on those tags can start a test at will |
 | `jellyfin` | 8196 | has its own login |
 | `navidrome` | 4533 | |
 | `plex` | 32400 | not currently deployed |
