@@ -89,10 +89,11 @@ services:
       # list - those routers need no label changes at all.
       # This anchor bundles: vikunja (this host, promemoria), grocy,
       # homebox, homehub (casa), mealie (ricette), sparkyfitness,
-      # easy-appointments (appuntamenti), home-assistant, surmai (viaggi),
-      # trek.
+      # easy-appointments (appuntamenti + its phpmyadmin/swagger-ui/baikal
+      # sub-services, added 2026-08-23 once those got their own Traefik
+      # routers), home-assistant, surmai (viaggi), trek.
       traefik.http.routers.vikunja-private.tls.domains[0].main: "${VIKUNJA_SUBDOMAIN}.${DOMAIN}"
-      traefik.http.routers.vikunja-private.tls.domains[0].sans: "${GROCY_SUBDOMAIN}.${DOMAIN},${HOMEBOX_SUBDOMAIN}.${DOMAIN},${HOMEHUB_SUBDOMAIN}.${DOMAIN},${MEALIE_SUBDOMAIN}.${DOMAIN},${SPARKYFITNESS_SUBDOMAIN}.${DOMAIN},${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN},${HOME_ASSISTANT_SUBDOMAIN}.${DOMAIN},${SURMAI_SUBDOMAIN}.${DOMAIN},${TREK_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.vikunja-private.tls.domains[0].sans: "${GROCY_SUBDOMAIN}.${DOMAIN},${HOMEBOX_SUBDOMAIN}.${DOMAIN},${HOMEHUB_SUBDOMAIN}.${DOMAIN},${MEALIE_SUBDOMAIN}.${DOMAIN},${SPARKYFITNESS_SUBDOMAIN}.${DOMAIN},${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN},${HOME_ASSISTANT_SUBDOMAIN}.${DOMAIN},${SURMAI_SUBDOMAIN}.${DOMAIN},${TREK_SUBDOMAIN}.${DOMAIN},${EASY_APPOINTMENTS_PMA_SUBDOMAIN}.${DOMAIN},${EASY_APPOINTMENTS_SWAGGER_SUBDOMAIN}.${DOMAIN},${EASY_APPOINTMENTS_BAIKAL_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.vikunja-private.service: "vikunja-private"
       traefik.http.routers.vikunja-private.middlewares: "hsts-headers@docker"
       traefik.http.services.vikunja-private.loadbalancer.server.port: "3456"
