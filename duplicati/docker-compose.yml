@@ -4,7 +4,7 @@ services:
     container_name: duplicati
     restart: always
     ports:
-      - "127.0.0.1:${DUPLICATI_HOST_PORT}:8200"
+      - "${DUPLICATI_HOST_PORT}:8200"
     networks:
       - cloudflare_web_network
       - traefik_proxy_network

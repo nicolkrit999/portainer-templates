@@ -6,6 +6,8 @@ services:
     user: "0:0"
     expose:
       - "80"
+    ports:
+      - "${FILEBROWSER_HOST_PORT}:80"
     volumes:
       - ${DOCKER_CONFIG_DIR}/filebrowser/database:/database
       - ${DOCKER_CONFIG_DIR}/filebrowser/config:/config

@@ -12,7 +12,7 @@ services:
     environment:
       - TZ=${TZ}
     ports:
-      - "127.0.0.1:${JELLYFIN_HOST_PORT}:8096"
+      - "${JELLYFIN_HOST_PORT}:8096"
     networks:
       - cloudflare_web_network
       - traefik_proxy_network

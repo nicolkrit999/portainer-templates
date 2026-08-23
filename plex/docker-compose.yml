@@ -8,6 +8,8 @@ services:
       - TZ=${TZ}
       - VERSION=docker
       - PLEX_CLAIM=${PLEX_CLAIM}
+    ports:
+      - "${PLEX_HOST_PORT}:32400"
     volumes:
       - ${DOCKER_CONFIG_DIR}/plex/config:/config
       - ${DOCKER_DATA_DIR}/jellyfin/tv-shows:/tv

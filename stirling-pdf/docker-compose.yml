@@ -27,6 +27,8 @@ services:
      METRICS_ENABLED: true
      SYSTEM_GOOGLEVISIBILITY: false
     restart: unless-stopped
+    ports:
+      - "${STIRLING_PDF_HOST_PORT}:8080"
     networks:
       - cloudflare_web_services
       - traefik_proxy_network

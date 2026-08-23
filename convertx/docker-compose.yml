@@ -11,6 +11,8 @@ services:
       ACCOUNT_REGISTRATION: "false"
       HTTP_ALLOWED: "true"
       ALLOW_UNAUTHENTICATED: "false"
+    ports:
+      - "${CONVERTX_HOST_PORT}:3000"
     volumes:
       - ${DOCKER_DATA_DIR}/convertx:/app/data:rw
     labels:

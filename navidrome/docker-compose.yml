@@ -7,6 +7,8 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    ports:
+      - "${NAVIDROME_HOST_PORT}:4533"
     volumes:
       - ${DOCKER_CONFIG_DIR}/navidrome:/data:rw
       - ${DOCKER_CONFIG_DIR}/navidrome/music-root:/music:rw
