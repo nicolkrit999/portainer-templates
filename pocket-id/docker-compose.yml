@@ -34,6 +34,11 @@ services:
       traefik.http.routers.pocket-id.tls: "true"
       traefik.http.routers.pocket-id.service: "pocket-id"
       traefik.http.routers.pocket-id.middlewares: "hsts-headers@docker"
+      traefik.http.routers.pocket-id-tailnet.rule: "Host(`${POCKET_ID_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.pocket-id-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.pocket-id-tailnet.tls: "true"
+      traefik.http.routers.pocket-id-tailnet.service: "pocket-id"
+      traefik.http.routers.pocket-id-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.pocket-id.loadbalancer.server.port: "1411"
       traefik.docker.network: "traefik-proxy"
 

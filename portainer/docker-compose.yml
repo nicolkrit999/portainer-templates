@@ -25,6 +25,11 @@ services:
       traefik.http.routers.portainer.tls.domains[0].sans: "${COOLIFY_SUBDOMAIN}.${DOMAIN},${SOKETI_SUBDOMAIN}.${DOMAIN},${GITEA_SUBDOMAIN}.${DOMAIN},${TUGTAINER_SUBDOMAIN}.${DOMAIN},${DOCKPEEK_SUBDOMAIN}.${DOMAIN},${HARBORGUARD_SUBDOMAIN}.${DOMAIN},${BESZEL_SUBDOMAIN}.${DOMAIN},${UPTIME_KUMA_SUBDOMAIN}.${DOMAIN},${GLANCES_SUBDOMAIN}.${DOMAIN},${GLANCE_SUBDOMAIN}.${DOMAIN},${GOCRON_SUBDOMAIN}.${DOMAIN},${N8N_SUBDOMAIN}.${DOMAIN},${POCKET_ID_SUBDOMAIN}.${DOMAIN},${ADGUARD_SUBDOMAIN}.${DOMAIN},${UPSNAP_SUBDOMAIN}.${DOMAIN},${APPRISE_API_SUBDOMAIN}.${DOMAIN},${GOTIFY_SUBDOMAIN}.${DOMAIN},${WEB_CHECK_SUBDOMAIN}.${DOMAIN},${TRAEFIK_DASHBOARD_SUBDOMAIN}.${DOMAIN},${MAILPIT_SUBDOMAIN}.${DOMAIN},${PHPLDAPADMIN_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.portainer.service: "portainer"
       traefik.http.routers.portainer.middlewares: "hsts-headers@docker"
+      traefik.http.routers.portainer-tailnet.rule: "Host(`${PORTAINER_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.portainer-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.portainer-tailnet.tls: "true"
+      traefik.http.routers.portainer-tailnet.service: "portainer"
+      traefik.http.routers.portainer-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.portainer.loadbalancer.server.port: "9000"
       traefik.docker.network: "traefik-proxy"
       # --- SAN-bundled ACME certificate (group "infra-ops") - see the two
