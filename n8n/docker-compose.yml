@@ -97,6 +97,11 @@ services:
       traefik.http.routers.n8n.tls: "true"
       traefik.http.routers.n8n.service: "n8n"
       traefik.http.routers.n8n.middlewares: "hsts-headers@docker"
+      traefik.http.routers.n8n-tailnet.rule: "Host(`${N8N_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.n8n-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.n8n-tailnet.tls: "true"
+      traefik.http.routers.n8n-tailnet.service: "n8n"
+      traefik.http.routers.n8n-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.n8n.loadbalancer.server.port: "5678"
       traefik.docker.network: "traefik-proxy"
     networks:
