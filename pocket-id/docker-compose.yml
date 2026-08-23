@@ -10,9 +10,6 @@ services:
       PUID: ${PUID}
       PGID: ${PGID}
 
-    ports:
-      - "1411:1411"
-
     volumes:
       - ${DOCKER_CONFIG_DIR}/pocket-id:/app/data:rw
 
