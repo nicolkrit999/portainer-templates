@@ -85,6 +85,7 @@ specific service.
 | `navidrome` | navidrome | family, guest, private | yes |
 | `omni-tools` | omnitools | family, private | yes |
 | `opennotebook` | opennotebook | private, tailnet-admin | yes |
+| `opennotebook` (api sub-service) | opennotebook-api | private, tailnet-admin | yes |
 | `openresume` | openresume | private, tailnet-admin | no |
 | `owncloud` | owncloud | guest, private | yes |
 | `paperlessngx` | paperlessngx | private, tailnet-admin | yes |
