@@ -55,6 +55,17 @@ services:
       traefik.http.routers.open_notebook-tailnet.service: "open_notebook"
       traefik.http.routers.open_notebook-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.open_notebook.loadbalancer.server.port: "8502"
+      traefik.http.routers.open_notebook-api.rule: "Host(`${OPENNOTEBOOK_API_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.open_notebook-api.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.open_notebook-api.tls: "true"
+      traefik.http.routers.open_notebook-api.service: "open_notebook-api"
+      traefik.http.routers.open_notebook-api.middlewares: "hsts-headers@docker"
+      traefik.http.routers.open_notebook-api-tailnet.rule: "Host(`${OPENNOTEBOOK_API_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.open_notebook-api-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.open_notebook-api-tailnet.tls: "true"
+      traefik.http.routers.open_notebook-api-tailnet.service: "open_notebook-api"
+      traefik.http.routers.open_notebook-api-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
+      traefik.http.services.open_notebook-api.loadbalancer.server.port: "5055"
       traefik.docker.network: "traefik-proxy"
     logging:
       options:

@@ -62,7 +62,7 @@ requested by one "anchor" router per group.
 | **household-travel** | `vikunja` (`vikunja-private`) | vikunja (promemoria), grocy, homebox, casa (homehub), ricette (mealie), sparkyfitness, appuntamenti (easy-appointments), appuntamenti-pma/-swagger/-baikal (easy-appointments' sub-services, added 2026-08-23), home-assistant, viaggi (surmai), trek |
 | **infra-ops** | `glances` (`glances`) | glances, portainer, coolify, soketi-coolify, gitea, tugtainer, dockpeek, harborguard, beszel, uptime-kuma, glance, gocron, n8n, pocket-id, adguard, upsnap, apprise-api, gotify, web-check, traefik (dashboard), mailpit, phpldapadmin |
 | **utilities** | `duplicati` (`duplicati`) | duplicati, it-tools, omnitools, convertx, stirling-pdf, change-detection, filebrowser, snapotter, moocup, withoutbg, cardyo, datetime, termix, snappyemail, owncloud, miniqr, privatebin, bytestash, openresume, sosse |
-| **productivity-creative** | `linkwarden` (`linkwarden`) | linkwarden, affine, draw-io, excalidraw, fossflow, opennotebook, paperlessngx, claude (holyclaude - **hostname is `claude`, not `holyclaude`**, confirmed against the live Portainer env, don't assume the directory name), blender, lifeglance, blog (ghost) |
+| **productivity-creative** | `linkwarden` (`linkwarden`) | linkwarden, affine, draw-io, excalidraw, fossflow, opennotebook, opennotebook-api (opennotebook's own API sub-service, port 5055, added 2026-08-24), paperlessngx, claude (holyclaude - **hostname is `claude`, not `holyclaude`**, confirmed against the live Portainer env, don't assume the directory name), blender, lifeglance, blog (ghost) |
 
 **Anchor swap 2026-08-23**: the household member moved the anchor role in
 4 of the 6 groups away from everyday/critical services onto more

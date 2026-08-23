@@ -57,14 +57,16 @@ services:
       # Once this router obtains the cert, every other router below is
       # covered automatically via the SAN list - those routers need no label
       # changes at all.
-      # Bundled hostnames (this anchor + 10 others): linkwarden (this host),
-      # affine, draw-io, excalidraw, fossflow, opennotebook, paperlessngx
+      # Bundled hostnames (this anchor + 11 others): linkwarden (this host),
+      # affine, draw-io, excalidraw, fossflow, opennotebook + its own
+      # opennotebook-api sub-service (added 2026-08-24, port 5055 on the
+      # same container, previously had no Traefik router at all), paperlessngx
       # (rule label uses PAPERLESS_SUBDOMAIN), holyclaude (env var name is
       # HOLYCLAUDE_SUBDOMAIN, but the real live hostname is "claude", NOT
       # "holyclaude" - confirmed against the live Portainer env), blender,
       # lifeglance, ghost (rule label uses GHOST_SUBDOMAIN, default "blog").
       traefik.http.routers.linkwarden.tls.domains[0].main: "${LINKWARDEN_SUBDOMAIN}.${DOMAIN}"
-      traefik.http.routers.linkwarden.tls.domains[0].sans: "${AFFINE_SUBDOMAIN}.${DOMAIN},${DRAWIO_SUBDOMAIN}.${DOMAIN},${EXCALIDRAW_SUBDOMAIN}.${DOMAIN},${FOSSFLOW_SUBDOMAIN}.${DOMAIN},${OPENNOTEBOOK_SUBDOMAIN}.${DOMAIN},${PAPERLESS_SUBDOMAIN}.${DOMAIN},${HOLYCLAUDE_SUBDOMAIN}.${DOMAIN},${BLENDER_SUBDOMAIN}.${DOMAIN},${LIFEGLANCE_SUBDOMAIN}.${DOMAIN},${GHOST_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.linkwarden.tls.domains[0].sans: "${AFFINE_SUBDOMAIN}.${DOMAIN},${DRAWIO_SUBDOMAIN}.${DOMAIN},${EXCALIDRAW_SUBDOMAIN}.${DOMAIN},${FOSSFLOW_SUBDOMAIN}.${DOMAIN},${OPENNOTEBOOK_SUBDOMAIN}.${DOMAIN},${OPENNOTEBOOK_API_SUBDOMAIN}.${DOMAIN},${PAPERLESS_SUBDOMAIN}.${DOMAIN},${HOLYCLAUDE_SUBDOMAIN}.${DOMAIN},${BLENDER_SUBDOMAIN}.${DOMAIN},${LIFEGLANCE_SUBDOMAIN}.${DOMAIN},${GHOST_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.linkwarden.service: "linkwarden"
       traefik.http.routers.linkwarden.middlewares: "hsts-headers@docker"
       traefik.http.routers.linkwarden-tailnet.rule: "Host(`${LINKWARDEN_SUBDOMAIN}.${DOMAIN}`)"
