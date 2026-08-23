@@ -145,6 +145,10 @@ lint time.
 | `convertx` | 3010 | |
 | `coolify` (soketi-coolify) | 6001 | 6002 also published (metrics, not the main link) |
 | `duplicati` | 8200 | password-protected (`DUPLICATI_WEBSERVICE_PASSWORD`) |
+| `easy-appointments` (nginx/main app) | 8180 | |
+| `easy-appointments` (phpmyadmin) | 8080 | no Traefik router at all - `appuntamenti-pma.nicolkrit.ch` and similar guessed hostnames 404, direct port only |
+| `easy-appointments` (swagger-ui) | 8000 | no Traefik router at all - same as phpmyadmin above |
+| `easy-appointments` (baikal) | 8100 | no Traefik router at all - same as phpmyadmin above |
 | `filebrowser` | 8082 | not currently deployed |
 | `gitea` | 3003 | has its own full login/account system |
 | `glances` | 61208 | host-networked (`network_mode: host`) |
@@ -165,6 +169,7 @@ lint time.
 
 **Known already-occupied host ports NOT in the table above** (internal-only,
 multi-container composes - don't reuse these when picking a new port):
-`easy-appointments` also publishes 3306 (mariadb), 8080 (phpMyAdmin), 8000
-(swagger-ui), 8100 (baikal) - none of these are meant for direct end-user
-access, they're internal tooling for that one stack.
+`easy-appointments` also publishes 3306 (mysql - not meant for direct
+end-user access, internal DB only). Its phpMyAdmin/swagger-ui/baikal ports
+moved into the table above since they turned out to be real, reachable
+admin links, just without a Traefik router.
