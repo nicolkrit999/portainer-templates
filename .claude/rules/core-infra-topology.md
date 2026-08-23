@@ -147,6 +147,23 @@ access-control verification script (see the household's memory
 of). To tell them apart, check the container's actual running state
 directly (`docker_proxy` `/containers/json`), not the HTTP response.
 
+**A second, distinct ambiguous-404 case, with an actual HTTP-only fix**:
+a real router that matched and routed correctly can still have its
+backend app return its own `404` at that path (e.g. an API-only service
+with nothing served at `/`) - indistinguishable from "no router matched at
+all" by status code alone, same problem as above but for a different
+reason (nothing to do with the container being down). Found 2026-08-23
+while a verification script hit false-positive failures on `budget-api`/
+`budget-ical` (a known-benign case, see `family-tier-dns-access-incident`).
+**Fix that doesn't need `docker_proxy` access**: check for the
+`Strict-Transport-Security` response header. Every real router in this
+repo has `hsts-headers@docker` in its `middlewares` list (see
+`.claude/rules/networking.md`), so that header is only present when a
+router's actual middleware chain ran - Traefik's own internal "no route
+matched" fallback never runs any middleware, so it never has that header,
+regardless of status code. Useful specifically for HTTP-only test scripts
+that can't query the Docker API to check container state directly.
+
 ## How a request flows, per access path
 
 - **LAN device → a private-tier-only service**: LAN `dnsmasq` → the private
