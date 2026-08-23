@@ -58,7 +58,7 @@ specific service.
 | `filebrowser` | filebrowser | private, tailnet-admin | no |
 | `fossflow` | fossflow | private, tailnet-admin | no |
 | `ghost` | blog | family, guest, private | no |
-| `gitea` | gitea | guest, private | yes |
+| `gitea` | gitea | family, guest, private | yes |
 | `glance` | glance | private, tailnet-admin | yes |
 | `glances` | glances | private, tailnet-admin | yes |
 | `gocron` | gocron | private, tailnet-admin | no |
