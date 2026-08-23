@@ -1,13 +1,14 @@
 # Subagent roster - portainer-templates
 
-This repo is a flat collection of ~70 Docker-Compose service directories deployed
+This repo is a flat collection of ~78 Docker-Compose service directories deployed
 via Portainer. The agents below are scoped, least-privilege helpers. Three are
 read-only reviewers/researchers that **run in their own context and return only a
-compact report** - that is the point: they keep large fan-out work (scanning 70
+compact report** - that is the point: they keep large fan-out work (scanning ~78
 service dirs, web research) out of the main conversation's token budget.
 
 Shared conventions live in [`../rules/`](../rules/) (`secrets.md`,
-`networking.md`, `volumes.md`, `conventions.md`, `portainer-instance.md`). Every
+`networking.md`, `volumes.md`, `conventions.md`, `portainer-instance.md`,
+`san-cert-groups.md`, `core-infra-topology.md`, `service-directory.md`). Every
 agent reads those so all of them - and the human-facing `CLAUDE.md` - share one
 source of truth.
 

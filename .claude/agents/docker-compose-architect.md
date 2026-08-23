@@ -86,13 +86,24 @@ labels:
 
 **Only ask the user about additional tiers - never about private itself.** Private is the unconditional default with no confirmation needed; the only question worth asking is **"does this also need to reach `family`/`guest`/`friends`?"**, and only when the objective you were given doesn't already answer it. Additional tiers get their own separate router label block each (`<service>-family`, `<service>-guest`, ...) - never a comma-separated `entrypoints` value on one router - and each additional block still needs its own explicit `tls.certresolver` and `hsts-headers@docker`, same as the private router.
 
+**Tailnet-admin router - default, additive on top of `private`, no confirmation needed:** every private-tier-only service also gets a second router on `${TRAEFIK_ENTRYPOINT_7}` (`tailnet-admin`), same `Host()` rule and `service:` as the private router, no `tls.certresolver`/`tls.domains` of its own:
+```yaml
+labels:
+  traefik.http.routers.<service>-tailnet.rule: "Host(`${<SERVICE>_SUBDOMAIN}.${DOMAIN}`)"
+  traefik.http.routers.<service>-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+  traefik.http.routers.<service>-tailnet.tls: "true"
+  traefik.http.routers.<service>-tailnet.service: "<service>"
+  traefik.http.routers.<service>-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
+```
+Gives admin-allowlisted Tailscale devices a clean, port-free URL instead of the private tier's host port. Standard since the 2026-08-23 rollout (GitHub PR #2, 53+ services) - apply to every new private-tier service going forward. Full detail in `.claude/rules/networking.md` ("Tailnet-admin clean-URL router") and the mechanism itself in `.claude/rules/core-infra-topology.md`.
+
 **Host IPs** (use when services need to reference the host): never hardcode IPs. Use:
 - `${NAS_IP}` - local network IP of the host machine
 - `${DOCKER_GATEWAY_IP}` - Docker bridge gateway IP
 
-**Tailscale fallback (last resort only):** If Cloudflare Tunnel cannot be used for a service, Tailscale may be used. Reference the node via `${TAILSCALE_IP}` - never hardcode an address. Always prefer Cloudflare - only use Tailscale when Cloudflare is impossible.
+**Tailscale access is via the tailnet-admin router above, not a direct IP bind.** The old `tailscale serve` mechanism (and the `${TAILSCALE_IP}`-reference / `127.0.0.1`-bind-to-avoid-a-port-race guidance that went with it) was fully removed 2026-08-22 - do not use `${TAILSCALE_IP}` in a new compose file, and do not bind a host port to `127.0.0.1` for that reason; that race no longer exists. A service needs no `ports:` entry at all for Tailscale reachability - Traefik reaches it over the internal Docker network via the router above.
 
-**Host-port bind address, when a `tailscale serve` route may reuse the same port number:** publish the port to `127.0.0.1` (`"127.0.0.1:<port>:<port>"`), not `0.0.0.0`. A 2026-08 incident confirmed `tailscaled` and `docker-proxy` binding the same port number to `0.0.0.0` can race on daemon/container restart - the loser's container comes up with no network attachment at all (this broke Immich, ActualBudget, and Portainer on one reboot). Ports published only to `127.0.0.1` never hit this race. If a service genuinely needs LAN-IP reachability, keep the `0.0.0.0` publish and point the `tailscale serve` listener at a different port instead.
+**Direct LAN/Tailscale host port - opt-in only, never a default:** only publish a plain HTTP host port (bind `0.0.0.0`, not `127.0.0.1`) when the user explicitly asks for LAN-speed direct access bypassing Traefik entirely (bandwidth-heavy or large-upload services - see `.claude/rules/service-directory.md`'s existing table for examples and to check for a port collision before picking a new one, which fails silently late rather than at lint time). Only for services with their own login, since this path skips TLS/HSTS and any ipallowlist middleware.
 
 **DNS - required, not optional, for every new service with a private-tier router:** add the new hostname to `dnsmasq/docker-compose.yml`'s per-hostname override list (`--address=/<subdomain>.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}`, inserted alphabetically) - without it, the clean private-tier URL falls through to the general wildcard (the NAS's own IP, not Traefik) and never actually resolves to the router you just created, even though it exists (confirmed root cause of repeated "not secure"/no-route bugs). This is routine, expected maintenance of that file, not a "core infra" change requiring extra caution (see `.claude/rules/core-infra-topology.md`) - do it without asking. `dnsmasq-tailnet/docker-compose.yml` (the Tailscale-facing sibling) usually needs **no** change for an ordinary new service - it already answers the whole domain with one wildcard IP - only touch it if the service is being added to the separate, distinct admin-gated tailnet-only set.
 
@@ -285,6 +296,7 @@ Before finalizing any compose file, verify:
 - [ ] All `${VARIABLE_NAME}` references are documented
 - [ ] Cloudflare network AND Traefik network both present together (or both absent, only for a genuinely internal-only service) - never just one
 - [ ] Private-tier router present (unconditional default) - additional tiers only if explicitly requested, additive not instead of private
+- [ ] Tailnet-admin router (`${TRAEFIK_ENTRYPOINT_7}`, `tailnet-admin-only@docker`) present alongside the private router (unconditional default)
 - [ ] Router's `tls.certresolver` set explicitly, not just `tls: "true"` (except on non-anchor routers in a SAN group - see below)
 - [ ] `hsts-headers@docker` in every router's `middlewares`, listed first if chained with others
 - [ ] `${<SERVICE>_SUBDOMAIN}` used in the router rule, not a hardcoded hostname segment
