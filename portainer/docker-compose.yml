@@ -20,39 +20,27 @@ services:
       traefik.http.routers.portainer.rule: "Host(`${PORTAINER_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.portainer.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.portainer.tls: "true"
-      traefik.http.routers.portainer.tls.certresolver: "cf_dns"
-      traefik.http.routers.portainer.tls.domains[0].main: "${PORTAINER_SUBDOMAIN}.${DOMAIN}"
-      traefik.http.routers.portainer.tls.domains[0].sans: "${COOLIFY_SUBDOMAIN}.${DOMAIN},${SOKETI_SUBDOMAIN}.${DOMAIN},${GITEA_SUBDOMAIN}.${DOMAIN},${TUGTAINER_SUBDOMAIN}.${DOMAIN},${DOCKPEEK_SUBDOMAIN}.${DOMAIN},${HARBORGUARD_SUBDOMAIN}.${DOMAIN},${BESZEL_SUBDOMAIN}.${DOMAIN},${UPTIME_KUMA_SUBDOMAIN}.${DOMAIN},${GLANCES_SUBDOMAIN}.${DOMAIN},${GLANCE_SUBDOMAIN}.${DOMAIN},${GOCRON_SUBDOMAIN}.${DOMAIN},${N8N_SUBDOMAIN}.${DOMAIN},${POCKET_ID_SUBDOMAIN}.${DOMAIN},${ADGUARD_SUBDOMAIN}.${DOMAIN},${UPSNAP_SUBDOMAIN}.${DOMAIN},${APPRISE_API_SUBDOMAIN}.${DOMAIN},${GOTIFY_SUBDOMAIN}.${DOMAIN},${WEB_CHECK_SUBDOMAIN}.${DOMAIN},${TRAEFIK_DASHBOARD_SUBDOMAIN}.${DOMAIN},${MAILPIT_SUBDOMAIN}.${DOMAIN},${PHPLDAPADMIN_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.portainer.service: "portainer"
       traefik.http.routers.portainer.middlewares: "hsts-headers@docker"
       traefik.http.services.portainer.loadbalancer.server.port: "9000"
       traefik.docker.network: "traefik-proxy"
-      # --- SAN-bundled ACME certificate (group "infra-ops") - see the two
-      # tls.domains labels above. Part of a 6-group SAN-bundle rollout to
-      # stay under Let's Encrypt's weekly rate limit (50 certs/168h per
-      # domain), which this repo hit from requesting a near-separate
-      # certificate per Traefik router across ~77 hostnames. This is the
-      # CORRECT mechanism: per-router `tls.domains` labels on one anchor
-      # router per group. Traefik's cert store is keyed globally by
-      # hostname, so every other router whose hostname is listed in
-      # `tls.domains[0].sans` above automatically reuses this one cert once
-      # it's issued - those routers need zero label changes. Do NOT use
-      # resolver-level CLI flags on Traefik's own container/config (e.g.
-      # `--certificatesresolvers.cf_dns.acme.domains`) - that syntax
-      # crashed Traefik once already on this instance ("field not found,
-      # node: domains") and was reverted.
-      # This anchor bundles (22 total incl. this host): portainer (this
-      # host), coolify, soketi-coolify (coolify's realtime service, same
-      # directory), gitea, tugtainer, dockpeek, harborguard, beszel,
-      # uptime-kuma, glances, glance, gocron, n8n, pocket-id, adguard,
-      # upsnap, apprise-api, gotify, web-check, traefik (Traefik's own
-      # dashboard hostname), mailpit, phpldapadmin (mailpit/phpldapadmin
-      # both live in central-services/docker-compose.yml).
+      # --- SAN-bundle (group "infra-ops") - this service is now a MEMBER,
+      # not the anchor. The anchor role moved to `glances` (see
+      # glances/docker-compose.yml) because glances is the more disposable
+      # service to carry ACME-renewal responsibility for the group, leaving
+      # this router as a bare `tls: "true"` like every other non-anchor
+      # router in the group - no `tls.certresolver`/`tls.domains` here.
+      # Part of a 6-group SAN-bundle rollout to stay under Let's Encrypt's
+      # weekly rate limit (50 certs/168h per domain), which this repo hit
+      # from requesting a near-separate certificate per Traefik router
+      # across ~77 hostnames. Traefik's cert store is keyed globally by
+      # hostname, so this router picks up the anchor's bundled cert
+      # automatically via SNI - no label changes needed here beyond bare
+      # `tls: "true"`.
       # ⚠️ When copy-pasting these labels into UGOS's manual compose UI
       # (Portainer isn't a git-tracked stack here, so this file is
-      # reference-only), copy BOTH tls.domains lines above along with the
-      # rest of this labels block - they were previously split apart by
-      # this comment and got missed once already.
+      # reference-only), copy carefully - this file no longer carries the
+      # cert-request labels at all, only the routing/TLS-selection ones.
     networks:
       - cloudflare_web_network
       - traefik_proxy_network

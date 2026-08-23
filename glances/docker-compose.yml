@@ -9,7 +9,7 @@ services:
     pid: host
     privileged: true
     network_mode: host
-    restart: unless-stopped
+    restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
@@ -20,6 +20,28 @@ services:
       traefik.http.routers.glances.rule: "Host(`${GLANCES_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.glances.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.glances.tls: "true"
+      traefik.http.routers.glances.tls.certresolver: "cf_dns"
+      # SAN-bundle (group "infra-ops", anchor router): this router is the
+      # anchor for a single multi-SAN Let's Encrypt certificate covering 21
+      # infra/admin services, to stay under LE's 50-certs/168h rate limit
+      # that Traefik previously hit issuing near-one cert per router.
+      # Mechanism is per-router tls.domains labels (the correct approach) -
+      # NOT resolver-level CLI flags on Traefik's own container/config,
+      # which crashed Traefik once already ("field not found, node:
+      # domains") and was reverted. Once this router obtains the cert,
+      # every other router below is covered automatically via the SAN
+      # list - those routers need no label changes at all.
+      # Bundled hostnames (this anchor + 20 others): glances (this host),
+      # portainer, coolify, soketi-coolify (coolify's realtime service, same
+      # directory), gitea, tugtainer, dockpeek, harborguard, beszel,
+      # uptime-kuma, glance, gocron, n8n, pocket-id, adguard, upsnap,
+      # apprise-api, gotify, web-check, traefik (Traefik's own dashboard
+      # hostname), mailpit, phpldapadmin (mailpit/phpldapadmin both live in
+      # central-services/docker-compose.yml). Note ${GLANCE_SUBDOMAIN} (no
+      # S, "glance" the dashboard) is a DIFFERENT service from this anchor
+      # (${GLANCES_SUBDOMAIN}, "glances" the system monitor).
+      traefik.http.routers.glances.tls.domains[0].main: "${GLANCES_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.glances.tls.domains[0].sans: "${PORTAINER_SUBDOMAIN}.${DOMAIN},${COOLIFY_SUBDOMAIN}.${DOMAIN},${SOKETI_SUBDOMAIN}.${DOMAIN},${GITEA_SUBDOMAIN}.${DOMAIN},${TUGTAINER_SUBDOMAIN}.${DOMAIN},${DOCKPEEK_SUBDOMAIN}.${DOMAIN},${HARBORGUARD_SUBDOMAIN}.${DOMAIN},${BESZEL_SUBDOMAIN}.${DOMAIN},${UPTIME_KUMA_SUBDOMAIN}.${DOMAIN},${GLANCE_SUBDOMAIN}.${DOMAIN},${GOCRON_SUBDOMAIN}.${DOMAIN},${N8N_SUBDOMAIN}.${DOMAIN},${POCKET_ID_SUBDOMAIN}.${DOMAIN},${ADGUARD_SUBDOMAIN}.${DOMAIN},${UPSNAP_SUBDOMAIN}.${DOMAIN},${APPRISE_API_SUBDOMAIN}.${DOMAIN},${GOTIFY_SUBDOMAIN}.${DOMAIN},${WEB_CHECK_SUBDOMAIN}.${DOMAIN},${TRAEFIK_DASHBOARD_SUBDOMAIN}.${DOMAIN},${MAILPIT_SUBDOMAIN}.${DOMAIN},${PHPLDAPADMIN_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.glances.service: "glances"
       traefik.http.routers.glances.middlewares: "hsts-headers@docker"
       traefik.http.services.glances.loadbalancer.server.url: "http://host.docker.internal:61208"

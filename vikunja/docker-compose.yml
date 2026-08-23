@@ -37,7 +37,7 @@ services:
     security_opt:
       - no-new-privileges:true
     user: "${PUID}:${PGID}"
-    restart: unless-stopped
+    restart: always
     ports:
       - 3456:3456
     environment:
@@ -76,6 +76,23 @@ services:
       traefik.http.routers.vikunja-private.rule: "Host(`${VIKUNJA_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.vikunja-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.vikunja-private.tls: "true"
+      traefik.http.routers.vikunja-private.tls.certresolver: "cf_dns"
+      # SAN-bundle (group "household-travel", anchor router): this router is
+      # the anchor for a single multi-SAN Let's Encrypt certificate covering
+      # 10 household/travel services, to stay under LE's 50-certs/168h rate
+      # limit that Traefik previously hit issuing near-one cert per router.
+      # Mechanism is per-router tls.domains labels (the correct approach) -
+      # NOT resolver-level CLI flags on Traefik's own container/config,
+      # which crashed Traefik once already ("field not found, node:
+      # domains") and was reverted. Once this router obtains the cert,
+      # every other router below is covered automatically via the SAN
+      # list - those routers need no label changes at all.
+      # This anchor bundles: vikunja (this host, promemoria), grocy,
+      # homebox, homehub (casa), mealie (ricette), sparkyfitness,
+      # easy-appointments (appuntamenti), home-assistant, surmai (viaggi),
+      # trek.
+      traefik.http.routers.vikunja-private.tls.domains[0].main: "${VIKUNJA_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.vikunja-private.tls.domains[0].sans: "${GROCY_SUBDOMAIN}.${DOMAIN},${HOMEBOX_SUBDOMAIN}.${DOMAIN},${HOMEHUB_SUBDOMAIN}.${DOMAIN},${MEALIE_SUBDOMAIN}.${DOMAIN},${SPARKYFITNESS_SUBDOMAIN}.${DOMAIN},${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN},${HOME_ASSISTANT_SUBDOMAIN}.${DOMAIN},${SURMAI_SUBDOMAIN}.${DOMAIN},${TREK_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.vikunja-private.service: "vikunja-private"
       traefik.http.routers.vikunja-private.middlewares: "hsts-headers@docker"
       traefik.http.services.vikunja-private.loadbalancer.server.port: "3456"
