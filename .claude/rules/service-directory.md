@@ -51,6 +51,9 @@ specific service.
 | `draw-io` | draw-io | private, tailnet-admin | yes |
 | `duplicati` | duplicati | private, tailnet-admin | yes |
 | `easy-appointments` | appuntamenti | family, guest, private | yes |
+| `easy-appointments` (phpmyadmin) | appuntamenti-pma | private, tailnet-admin | yes |
+| `easy-appointments` (swagger-ui) | appuntamenti-swagger | private, tailnet-admin | yes |
+| `easy-appointments` (baikal) | appuntamenti-baikal | private, tailnet-admin | yes |
 | `excalidraw` | excalidraw | private, tailnet-admin | no |
 | `filebrowser` | filebrowser | private, tailnet-admin | no |
 | `fossflow` | fossflow | private, tailnet-admin | no |
@@ -146,9 +149,9 @@ lint time.
 | `coolify` (soketi-coolify) | 6001 | 6002 also published (metrics, not the main link) |
 | `duplicati` | 8200 | password-protected (`DUPLICATI_WEBSERVICE_PASSWORD`) |
 | `easy-appointments` (nginx/main app) | 8180 | |
-| `easy-appointments` (phpmyadmin) | 8080 | no Traefik router at all - `appuntamenti-pma.nicolkrit.ch` and similar guessed hostnames 404, direct port only |
-| `easy-appointments` (swagger-ui) | 8000 | no Traefik router at all - same as phpmyadmin above |
-| `easy-appointments` (baikal) | 8100 | no Traefik router at all - same as phpmyadmin above |
+| `easy-appointments` (phpmyadmin) | 8080 | now also has a clean URL (`appuntamenti-pma`), added 2026-08-23 |
+| `easy-appointments` (swagger-ui) | 8000 | now also has a clean URL (`appuntamenti-swagger`), added 2026-08-23 |
+| `easy-appointments` (baikal) | 8100 | now also has a clean URL (`appuntamenti-baikal`), added 2026-08-23 |
 | `filebrowser` | 8082 | not currently deployed |
 | `gitea` | 3003 | has its own full login/account system |
 | `glances` | 61208 | host-networked (`network_mode: host`) |

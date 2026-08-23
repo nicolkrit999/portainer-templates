@@ -59,7 +59,7 @@ requested by one "anchor" router per group.
 |---|---|---|
 | **budgeting** | `actual-budget/actual-server_actual-https-api` (`actual-budget`) | budget, budget-ical, budget-api, budget-tap |
 | **media** | `jellyfin` (`jellyfin-family`) | jellyfin, foto (immich), radarr, sonarr, plex, navidrome, kavita, audiobookshelf, ytptube, qbit-torrent |
-| **household-travel** | `vikunja` (`vikunja-private`) | vikunja (promemoria), grocy, homebox, casa (homehub), ricette (mealie), sparkyfitness, appuntamenti (easy-appointments), home-assistant, viaggi (surmai), trek |
+| **household-travel** | `vikunja` (`vikunja-private`) | vikunja (promemoria), grocy, homebox, casa (homehub), ricette (mealie), sparkyfitness, appuntamenti (easy-appointments), appuntamenti-pma/-swagger/-baikal (easy-appointments' sub-services, added 2026-08-23), home-assistant, viaggi (surmai), trek |
 | **infra-ops** | `glances` (`glances`) | glances, portainer, coolify, soketi-coolify, gitea, tugtainer, dockpeek, harborguard, beszel, uptime-kuma, glance, gocron, n8n, pocket-id, adguard, upsnap, apprise-api, gotify, web-check, traefik (dashboard), mailpit, phpldapadmin |
 | **utilities** | `duplicati` (`duplicati`) | duplicati, it-tools, omnitools, convertx, stirling-pdf, change-detection, filebrowser, snapotter, moocup, withoutbg, cardyo, datetime, termix, snappyemail, owncloud, miniqr, privatebin, bytestash, openresume, sosse |
 | **productivity-creative** | `linkwarden` (`linkwarden`) | linkwarden, affine, draw-io, excalidraw, fossflow, opennotebook, paperlessngx, claude (holyclaude - **hostname is `claude`, not `holyclaude`**, confirmed against the live Portainer env, don't assume the directory name), blender, lifeglance, blog (ghost) |
