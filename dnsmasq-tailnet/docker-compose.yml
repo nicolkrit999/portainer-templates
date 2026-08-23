@@ -104,6 +104,15 @@ services:
       - "--server=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
       - "--server=/ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
       - "--log-facility=-"
+      # Per-query logging, added 2026-08-23 during the family/friends ACL
+      # rollout to diagnose a remote tailnet client's DNS queries never
+      # reaching this interface at all (tcpdump on tailscale0 showed zero
+      # packets). Kept on permanently rather than toggled per-incident -
+      # it's one line per query per tailnet client, acceptable at this
+      # household's scale, and having it always available avoids a
+      # redeploy-just-to-debug round trip next time something like this
+      # comes up.
+      - "--log-queries"
       # --listen-address + --bind-interfaces here binds specifically to the
       # NAS's tailnet IP instead of wildcard-binding port 53, which would
       # otherwise collide with the original dnsmasq's own bind to
