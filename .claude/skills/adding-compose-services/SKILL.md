@@ -1,6 +1,6 @@
 ---
 name: adding-compose-services
-description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules - Cloudflare Tunnel AND Traefik ALWAYS added together (private tier by default, other tiers only if the user asks, no confirmation needed either way), HSTS on every router - adds the matching DNS overrides in `dnsmasq` AND `dnsmasq-tailnet` (required for every service, not optional), assigns the service to a SAN-bundle certificate group (existing group if it fits, otherwise asks the user - never silently invented), runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off the Cloudflare Tunnel target plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
+description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules - Cloudflare Tunnel AND Traefik ALWAYS added together (private tier by default plus its tailnet-admin sibling router, other tiers only if the user asks, no confirmation needed either way), HSTS on every router - adds the matching DNS overrides in `dnsmasq` (unconditional) and, only for the separate admin-gated tailnet-only set, `dnsmasq-tailnet` - assigns the service to a SAN-bundle certificate group (existing group if it fits, otherwise asks the user - never silently invented), runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off the Cloudflare Tunnel target plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
 ---
 
 # Adding a Compose Service
@@ -50,6 +50,22 @@ order and loop the review step - agents cannot call each other.
    > its own `tls: "true"` silently overrides the entrypoint's default
    > certresolver, with no error logged, and falls back to Traefik's
    > self-signed cert forever. Confirmed production bug, 2026-08-21.
+
+   **Every private-tier service also gets a second router on
+   `${TRAEFIK_ENTRYPOINT_7}` (`tailnet-admin`), same `Host()` rule and
+   `service:`, no confirmation needed** - standard since the 2026-08-23
+   PR #2 rollout (53+ services). No `tls.certresolver`/`tls.domains` of
+   its own; `middlewares: "hsts-headers@docker,tailnet-admin-only@docker"`.
+   Full block and mechanism in `.claude/rules/networking.md` ("Tailnet-admin
+   clean-URL router") and `.claude/rules/core-infra-topology.md`.
+
+   **Tailscale access goes through this router, not a direct IP reference or
+   a host-port bind** - the old `tailscale serve` mechanism this repo used
+   before 2026-08-22 (and the `${TAILSCALE_IP}`/`127.0.0.1`-bind guidance
+   that went with it) is gone; don't use it in a new service. A host port is
+   only ever added later, as an explicit opt-in LAN/Tailscale-speed bypass
+   for a specific bandwidth-heavy service - see `.claude/rules/service-directory.md`'s
+   direct-port table before adding one, to avoid a silent port collision.
 
    If the service uses `network_mode: host`, the backend target must be
    `traefik.http.services.<name>.loadbalancer.server.url: "http://host.docker.internal:<port>"`
@@ -155,6 +171,7 @@ order and loop the review step - agents cannot call each other.
      | `TRAEFIK_ENTRYPOINT_4` / `TRAEFIK_PORT_4` | friends | 8445 |
      | `TRAEFIK_ENTRYPOINT_5` / `TRAEFIK_PORT_5` | internal, `cloudflared`-facing only | 9080 |
      | `TRAEFIK_ENTRYPOINT_6` / `TRAEFIK_PORT_6` | internal, ping/dashboard-API only | 8080 |
+     | `TRAEFIK_ENTRYPOINT_7` | tailnet-admin, no host port (default alongside private, step 2) | n/a |
    - a reminder that **`dnsmasq` (and `dnsmasq-tailnet`, if touched) needs
      to be redeployed** (recreated, not just restarted - it runs
      `restart: always` but a compose-file edit only applies on recreate)
