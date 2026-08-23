@@ -17,6 +17,11 @@ services:
       traefik.http.routers.openresume.tls: "true"
       traefik.http.routers.openresume.service: "openresume"
       traefik.http.routers.openresume.middlewares: "hsts-headers@docker"
+      traefik.http.routers.openresume-tailnet.rule: "Host(`${OPENRESUME_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.openresume-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.openresume-tailnet.tls: "true"
+      traefik.http.routers.openresume-tailnet.service: "openresume"
+      traefik.http.routers.openresume-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.openresume.loadbalancer.server.port: "3000"
       traefik.docker.network: "traefik-proxy"
 

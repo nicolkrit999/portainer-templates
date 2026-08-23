@@ -20,5 +20,10 @@ services:
       traefik.http.routers.upsnap.tls: "true"
       traefik.http.routers.upsnap.service: "upsnap"
       traefik.http.routers.upsnap.middlewares: "hsts-headers@docker"
+      traefik.http.routers.upsnap-tailnet.rule: "Host(`${UPSNAP_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.upsnap-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.upsnap-tailnet.tls: "true"
+      traefik.http.routers.upsnap-tailnet.service: "upsnap"
+      traefik.http.routers.upsnap-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.upsnap.loadbalancer.server.url: "http://host.docker.internal:8090"
 
