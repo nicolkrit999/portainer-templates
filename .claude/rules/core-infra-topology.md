@@ -131,6 +131,22 @@ plumbing affects public/Cloudflare access at all.
   interface) but cannot be used for anything Tailscale-facing, since
   `tailscale0` is a TUN device, not a physical/bridge NIC.
 
+## A stopped container looks identical to "no router for this tier"
+
+This repo's Traefik uses only the Docker provider (no file/static
+provider) - every router/service is built from labels on a currently
+running container. **When a container stops, Traefik's Docker provider
+detects this and removes that router/service from its dynamic config
+entirely - it does not keep the router around returning a 502 for a dead
+backend.** This means a genuinely-stopped service and a wrong-tier request
+(e.g. hitting a private-tier-only host's family port) both produce the
+exact same `404` (no router matched) - they are not distinguishable by
+HTTP status code alone. Confirmed 2026-08-23 while designing an
+access-control verification script (see the household's memory
+`family-tier-dns-access-incident` for the debugging session this came out
+of). To tell them apart, check the container's actual running state
+directly (`docker_proxy` `/containers/json`), not the HTTP response.
+
 ## How a request flows, per access path
 
 - **LAN device → a private-tier-only service**: LAN `dnsmasq` → the private
