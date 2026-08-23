@@ -59,43 +59,63 @@ requested by one "anchor" router per group.
 |---|---|---|
 | **budgeting** | `actual-budget/actual-server_actual-https-api` (`actual-budget`) | budget, budget-ical, budget-api, budget-tap |
 | **media** | `jellyfin` (`jellyfin-family`) | jellyfin, foto (immich), radarr, sonarr, plex, navidrome, kavita, audiobookshelf, ytptube, qbit-torrent |
-| **household-travel** | `grocy` (`grocy`) | grocy, homebox, casa (homehub), ricette (mealie), sparkyfitness, promemoria (vikunja), appuntamenti (easy-appointments), home-assistant, viaggi (surmai), trek |
-| **infra-ops** | `portainer` (`portainer`) | portainer, coolify, soketi-coolify, gitea, tugtainer, dockpeek, harborguard, beszel, uptime-kuma, glances, glance, gocron, n8n, pocket-id, adguard, upsnap, apprise-api, gotify, web-check, traefik (dashboard), mailpit, phpldapadmin |
-| **utilities** | `it-tools` (`it-tools`) | it-tools, omnitools, convertx, stirling-pdf, change-detection, filebrowser, duplicati, snapotter, moocup, withoutbg, cardyo, datetime, termix, snappyemail, owncloud, miniqr, privatebin, bytestash, openresume, sosse |
-| **productivity-creative** | `affine` (`affine`) | affine, draw-io, excalidraw, fossflow, opennotebook, paperlessngx, linkwarden, claude (holyclaude - **hostname is `claude`, not `holyclaude`**, confirmed against the live Portainer env, don't assume the directory name), blender, lifeglance, blog (ghost) |
+| **household-travel** | `vikunja` (`vikunja-private`) | vikunja (promemoria), grocy, homebox, casa (homehub), ricette (mealie), sparkyfitness, appuntamenti (easy-appointments), home-assistant, viaggi (surmai), trek |
+| **infra-ops** | `glances` (`glances`) | glances, portainer, coolify, soketi-coolify, gitea, tugtainer, dockpeek, harborguard, beszel, uptime-kuma, glance, gocron, n8n, pocket-id, adguard, upsnap, apprise-api, gotify, web-check, traefik (dashboard), mailpit, phpldapadmin |
+| **utilities** | `duplicati` (`duplicati`) | duplicati, it-tools, omnitools, convertx, stirling-pdf, change-detection, filebrowser, snapotter, moocup, withoutbg, cardyo, datetime, termix, snappyemail, owncloud, miniqr, privatebin, bytestash, openresume, sosse |
+| **productivity-creative** | `linkwarden` (`linkwarden`) | linkwarden, affine, draw-io, excalidraw, fossflow, opennotebook, paperlessngx, claude (holyclaude - **hostname is `claude`, not `holyclaude`**, confirmed against the live Portainer env, don't assume the directory name), blender, lifeglance, blog (ghost) |
+
+**Anchor swap 2026-08-23**: the household member moved the anchor role in
+4 of the 6 groups away from everyday/critical services onto more
+"disposable" ones, so a decommission accident is lower-stakes: `affine` →
+`linkwarden` (productivity-creative), `grocy` → `vikunja` (household-travel,
+router `vikunja-private`, the private-tier sibling of `vikunja`),
+`it-tools` → `duplicati` (utilities), `portainer` → `glances` (infra-ops).
+`budgeting`/`actual-budget` and `media`/`jellyfin` were NOT changed. The
+new anchors (`linkwarden`, `vikunja`, `duplicati`, `glances`) were also
+switched to `restart: always` since they're now ACME-renewal-critical;
+`jellyfin` was set to `restart: always` too even though it remains the
+media anchor unchanged. The 4 old anchors (`affine`, `grocy`, `it-tools`,
+`portainer`) are now ordinary bare-`tls: "true"` members and were left on
+their prior restart policy.
 
 Each group is well under the 100-SAN-per-cert limit even at current size -
 split a group further only when it actually approaches that limit, not
 preemptively.
 
-**Deployment status as of 2026-08-22/23 overnight**: 5 of 6 groups are
-**fully confirmed working** - `budgeting`, `media`, `household-travel`,
-`utilities`, `productivity-creative` all verified via direct
-`openssl s_client -connect <host>:443 -servername <host>` showing a real
-Let's Encrypt cert (not `TRAEFIK DEFAULT CERT`) with the complete member
-SAN list, re-verified stable after `infra-ops` work was done on top. Do
-not trust a "confirmed issued" claim in this file (or a memory) without
-that direct check - this file previously asserted `budgeting` was done
-when it wasn't, and separately jellyfin's leftover individual cert once
-looked like a "done" bundle from log success alone (it wasn't - the store
-held two competing certs for the same domain; had to delete the stale one
-and restart).
+**Deployment status as of 2026-08-23 ~11:45 CEST**: **all 6 groups are
+fully confirmed working, verified per-member not just per-anchor** -
+`budgeting`, `media`, `household-travel`, `utilities`,
+`productivity-creative`, and `infra-ops`. Every one of the 77 member
+hostnames (not just the 6 anchors) was checked individually via
+`openssl s_client -connect <host>:443 -servername <host>` -> real Let's
+Encrypt issuer, SAN count matching its group's full size, and the exact
+same certificate serial shared across every member of that group. Do not
+trust a "confirmed issued" claim in this file (or a memory) without that
+full per-member check - this file previously asserted `budgeting` was done
+when it wasn't, and separately jellyfin's, then `infra-ops`'s, then
+(discovered 2026-08-23 in one pass) ALL SIX groups' leftover individual
+certs each looked like a "done" bundle from an anchor-only check or log
+success alone. The real failure: 24 stale pre-bundle solo certs were
+sitting in `acme.json` across every group, each independently winning its
+own hostname's SNI tie-break even while the anchor itself served the
+correct bundle - anchor-only verification cannot catch this. Full
+detection/fix runbook, including the corrected "check every member"
+methodology: [[san-bundle-stale-cert-cleanup-runbook]].
 
-`infra-ops`/`portainer`: **Phase A now deployed correctly** (all 18
-sibling routers across 17 files stripped of `certresolver`, confirmed via
-logs - anchor fires exactly ONE clean bundled request with all 22 correct
-hostnames, mechanism verified working). The anchor itself is deployed
-manually via UGOS's compose UI (Portainer isn't a git-tracked stack) -
-**its own `.env` on UGOS must carry a `${..._SUBDOMAIN}` var for every
-other member of its group**, not just `PORTAINER_SUBDOMAIN`/`DOMAIN`; this
-was missed on the first manual deploy and produced a garbage
-`.nicolkrit.ch` SAN list (empty subdomain vars), which Let's Encrypt
-rejected outright (`400 rejectedIdentifier`). See
-[[san-bundle-anchor-env-scoping]] for the general principle. Currently
-blocked purely on a **fresh Let's Encrypt 429 rate limit** from the
-combined redeploy/reissue activity across every group this same evening -
-retry-after **2026-08-23 00:46 UTC**. Once that clears, re-verify directly
-before declaring `infra-ops` done, same standard as the other 5.
+`infra-ops`/`portainer`: **fully done as of 2026-08-23 ~11:15 CEST.**
+Phase A (all 18 sibling routers across 17 files stripped of
+`certresolver`) and the anchor's env-scoping (see
+[[san-bundle-anchor-env-scoping]]) were both fixed the night before; the
+anchor fired one clean 22-host bundled request that actually succeeded
+this morning (no fresh 429 - the prior night's rate limit had fully
+cleared). The bundle's real certificate landed correctly in `acme.json`,
+but a stale solo `portainer.nicolkrit.ch` cert (predating the SAN-bundle
+work) was still winning the SNI tie-break; fixed by removing 18 stale
+individual-domain entries from `acme.json` (backup taken first) and
+restarting Traefik once more - full detail in
+[[san-bundle-stale-cert-cleanup-runbook]]. Verified 3x directly after the
+fix: correct issuer, correct full 22-host SAN list, stable across repeated
+checks.
 
 Also note: 4 of `infra-ops`'s listed members (`adguard`, `dockpeek`,
 `gocron`, `upsnap`) have compose files in this repo but are **not actually
@@ -103,6 +123,35 @@ deployed** anywhere (no running container, no Portainer stack) - harmless
 for the SAN-bundle mechanism (a router with no live container just never
 matches any traffic), but worth knowing if their absence from `StackList`
 or `docker ps` output is ever confusing.
+
+## ⚠️ Removing or decommissioning an anchor service - mandatory step
+
+**Never delete, stop permanently, or remove the Traefik router/labels of an
+anchor service (`actual-budget`, `jellyfin`, `grocy`, `portainer`,
+`it-tools`, `affine`) without first moving its anchor role to another
+still-live member of the same group.** The certificate itself lives in
+Traefik's `acme.json` store, keyed by domain, not owned by any particular
+container - so deleting the anchor does NOT immediately break the other
+members' TLS (they do pure SNI-based lookup against whatever's already in
+the store, regardless of whether the anchor's router still exists).
+
+**The real danger is silent, delayed loss of renewal.** The anchor's router
+is the ONLY place in the whole group carrying `tls.certresolver` +
+`tls.domains[0].main`/`.sans`. If that router disappears, nothing is left
+to request renewal - the existing cert keeps working fine for weeks/months
+(Let's Encrypt certs are valid ~90 days, Traefik attempts renewal ~30 days
+before expiry), then it silently fails to renew and every member of that
+group flips to Traefik's default self-signed cert all at once, with no
+obvious link back to whatever decommissioning caused it.
+
+**Before removing/replacing an anchor's stack**: copy its
+`tls.certresolver: "cf_dns"` and both `tls.domains[0].main`/`.sans` labels
+onto another router that will remain live in the same group, update
+`${ANCHOR_SUBDOMAIN}` references in the table below to the new anchor, then
+remove the labels from (or fully delete) the old anchor. Do this BEFORE
+deleting the old anchor, not after - never leave a group with zero routers
+carrying `tls.certresolver`, even briefly, unless you're intentionally
+letting that group's cert lapse.
 
 ## Adding a new service - mandatory step
 

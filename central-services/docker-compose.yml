@@ -10,7 +10,10 @@ services:
       traefik.http.routers.mailpit.rule: "Host(`${MAILPIT_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.mailpit.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.mailpit.tls: "true"
-      traefik.http.routers.mailpit.tls.certresolver: "cf_dns"
+      # SAN-bundle group "infra-ops" member - NO certresolver here, this
+      # router picks up the anchor's (glances) bundled cert automatically
+      # via SNI. A stray certresolver here was found 2026-08-23 racing the
+      # anchor's request - see .claude/rules/san-cert-groups.md rule 3.
       traefik.http.routers.mailpit.service: "mailpit"
       traefik.http.routers.mailpit.middlewares: "hsts-headers@docker"
       traefik.http.services.mailpit.loadbalancer.server.port: "8025"
@@ -74,7 +77,10 @@ services:
       traefik.http.routers.phpldapadmin.rule: "Host(`${PHPLDAPADMIN_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.phpldapadmin.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.phpldapadmin.tls: "true"
-      traefik.http.routers.phpldapadmin.tls.certresolver: "cf_dns"
+      # SAN-bundle group "infra-ops" member - NO certresolver here, this
+      # router picks up the anchor's (glances) bundled cert automatically
+      # via SNI. A stray certresolver here was found 2026-08-23 racing the
+      # anchor's request - see .claude/rules/san-cert-groups.md rule 3.
       traefik.http.routers.phpldapadmin.service: "phpldapadmin"
       traefik.http.routers.phpldapadmin.middlewares: "hsts-headers@docker"
       traefik.http.services.phpldapadmin.loadbalancer.server.port: "80"

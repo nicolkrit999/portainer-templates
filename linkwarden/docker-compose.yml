@@ -39,12 +39,32 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: "${NEXTAUTH_URL}"
       NEXT_PUBLIC_DISABLE_REGISTRATION: true
-    restart: unless-stopped
+    restart: always
     labels:
       traefik.enable: "true"
       traefik.http.routers.linkwarden.rule: "Host(`${LINKWARDEN_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.linkwarden.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.linkwarden.tls: "true"
+      traefik.http.routers.linkwarden.tls.certresolver: "cf_dns"
+      # SAN-bundle (group "productivity-creative", anchor router): this router
+      # is the anchor for a single multi-SAN Let's Encrypt certificate
+      # covering 11 low-traffic services, to stay under LE's 50-certs/168h
+      # rate limit that Traefik previously hit issuing near-one cert per
+      # router. Mechanism is per-router tls.domains labels (the correct
+      # approach) - NOT resolver-level CLI flags on Traefik's own
+      # container/config, which crashed Traefik once already
+      # ("field not found, node: domains") and was reverted.
+      # Once this router obtains the cert, every other router below is
+      # covered automatically via the SAN list - those routers need no label
+      # changes at all.
+      # Bundled hostnames (this anchor + 10 others): linkwarden (this host),
+      # affine, draw-io, excalidraw, fossflow, opennotebook, paperlessngx
+      # (rule label uses PAPERLESS_SUBDOMAIN), holyclaude (env var name is
+      # HOLYCLAUDE_SUBDOMAIN, but the real live hostname is "claude", NOT
+      # "holyclaude" - confirmed against the live Portainer env), blender,
+      # lifeglance, ghost (rule label uses GHOST_SUBDOMAIN, default "blog").
+      traefik.http.routers.linkwarden.tls.domains[0].main: "${LINKWARDEN_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.linkwarden.tls.domains[0].sans: "${AFFINE_SUBDOMAIN}.${DOMAIN},${DRAWIO_SUBDOMAIN}.${DOMAIN},${EXCALIDRAW_SUBDOMAIN}.${DOMAIN},${FOSSFLOW_SUBDOMAIN}.${DOMAIN},${OPENNOTEBOOK_SUBDOMAIN}.${DOMAIN},${PAPERLESS_SUBDOMAIN}.${DOMAIN},${HOLYCLAUDE_SUBDOMAIN}.${DOMAIN},${BLENDER_SUBDOMAIN}.${DOMAIN},${LIFEGLANCE_SUBDOMAIN}.${DOMAIN},${GHOST_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.linkwarden.service: "linkwarden"
       traefik.http.routers.linkwarden.middlewares: "hsts-headers@docker"
       traefik.http.services.linkwarden.loadbalancer.server.port: "3000"
