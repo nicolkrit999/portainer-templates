@@ -5,6 +5,10 @@ services:
     environment:
       - PGID=121 # docker id, needed to allow update
       - PUID=10
+      # Required even for local-only management (no separate tugtainer-agent
+      # container) - the main app talks to its own internal agent process on
+      # 127.0.0.1:8001 and refuses unsigned requests without this set.
+      - AGENT_SECRET=${TUGTAINER_AGENT_SECRET}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${DOCKER_CONFIG_DIR}/tugtainer/app:/tugtainer
