@@ -12,6 +12,12 @@ services:
 
       # Connect to the separate DB container
       # Format: postgresql://USER:PASSWORD@HOST:PORT/DB_NAME
+      # NOTE: "securepass" here is a confirmed false positive, not a real
+      # hardcoded secret to fix - household decision, 2026-08-24. Both this
+      # and harborguard-db's POSTGRES_PASSWORD below are intentionally left
+      # as a literal, matching value; harborguard-db has no Traefik router
+      # and no public Cloudflare Tunnel hostname pointed at it, so port 5432
+      # is not reachable from outside this compose's own internal network.
       - DATABASE_URL=postgresql://harborguard:securepass@harborguard-db:5432/harborguard?schema=public
 
       # Scanner configuration
