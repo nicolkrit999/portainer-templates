@@ -1,0 +1,192 @@
+services:
+  # One-shot: fixes ownership/perms on the postgres data dir before the real
+  # postgres service starts. Matches the postgres image's expected uid/gid.
+  postgres-permissions-init:
+    image: alpine:3.19
+    container_name: hi-events-postgres-permissions-init
+    restart: "no"
+    command: sh -c "mkdir -p /var/lib/postgresql && chown -R 999:999 /var/lib/postgresql && chmod -R 700 /var/lib/postgresql"
+    volumes:
+      # hi_events (underscore) is the deliberate, real NAS folder name -
+      # distinct from this directory's own "hi-events" (dash) name. Do not
+      # "correct" this to hi-events; that would point at a different,
+      # non-existent folder and orphan the live data.
+      - ${VOLUME_DATA}/hi_events/postgres:/var/lib/postgresql
+
+  # One-shot: fixes ownership/perms on the redis data dir before the real
+  # redis service starts.
+  redis-permissions-init:
+    image: alpine:3.19
+    container_name: hi-events-redis-permissions-init
+    restart: "no"
+    command: sh -c "mkdir -p /data && chown -R 999:999 /data && chmod -R 755 /data"
+    volumes:
+      # hi_events (underscore) - see note above. Assumes the NAS folder has
+      # already been renamed from the old "hi.events" (dotted) to
+      # "hi_events" (underscore) before this stack's first deployment.
+      - ${VOLUME_CONFIG}/hi_events/data/redis:/data
+
+  # One-shot: fixes perms on the public uploads dir before all-in-one starts.
+  all-in-one-permissions-init:
+    image: alpine:3.19
+    container_name: all-in-one-permissions-init
+    restart: "no"
+    command: sh -c "mkdir -p /app/backend/storage/app/public && chmod -R 777 /app/backend/storage/app/public"
+    volumes:
+      # hi_events (underscore) - see note above. Assumes the NAS folder has
+      # already been renamed from the old "hi.events" (dotted) to
+      # "hi_events" (underscore) before this stack's first deployment.
+      - ${VOLUME_CONFIG}/hi_events/uploads:/app/backend/storage/app/public
+
+  postgres:
+    # Pinned to major version 18, NOT :latest - live on-disk data is
+    # confirmed PostgreSQL 18; a :latest pull could jump to a newer major
+    # version that refuses to start against these existing data files.
+    image: postgres:18
+    container_name: hi-events-postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_DB: "hi-events"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    depends_on:
+      postgres-permissions-init:
+        condition: service_completed_successfully
+    volumes:
+      # hi_events (underscore) - see note above postgres-permissions-init.
+      - ${VOLUME_DATA}/hi_events/postgres:/var/lib/postgresql
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:latest
+    container_name: hi-events-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      redis-permissions-init:
+        condition: service_completed_successfully
+    volumes:
+      # hi_events (underscore) - see note above postgres-permissions-init.
+      - ${VOLUME_CONFIG}/hi_events/data/redis:/data
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  all-in-one:
+    image: daveearley/hi.events-all-in-one:latest
+    container_name: all-in-one
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    environment:
+      TZ: "${TZ}"
+      VITE_FRONTEND_URL: "https://${HI_EVENTS_SUBDOMAIN}.${DOMAIN}"
+      VITE_API_URL_CLIENT: "https://${HI_EVENTS_SUBDOMAIN}.${DOMAIN}/api"
+      # Internal container-to-container URL - not a secret, must stay
+      # pointed at this container by its service name and internal port.
+      VITE_API_URL_SERVER: "http://all-in-one:80/api"
+      VITE_STRIPE_PUBLISHABLE_KEY: "${VITE_STRIPE_PUBLISHABLE_KEY}"
+      VITE_APP_NAME: "${VITE_APP_NAME}"
+      LOG_CHANNEL: "${LOG_CHANNEL}"
+      QUEUE_CONNECTION: "${QUEUE_CONNECTION}"
+      APP_KEY: "${APP_KEY}"
+      APP_CDN_URL: "https://${HI_EVENTS_SUBDOMAIN}.${DOMAIN}"
+      APP_FRONTEND_URL: "https://${HI_EVENTS_SUBDOMAIN}.${DOMAIN}"
+      JWT_SECRET: "${JWT_SECRET}"
+      APP_DISABLE_REGISTRATION: "${APP_DISABLE_REGISTRATION}"
+      APP_SAAS_MODE_ENABLED: "${APP_SAAS_MODE_ENABLED}"
+      APP_SAAS_STRIPE_APPLICATION_FEE_PERCENT: "${APP_SAAS_STRIPE_APPLICATION_FEE_PERCENT}"
+      APP_SAAS_STRIPE_APPLICATION_FEE_FIXED: "${APP_SAAS_STRIPE_APPLICATION_FEE_FIXED}"
+      APP_EMAIL_LOGO_URL: "${APP_EMAIL_LOGO_URL}"
+      APP_EMAIL_LOGO_LINK_URL: "${APP_EMAIL_LOGO_LINK_URL}"
+      MAIL_MAILER: "${MAIL_MAILER}"
+      MAIL_DRIVER: "${MAIL_DRIVER}"
+      MAIL_HOST: "${MAIL_HOST}"
+      MAIL_PORT: "${MAIL_PORT}"
+      MAIL_USERNAME: "${MAIL_USERNAME}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD}"
+      MAIL_ENCRYPTION: "${MAIL_ENCRYPTION}"
+      MAIL_FROM_ADDRESS: "${MAIL_FROM_ADDRESS}"
+      MAIL_FROM_NAME: "${MAIL_FROM_NAME}"
+      FILESYSTEM_PUBLIC_DISK: "${FILESYSTEM_PUBLIC_DISK}"
+      FILESYSTEM_PRIVATE_DISK: "${FILESYSTEM_PRIVATE_DISK}"
+      DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/hi-events"
+      REDIS_HOST: "redis"
+      REDIS_PASSWORD: ""
+      REDIS_PORT: "6379"
+      STRIPE_PUBLIC_KEY: "${STRIPE_PUBLIC_KEY}"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
+      WEBHOOK_QUEUE_NAME: "webhook-queue"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      all-in-one-permissions-init:
+        condition: service_completed_successfully
+    volumes:
+      # hi_events (underscore) - see note above postgres-permissions-init.
+      - ${VOLUME_CONFIG}/hi_events/uploads:/app/backend/storage/app/public
+    networks:
+      - default
+      - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      # SAN-bundle group "productivity-creative", anchored by
+      # linkwarden/docker-compose.yml. All four routers below get bare
+      # tls: "true" with NO certresolver/tls.domains of their own - the
+      # anchor's router requests one multi-SAN cert covering this hostname
+      # too. See .claude/rules/san-cert-groups.md before changing this.
+      traefik.http.routers.hi-events.rule: "Host(`${HI_EVENTS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.hi-events.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.hi-events.tls: "true"
+      traefik.http.routers.hi-events.service: "hi-events"
+      traefik.http.routers.hi-events.middlewares: "hsts-headers@docker"
+      traefik.http.routers.hi-events-family.rule: "Host(`${HI_EVENTS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.hi-events-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.hi-events-family.tls: "true"
+      traefik.http.routers.hi-events-family.service: "hi-events"
+      traefik.http.routers.hi-events-family.middlewares: "hsts-headers@docker"
+      traefik.http.routers.hi-events-friends.rule: "Host(`${HI_EVENTS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.hi-events-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
+      traefik.http.routers.hi-events-friends.tls: "true"
+      traefik.http.routers.hi-events-friends.service: "hi-events"
+      traefik.http.routers.hi-events-friends.middlewares: "hsts-headers@docker"
+      traefik.http.routers.hi-events-tailnet.rule: "Host(`${HI_EVENTS_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.hi-events-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.hi-events-tailnet.tls: "true"
+      traefik.http.routers.hi-events-tailnet.service: "hi-events"
+      traefik.http.routers.hi-events-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
+      traefik.http.services.hi-events.loadbalancer.server.port: "80"
+      traefik.docker.network: "traefik-proxy"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true
