@@ -60,6 +60,7 @@ services:
       - "--address=/dockpeek.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/draw-io.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/duplicati.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
+      - "--address=/eventi.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/excalidraw.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/filebrowser.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/fossflow.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"

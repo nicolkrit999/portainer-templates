@@ -8,3 +8,4 @@
 - [traefik-tailnet-forwarder service](traefik_tailnet_forwarder_service.md) - HAProxy sidecar fixing Tailscale-IP-rewrite bug; now joins tailscale-admin's namespace via network_mode:service:X (host-mode reverted, conflicted with Traefik's own wildcard bind)
 - [tailscale-admin service](tailscale_admin_service.md) - second Tailscale identity, non-host sidecar pattern (devices: only for tun, no host volume mount), ip_unprivileged_port_start sysctl fix for the forwarder sharing its namespace (2026-08-22)
 - [SAN-bundle groups](san_bundle_groups.md) - LE rate-limit fix, 6-group per-router tls.domains rollout; anchors/members/mechanism/.env.example workaround (2026-08-22)
+- [hi-events service](hi_events_service.md) - manual-NAS-to-git migration; hi_events (underscore) vs hi-events (dash) folder mismatch, eventi hostname override, joined productivity-creative SAN group (2026-08-24)
