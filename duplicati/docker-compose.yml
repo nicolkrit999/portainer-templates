@@ -27,13 +27,13 @@ services:
       # domains") and was reverted. Once this router obtains the cert,
       # every other router below is covered automatically via the SAN
       # list - those routers need no label changes at all.
-      # Bundled hostnames (this anchor + 19 others): duplicati (this host),
+      # Bundled hostnames (this anchor + 20 others): duplicati (this host),
       # it-tools, omnitools, convertx, stirling-pdf, change-detection,
       # filebrowser, snapotter, moocup, withoutbg, cardyo, datetime,
       # termix, snappyemail, owncloud, miniqr, privatebin, bytestash,
-      # openresume, sosse.
+      # openresume, sosse, openspeedtest.
       traefik.http.routers.duplicati.tls.domains[0].main: "${DUPLICATI_SUBDOMAIN}.${DOMAIN}"
-      traefik.http.routers.duplicati.tls.domains[0].sans: "${IT_TOOLS_SUBDOMAIN}.${DOMAIN},${OMNI_TOOLS_SUBDOMAIN}.${DOMAIN},${CONVERTX_SUBDOMAIN}.${DOMAIN},${STIRLING_PDF_SUBDOMAIN}.${DOMAIN},${CHANGE_DETECTION_SUBDOMAIN}.${DOMAIN},${FILEBROWSER_SUBDOMAIN}.${DOMAIN},${SNAPOTTER_SUBDOMAIN}.${DOMAIN},${MOOCUP_SUBDOMAIN}.${DOMAIN},${WITHOUTBG_SUBDOMAIN}.${DOMAIN},${CARDYO_SUBDOMAIN}.${DOMAIN},${DATETIME_SUBDOMAIN}.${DOMAIN},${TERMIX_SUBDOMAIN}.${DOMAIN},${SNAPPYEMAIL_SUBDOMAIN}.${DOMAIN},${OWNCLOUD_SUBDOMAIN}.${DOMAIN},${MINI_QR_SUBDOMAIN}.${DOMAIN},${PRIVATEBIN_SUBDOMAIN}.${DOMAIN},${BYTESTASH_SUBDOMAIN}.${DOMAIN},${OPENRESUME_SUBDOMAIN}.${DOMAIN},${SOSSE_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.duplicati.tls.domains[0].sans: "${IT_TOOLS_SUBDOMAIN}.${DOMAIN},${OMNI_TOOLS_SUBDOMAIN}.${DOMAIN},${CONVERTX_SUBDOMAIN}.${DOMAIN},${STIRLING_PDF_SUBDOMAIN}.${DOMAIN},${CHANGE_DETECTION_SUBDOMAIN}.${DOMAIN},${FILEBROWSER_SUBDOMAIN}.${DOMAIN},${SNAPOTTER_SUBDOMAIN}.${DOMAIN},${MOOCUP_SUBDOMAIN}.${DOMAIN},${WITHOUTBG_SUBDOMAIN}.${DOMAIN},${CARDYO_SUBDOMAIN}.${DOMAIN},${DATETIME_SUBDOMAIN}.${DOMAIN},${TERMIX_SUBDOMAIN}.${DOMAIN},${SNAPPYEMAIL_SUBDOMAIN}.${DOMAIN},${OWNCLOUD_SUBDOMAIN}.${DOMAIN},${MINI_QR_SUBDOMAIN}.${DOMAIN},${PRIVATEBIN_SUBDOMAIN}.${DOMAIN},${BYTESTASH_SUBDOMAIN}.${DOMAIN},${OPENRESUME_SUBDOMAIN}.${DOMAIN},${SOSSE_SUBDOMAIN}.${DOMAIN},${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.duplicati.service: "duplicati"
       traefik.http.routers.duplicati.middlewares: "hsts-headers@docker"
       traefik.http.routers.duplicati-tailnet.rule: "Host(`${DUPLICATI_SUBDOMAIN}.${DOMAIN}`)"

@@ -1,0 +1,72 @@
+services:
+  openspeedtest:
+    image: openspeedtest/latest:v2.0.6
+    container_name: OpenSpeedTest
+    restart: on-failure:5
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpu_shares: 512
+    networks:
+      - cloudflare_web_network
+      - traefik_proxy_network
+
+    labels:
+      traefik.enable: "true"
+      # SAN-bundle (group "utilities", member - NOT the anchor): this
+      # hostname is bundled onto duplicati's anchor certificate. Every
+      # router below carries bare tls: "true" with NO tls.certresolver and
+      # NO tls.domains of its own - see .claude/rules/san-cert-groups.md.
+      # The anchor (duplicati/docker-compose.yml) carries this hostname in
+      # its tls.domains[0].sans list.
+      traefik.http.routers.openspeedtest.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.openspeedtest.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.openspeedtest.tls: "true"
+      traefik.http.routers.openspeedtest.service: "openspeedtest"
+      traefik.http.routers.openspeedtest.middlewares: "hsts-headers@docker"
+
+      traefik.http.routers.openspeedtest-family.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.openspeedtest-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
+      traefik.http.routers.openspeedtest-family.tls: "true"
+      traefik.http.routers.openspeedtest-family.service: "openspeedtest"
+      traefik.http.routers.openspeedtest-family.middlewares: "hsts-headers@docker"
+
+      traefik.http.routers.openspeedtest-guest.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.openspeedtest-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
+      traefik.http.routers.openspeedtest-guest.tls: "true"
+      traefik.http.routers.openspeedtest-guest.service: "openspeedtest"
+      traefik.http.routers.openspeedtest-guest.middlewares: "hsts-headers@docker"
+
+      traefik.http.routers.openspeedtest-friends.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.openspeedtest-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
+      traefik.http.routers.openspeedtest-friends.tls: "true"
+      traefik.http.routers.openspeedtest-friends.service: "openspeedtest"
+      traefik.http.routers.openspeedtest-friends.middlewares: "hsts-headers@docker"
+
+      traefik.http.services.openspeedtest.loadbalancer.server.port: "3000"
+      traefik.docker.network: "traefik-proxy"
+
+    environment:
+      TZ: "${TZ}"
+      SET_USER: "${PUID}"
+      SET_SERVER_NAME: "${OPENSPEEDTEST_SERVER_NAME}"
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true
