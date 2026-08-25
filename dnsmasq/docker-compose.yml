@@ -90,6 +90,7 @@ services:
       - "--address=/opennotebook.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/opennotebook-api.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/openresume.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
+      - "--address=/openspeedtest.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/owncloud.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/paperlessngx.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/plex.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
