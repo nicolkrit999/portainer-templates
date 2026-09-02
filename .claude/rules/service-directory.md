@@ -63,6 +63,7 @@ specific service.
 | `glances` | glances | private, tailnet-admin | yes |
 | `gocron` | gocron | private, tailnet-admin | no |
 | `gotify` | gotify | private, tailnet-admin | yes |
+| `grafana` | grafana | private, tailnet-admin | yes |
 | `grocy` | grocy | family, private | yes |
 | `harborguard` | harborguard | private, tailnet-admin | yes |
 | `holyclaude` | claude | private, tailnet-admin | yes |

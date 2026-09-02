@@ -1,0 +1,12 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    # "prometheus" resolves via the shared monitoring_network (monitoring-net)
+    # that grafana, prometheus, and unpoller all attach to - not a public URL.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

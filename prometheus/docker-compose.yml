@@ -1,0 +1,50 @@
+services:
+  prometheus-init:
+    image: alpine
+    container_name: prometheus-init
+    restart: "no"
+    user: "0"
+    volumes:
+      - ${VOLUME_DATA}/prometheus:/prometheus
+    command: chown -R 65534:65534 /prometheus
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: prometheus
+    restart: unless-stopped
+    # No PUID/PGID: this image hardcodes UID/GID 65534 (nobody) internally
+    # and ignores those vars entirely (same known pattern as Grafana's UID
+    # 472 - see .claude/agent-memory/docker-compose-architect/grafana_service.md).
+    # prometheus-init (above) chowns ${VOLUME_DATA}/prometheus to
+    # 65534:65534 on every deploy, so no manual chown is needed before
+    # first deploy.
+    depends_on:
+      prometheus-init:
+        condition: service_completed_successfully
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    volumes:
+      - ${VOLUME_DATA}/prometheus:/prometheus
+      - ${VOLUME_CONFIG}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Internal-only backing service: no Cloudflare/Traefik network, no
+    # public hostname, no labels, no SAN-bundle group. Reached only by
+    # grafana over monitoring_network.
+    networks:
+      - monitoring_network
+
+networks:
+  monitoring_network:
+    name: monitoring-net
+    external: true
