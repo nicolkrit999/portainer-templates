@@ -11,7 +11,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.14.0
     container_name: prometheus
-    restart: unless-stopped
+    restart: always
     # No PUID/PGID: this image hardcodes UID/GID 65534 (nobody) internally
     # and ignores those vars entirely (same known pattern as Grafana's UID
     # 472 - see .claude/agent-memory/docker-compose-architect/grafana_service.md).
