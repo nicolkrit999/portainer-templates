@@ -1,0 +1,9 @@
+[     114ms] [INFO] Autofocus processing was blocked because a document's URL has a fragment '#notifications'. @ https://change-detection.nicolkrit.ch/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff#notifications:0
+[    4531ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[    4531ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[   10702ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[   10702ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101

@@ -68,11 +68,18 @@ IP, private → the private forwarder's dedicated LAN IP) - a per-hostname
 split, not a universal answer.
 
 **`dnsmasq-tailnet`** - the Tailscale-facing sibling of the above. Answers
-`*.${DOMAIN}` queries from Tailscale-connected devices. Mostly one
-universal answer (the primary node's tailnet IP) for the whole domain,
-EXCEPT admin-gated hostnames, which get a more-specific override pointing
-at the `tailscale-admin` node's IP instead (dnsmasq resolves the
-most-specific match, so this coexists safely with the wildcard rule).
+`*.${DOMAIN}` queries from Tailscale-connected devices. One universal
+wildcard answer (the primary node's tailnet IP) for the whole domain,
+EXCEPT hostnames with a `tailnet-admin` Traefik router, which get a
+more-specific override pointing at the `tailscale-admin` node's IP instead
+(dnsmasq resolves the most-specific match, so this coexists safely with the
+wildcard rule). **In practice this "except" list covers almost every
+service, not a small special-case set** - since `adding-compose-services`
+gives every new private-tier service a `tailnet-admin` router by default,
+virtually every new service needs its hostname added to this override list
+too, or it silently falls through to the wildcard and never reaches
+Traefik's `tailnet-admin` entrypoint correctly (confirmed real bug,
+2026-09-02 - see that skill's DNS step).
 
 **`traefik-private-forwarder`** - a narrow TCP-passthrough sidecar (socat)
 that lets the private tier be reached at a clean `hostname:443` URL from

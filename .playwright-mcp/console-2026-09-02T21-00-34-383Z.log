@@ -1,0 +1,40 @@
+[     131ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[     132ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[    2128ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[    2128ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[    7135ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[    7135ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[   12143ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[   12143ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[   17151ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[   17151ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[   22171ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[   22171ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[   27194ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[   27194ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[   32241ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[   32241ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[   35758ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[   35759ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[   40081ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[   40081ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101

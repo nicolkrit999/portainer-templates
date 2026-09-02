@@ -1,0 +1,198 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - link [ref=f1e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f1e5]: Change
+      - text: Detection.io
+    - list [ref=f1e6]:
+      - listitem [ref=f1e7]:
+        - link "GROUPS" [ref=f1e8] [cursor=pointer]:
+          - /url: /tags/list
+      - listitem [ref=f1e9]:
+        - link "SETTINGS" [ref=f1e10] [cursor=pointer]:
+          - /url: /settings
+      - listitem [ref=f1e11]:
+        - link "IMPORT" [ref=f1e12] [cursor=pointer]:
+          - /url: /imports/import
+      - listitem [ref=f1e13]:
+        - link [ref=f1e14] [cursor=pointer]:
+          - /url: /settings/toggle-all-paused
+          - img "Pause auto-queue scheduling of watches" [ref=f1e15]
+      - listitem [ref=f1e16]:
+        - link [ref=f1e17] [cursor=pointer]:
+          - /url: /settings/toggle-all-muted
+          - img "Mute notifications" [ref=f1e18]
+      - listitem [ref=f1e19]:
+        - button "Toggle AI mode LLM" [ref=f1e20] [cursor=pointer]:
+          - generic [ref=f1e21]: Toggle AI mode
+          - text: LLM
+        - button "Toggle light/dark mode" [ref=f1e26] [cursor=pointer]
+        - button "Change language" [ref=f1e31] [cursor=pointer]
+        - link [ref=f1e34] [cursor=pointer]:
+          - /url: https://github.com/dgtlmoon/changedetection.io
+      - listitem [ref=f1e37]:
+        - button "Search, or Use Alt+S Key" [ref=f1e38] [cursor=pointer]
+      - listitem [ref=f1e42]
+      - listitem
+  - generic [ref=f1e46]: v0.55.8
+  - generic [ref=f1e47]:
+    - generic [ref=f1e49]:
+      - heading "Try our Chrome extension" [level=4] [ref=f1e50]
+      - paragraph [ref=f1e51]:
+        - link [ref=f1e52] [cursor=pointer]:
+          - /url: https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop
+          - img "Chrome store icon" [ref=f1e53]
+          - text: Chrome Webstore
+      - text: Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+      - heading "Changedetection.io needs your support!" [level=4] [ref=f1e54]
+      - paragraph [ref=f1e55]: You can help us by supporting changedetection.io on these platforms;
+      - paragraph
+      - list [ref=f1e56]:
+        - listitem [ref=f1e57]:
+          - link "Rate us at AlternativeTo.net" [ref=f1e58] [cursor=pointer]:
+            - /url: https://alternativeto.net/software/changedetection-io/about/
+        - listitem [ref=f1e59]:
+          - link "Star us on GitHub" [ref=f1e60] [cursor=pointer]:
+            - /url: https://github.com/dgtlmoon/changedetection.io
+        - listitem [ref=f1e61]:
+          - link "Follow us at Twitter/X" [ref=f1e62] [cursor=pointer]:
+            - /url: https://twitter.com/change_det_io
+        - listitem [ref=f1e63]:
+          - link "G2 Software reviews" [ref=f1e64] [cursor=pointer]:
+            - /url: https://www.g2.com/products/changedetection-io/reviews
+        - listitem [ref=f1e65]:
+          - link "Check us out on LinkedIn" [ref=f1e66] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/changedetection-io
+        - listitem [ref=f1e67]: And tell your friends and colleagues :)
+      - paragraph [ref=f1e68]: The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+      - paragraph [ref=f1e69]: Many thanks :)
+      - paragraph [ref=f1e70]: changedetection.io team
+    - generic [ref=f1e72]:
+      - list
+      - generic [ref=f1e73]:
+        - list [ref=f1e75]:
+          - listitem [ref=f1e76]:
+            - link "General" [ref=f1e77] [cursor=pointer]:
+              - /url: "#general"
+          - listitem [ref=f1e78]:
+            - link "Request" [ref=f1e79] [cursor=pointer]:
+              - /url: "#request"
+          - listitem [ref=f1e80]:
+            - link "Browser Steps" [ref=f1e81] [cursor=pointer]:
+              - /url: "#browser-steps"
+          - listitem [ref=f1e82]:
+            - link "Visual Filter Selector" [ref=f1e83] [cursor=pointer]:
+              - /url: "#visualselector"
+          - listitem [ref=f1e84]:
+            - link "AI / LLM" [ref=f1e85] [cursor=pointer]:
+              - /url: "#ai-llm"
+          - listitem [ref=f1e86]:
+            - link "Filters & Triggers" [ref=f1e87] [cursor=pointer]:
+              - /url: "#filters-and-triggers"
+          - listitem [ref=f1e88]:
+            - link "Conditions" [ref=f1e89] [cursor=pointer]:
+              - /url: "#conditions"
+          - listitem [ref=f1e90]:
+            - link "Notifications" [ref=f1e91] [cursor=pointer]:
+              - /url: "#notifications"
+          - listitem [ref=f1e92]:
+            - link "Stats" [ref=f1e93] [cursor=pointer]:
+              - /url: "#stats"
+        - generic [ref=f1e95]:
+          - group [ref=f1e97]:
+            - generic [ref=f1e98]:
+              - generic [ref=f1e99]: Web Page URL
+              - textbox "Web Page URL" [ref=f1e102]:
+                - /placeholder: https://...
+                - text: https://www.init7.net/en/support/faq/status-info
+              - generic [ref=f1e103]:
+                - text: Some sites use JavaScript to create the content, for this you should
+                - link "use the Chrome/WebDriver Fetcher" [ref=f1e104] [cursor=pointer]:
+                  - /url: https://github.com/dgtlmoon/changedetection.io/wiki/Fetching-pages-with-WebDriver
+              - generic [ref=f1e105]:
+                - text: Variables are supported in the URL (
+                - link "help and examples here" [ref=f1e106] [cursor=pointer]:
+                  - /url: https://github.com/dgtlmoon/changedetection.io/wiki/Handling-variables-in-the-watched-URL
+                - text: ).
+            - generic [ref=f1e107]:
+              - generic [ref=f1e108]: Group Tag
+              - textbox "Group Tag" [ref=f1e111]: networking
+              - generic [ref=f1e112]: organizational tag/group name used in the main listing page
+            - generic [ref=f1e113]:
+              - generic [ref=f1e114]: Processor - What do you want to achieve?
+              - list [ref=f1e117]:
+                - listitem [ref=f1e118]:
+                  - radio "Webpage Text/HTML, JSON and PDF changes" [checked] [ref=f1e119]
+                  - generic [ref=f1e120]: Webpage Text/HTML, JSON and PDF changes
+                - listitem [ref=f1e121]:
+                  - radio "Re-stock & Price detection for pages with a SINGLE product" [ref=f1e122]
+                  - generic [ref=f1e123]: Re-stock & Price detection for pages with a SINGLE product
+            - generic [ref=f1e124]:
+              - generic [ref=f1e125]: Title
+              - textbox "Title" [ref=f1e128]:
+                - /placeholder: https://www.init7.net/en/support/faq/status-info
+              - generic [ref=f1e129]: Automatically uses the page title if found, you can also use your own title/description here
+            - generic [ref=f1e130]:
+              - generic [ref=f1e131]:
+                - checkbox "Use global settings for time between check and scheduler." [checked] [ref=f1e132]
+                - text: Use global settings for time between check and scheduler.
+              - generic [ref=f1e133]:
+                - generic [ref=f1e134]: Time Between Check
+                - table [ref=f1e137]:
+                  - rowgroup [ref=f1e138]:
+                    - row [ref=f1e139]:
+                      - cell [ref=f1e140]:
+                        - spinbutton "Weeks" [ref=f1e141]
+                      - rowheader "Weeks" [ref=f1e142]
+                    - row [ref=f1e144]:
+                      - cell [ref=f1e145]:
+                        - spinbutton "Days" [ref=f1e146]
+                      - rowheader "Days" [ref=f1e147]
+                    - row [ref=f1e149]:
+                      - cell [ref=f1e150]:
+                        - spinbutton "Hours" [ref=f1e151]
+                      - rowheader "Hours" [ref=f1e152]
+                    - row [ref=f1e154]:
+                      - cell [ref=f1e155]:
+                        - spinbutton "Minutes" [ref=f1e156]
+                      - rowheader "Minutes" [ref=f1e157]
+                    - row [ref=f1e159]:
+                      - cell [ref=f1e160]:
+                        - spinbutton "Seconds" [ref=f1e161]
+                      - rowheader "Seconds" [ref=f1e162]
+                - generic [ref=f1e164]: The interval/amount of time between each check.
+              - generic [ref=f1e168]:
+                - generic [ref=f1e169]:
+                  - checkbox "Use time scheduler" [ref=f1e170]
+                  - text: Use time scheduler
+                - generic [ref=f1e171]: Set a hourly/week day schedule
+            - generic [ref=f1e172]:
+              - generic [ref=f1e173]:
+                - checkbox "Send a notification when the filter can no longer be found on the page" [checked] [ref=f1e174]
+                - text: Send a notification when the filter can no longer be found on the page
+              - generic [ref=f1e175]: Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and your filter will not work anymore.
+            - generic [ref=f1e176]:
+              - generic [ref=f1e177]: Number of history items per watch to keep
+              - spinbutton "Number of history items per watch to keep" [ref=f1e180]
+              - generic [ref=f1e181]: Limit collection of history snapshots for each watch to this number of history items. Set to empty to use system settings default
+            - generic [ref=f1e183]:
+              - generic [ref=f1e184]: Use page <title> in list
+              - generic [ref=f1e187]:
+                - generic [ref=f1e188] [cursor=pointer]:
+                  - radio "Yes"
+                  - generic [ref=f1e189]: "Yes"
+                - generic [ref=f1e190] [cursor=pointer]:
+                  - radio "No"
+                  - generic [ref=f1e191]: "No"
+                - generic [ref=f1e192] [cursor=pointer]:
+                  - radio "Main settings" [checked]
+                  - generic [ref=f1e193]: Main settings
+          - generic [ref=f1e195]:
+            - button "Save" [ref=f1e196] [cursor=pointer]
+            - link "Delete" [ref=f1e197] [cursor=pointer]:
+              - /url: /delete?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+            - link "Clone & Edit" [ref=f1e198] [cursor=pointer]:
+              - /url: /clone?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+            - link [ref=f1e199] [cursor=pointer]:
+              - /url: /rss/watch/c53b03ed-62b1-4352-8d84-20f1d03409ff?token=63a1c33046708fbd5cf5d42f7b8008b7
+              - img "RSS Feed for this watch" [ref=f1e200]

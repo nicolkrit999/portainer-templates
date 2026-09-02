@@ -1,0 +1,9 @@
+[     120ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://change-detection.nicolkrit.ch/static/favicon/c53b03ed-62b1-4352-8d84-20f1d03409ff:0
+[     122ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[     123ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101
+[    3032ms] [ERROR] WebSocket connection to 'wss://change-detection.nicolkrit.ch/socket.io/?EIO=4&transport=websocket' failed:  @ https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:5
+[    3032ms] [ERROR] Socket.IO connection error: Error: websocket error
+    at a.value (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:4712)
+    at ws.onerror (https://change-detection.nicolkrit.ch/static/js/socket.io.min.js:6:58447) @ https://change-detection.nicolkrit.ch/static/js/realtime.js:101

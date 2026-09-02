@@ -1,0 +1,286 @@
+- generic [active] [ref=f11e1]:
+  - generic [ref=f11e3]:
+    - link [ref=f11e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f11e5]: Change
+      - text: Detection.io
+    - list [ref=f11e6]:
+      - listitem [ref=f11e7]:
+        - link "GROUPS" [ref=f11e8] [cursor=pointer]:
+          - /url: /tags/list
+      - listitem [ref=f11e9]:
+        - link "SETTINGS" [ref=f11e10] [cursor=pointer]:
+          - /url: /settings
+      - listitem [ref=f11e11]:
+        - link "IMPORT" [ref=f11e12] [cursor=pointer]:
+          - /url: /imports/import
+      - listitem [ref=f11e13]:
+        - link [ref=f11e14] [cursor=pointer]:
+          - /url: /settings/toggle-all-paused
+          - img "Pause auto-queue scheduling of watches" [ref=f11e15]
+      - listitem [ref=f11e16]:
+        - link [ref=f11e17] [cursor=pointer]:
+          - /url: /settings/toggle-all-muted
+          - img "Mute notifications" [ref=f11e18]
+      - listitem [ref=f11e19]:
+        - button "Toggle AI mode LLM" [ref=f11e20] [cursor=pointer]:
+          - generic [ref=f11e21]: Toggle AI mode
+          - text: LLM
+        - button "Toggle light/dark mode" [ref=f11e26] [cursor=pointer]
+        - button "Change language" [ref=f11e31] [cursor=pointer]
+        - link [ref=f11e34] [cursor=pointer]:
+          - /url: https://github.com/dgtlmoon/changedetection.io
+      - listitem [ref=f11e37]:
+        - button "Search, or Use Alt+S Key" [ref=f11e38] [cursor=pointer]
+      - listitem [ref=f11e42]
+      - listitem
+  - generic [ref=f11e46]: v0.55.8
+  - generic [ref=f11e47]:
+    - generic [ref=f11e49]:
+      - heading "Try our Chrome extension" [level=4] [ref=f11e50]
+      - paragraph [ref=f11e51]:
+        - link [ref=f11e52] [cursor=pointer]:
+          - /url: https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop
+          - img "Chrome store icon" [ref=f11e53]
+          - text: Chrome Webstore
+      - text: Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+      - heading "Changedetection.io needs your support!" [level=4] [ref=f11e54]
+      - paragraph [ref=f11e55]: You can help us by supporting changedetection.io on these platforms;
+      - paragraph
+      - list [ref=f11e56]:
+        - listitem [ref=f11e57]:
+          - link "Rate us at AlternativeTo.net" [ref=f11e58] [cursor=pointer]:
+            - /url: https://alternativeto.net/software/changedetection-io/about/
+        - listitem [ref=f11e59]:
+          - link "Star us on GitHub" [ref=f11e60] [cursor=pointer]:
+            - /url: https://github.com/dgtlmoon/changedetection.io
+        - listitem [ref=f11e61]:
+          - link "Follow us at Twitter/X" [ref=f11e62] [cursor=pointer]:
+            - /url: https://twitter.com/change_det_io
+        - listitem [ref=f11e63]:
+          - link "G2 Software reviews" [ref=f11e64] [cursor=pointer]:
+            - /url: https://www.g2.com/products/changedetection-io/reviews
+        - listitem [ref=f11e65]:
+          - link "Check us out on LinkedIn" [ref=f11e66] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/changedetection-io
+        - listitem [ref=f11e67]: And tell your friends and colleagues :)
+      - paragraph [ref=f11e68]: The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+      - paragraph [ref=f11e69]: Many thanks :)
+      - paragraph [ref=f11e70]: changedetection.io team
+    - generic [ref=f11e73]:
+      - list [ref=f11e75]:
+        - listitem [ref=f11e76]:
+          - link "General" [ref=f11e77] [cursor=pointer]:
+            - /url: "#general"
+        - listitem [ref=f11e78]:
+          - link "Request" [ref=f11e79] [cursor=pointer]:
+            - /url: "#request"
+        - listitem [ref=f11e80]:
+          - link "Browser Steps" [ref=f11e81] [cursor=pointer]:
+            - /url: "#browser-steps"
+        - listitem [ref=f11e82]:
+          - link "Visual Filter Selector" [ref=f11e83] [cursor=pointer]:
+            - /url: "#visualselector"
+        - listitem [ref=f11e84]:
+          - link "AI / LLM" [ref=f11e85] [cursor=pointer]:
+            - /url: "#ai-llm"
+        - listitem [ref=f11e86]:
+          - link "Filters & Triggers" [ref=f11e87] [cursor=pointer]:
+            - /url: "#filters-and-triggers"
+        - listitem [ref=f11e88]:
+          - link "Conditions" [ref=f11e89] [cursor=pointer]:
+            - /url: "#conditions"
+        - listitem [ref=f11e90]:
+          - link "Notifications" [ref=f11e91] [cursor=pointer]:
+            - /url: "#notifications"
+        - listitem [ref=f11e92]:
+          - link "Stats" [ref=f11e93] [cursor=pointer]:
+            - /url: "#stats"
+      - generic [ref=f11e95]:
+        - generic [ref=f11e178]:
+          - generic [ref=f11e179] [cursor=pointer]: Activate preview
+          - generic [ref=f11e181]:
+            - generic [ref=f11e182]:
+              - strong [ref=f11e183]: "Pro-tips:"
+              - list [ref=f11e184]:
+                - listitem [ref=f11e185]: Use the preview page to see your filters and triggers highlighted.
+                - listitem [ref=f11e186]:
+                  - text: Some sites use JavaScript to create the content, for this you should
+                  - link "use the Chrome/WebDriver Fetcher" [ref=f11e187] [cursor=pointer]:
+                    - /url: https://github.com/dgtlmoon/changedetection.io/wiki/Fetching-pages-with-WebDriver
+            - generic [ref=f11e188]:
+              - generic [ref=f11e189]: CSS/JSONPath/JQ/XPath Filters
+              - textbox "CSS/JSONPath/JQ/XPath Filters" [ref=f11e192]:
+                - /placeholder: "#example\nxpath://body/div/span[contains(@class, 'example-class')]"
+                - text: ul.planned-item
+              - generic [ref=f11e193]:
+                - text: One CSS, xPath 1 & 2, JSON Path/JQ selector per line, any rules that matches will be used.
+                - generic [ref=f11e194] [cursor=pointer]: Show advanced help and tips
+            - group [ref=f11e195]:
+              - generic [ref=f11e196]: Remove elements
+              - textbox "Remove elements" [ref=f11e199]:
+                - /placeholder: "header\nfooter\nnav\n.stockticker\n//*[contains(text(), 'Advertisement')]"
+              - list [ref=f11e201]:
+                - listitem [ref=f11e202]: Remove HTML element(s) by CSS and XPath selectors before text conversion.
+                - listitem [ref=f11e203]: Don't paste HTML here, use only CSS and XPath selectors
+                - listitem [ref=f11e204]: Add multiple elements, CSS or XPath selectors per line to ignore multiple parts of the HTML.
+            - generic [ref=f11e205]:
+              - group [ref=f11e206]:
+                - heading "Text filtering" [level=3] [ref=f11e207]
+                - text: Limit trigger/ignore/block/extract to;
+                - generic [ref=f11e208]:
+                  - checkbox "Added lines" [checked] [ref=f11e209]
+                  - text: Added lines
+                - generic [ref=f11e210]:
+                  - checkbox "Replaced/changed lines" [checked] [ref=f11e211]
+                  - text: Replaced/changed lines
+                - generic [ref=f11e212]:
+                  - checkbox "Removed lines" [checked] [ref=f11e213]
+                  - text: Removed lines
+                - generic [ref=f11e214]:
+                  - text: "Note: Depending on the length and similarity of the text on each line, the algorithm may consider an"
+                  - strong [ref=f11e215]: addition
+                  - text: instead of
+                  - strong [ref=f11e216]: replacement
+                  - text: for example.
+                - generic [ref=f11e217]:
+                  - text: So it's always better to select
+                  - strong [ref=f11e218]: Added
+                  - text: +
+                  - strong [ref=f11e219]: Replaced
+                  - text: when you're interested in new content.
+                - generic [ref=f11e220]:
+                  - text: When content is merely moved in a list, it will also trigger an
+                  - strong [ref=f11e221]: addition
+                  - text: ", consider enabling"
+                  - code [ref=f11e222]:
+                    - strong [ref=f11e223]: Only trigger when unique lines appear
+              - group [ref=f11e224]:
+                - generic [ref=f11e225]:
+                  - checkbox "Only trigger when unique lines appear in all history" [ref=f11e226]
+                  - text: Only trigger when unique lines appear in all history
+                - generic [ref=f11e227]: Good for websites that just move the content around, and you want to know when NEW content is added, compares new lines against all history for this watch.
+              - group [ref=f11e228]:
+                - generic [ref=f11e229]:
+                  - checkbox "Remove duplicate lines of text" [ref=f11e230]
+                  - text: Remove duplicate lines of text
+                - generic [ref=f11e231]: Remove duplicate lines of text
+              - group [ref=f11e232]:
+                - generic [ref=f11e233]:
+                  - checkbox "Sort text alphabetically" [ref=f11e234]
+                  - text: Sort text alphabetically
+                - generic [ref=f11e235]: Helps reduce changes detected caused by sites shuffling lines around, combine with check unique lines below.
+              - group [ref=f11e236]:
+                - generic [ref=f11e237]:
+                  - checkbox "Trim whitespace before and after text" [ref=f11e238]
+                  - text: Trim whitespace before and after text
+                - generic [ref=f11e239]: Remove any whitespace before and after each line of text
+              - group [ref=f11e240]:
+                - generic [ref=f11e241]:
+                  - generic [ref=f11e242]: Keyword triggers - Trigger/wait for text
+                  - textbox "Keyword triggers - Trigger/wait for text" [ref=f11e245]:
+                    - /placeholder: "Some text to wait for in a line\n/some.regex\\d{2}/ for case-INsensitive regex\n"
+                    - text: 6982 Agno
+                  - list [ref=f11e247]:
+                    - listitem [ref=f11e248]: Text to wait for before triggering a change/notification, all text and regex are tested case-insensitive.
+                    - listitem [ref=f11e249]: Trigger text is processed from the result-text that comes out of any CSS/JSON Filters for this monitor
+                    - listitem [ref=f11e250]: Each line is processed separately (think of each line as "OR")
+                    - listitem [ref=f11e251]:
+                      - text: "Note: Wrap in forward slash / to use regex example:"
+                      - code [ref=f11e252]: /foo\d/
+                    - listitem [ref=f11e253]:
+                      - text: You can also use
+                      - link "conditions" [ref=f11e254] [cursor=pointer]:
+                        - /url: "#conditions"
+                      - text: "- \"Page text\" - with Contains, Starts With, Not Contains and many more"
+                      - code [ref=f11e255]: /foo\d/
+              - group [ref=f11e256]:
+                - generic [ref=f11e257]: Ignore lines containing
+                - textbox "Ignore lines containing" [ref=f11e260]:
+                  - /placeholder: "Some text to ignore in a line\n/some.regex\\d{2}/ for case-INsensitive regex\n"
+                - list [ref=f11e262]:
+                  - listitem [ref=f11e263]: Matching text will be ignored in the text snapshot (you can still see it but it wont trigger a change)
+                  - listitem [ref=f11e264]: Each line processed separately, any line matching will be ignored (removed before creating the checksum)
+                  - listitem [ref=f11e265]:
+                    - text: Regular Expression support, wrap the entire line in forward slash
+                    - code [ref=f11e266]: /regex/
+                  - listitem [ref=f11e267]: Changing this will affect the comparison checksum which may trigger an alert
+                - generic [ref=f11e269]:
+                  - generic [ref=f11e270]: Strip ignored lines
+                  - generic [ref=f11e273]:
+                    - generic [ref=f11e274] [cursor=pointer]:
+                      - radio "Yes"
+                      - generic [ref=f11e275]: "Yes"
+                    - generic [ref=f11e276] [cursor=pointer]:
+                      - radio "No"
+                      - generic [ref=f11e277]: "No"
+                    - generic [ref=f11e278] [cursor=pointer]:
+                      - radio "Main settings" [checked]
+                      - generic [ref=f11e279]: Main settings
+              - group [ref=f11e280]:
+                - generic [ref=f11e281]:
+                  - generic [ref=f11e282]: Block change-detection while text matches
+                  - textbox "Block change-detection while text matches" [ref=f11e285]:
+                    - /placeholder: "For example: Out of stock\nSold out\nNot in stock\nUnavailable"
+                  - list [ref=f11e287]:
+                    - listitem [ref=f11e288]: Block change-detection while this text is on the page, all text and regex are tested case-insensitive, good for waiting for when a product is available again
+                    - listitem [ref=f11e289]: Block text is processed from the result-text that comes out of any CSS/JSON Filters for this monitor
+                    - listitem [ref=f11e290]: All lines here must not exist (think of each line as "OR")
+                    - listitem [ref=f11e291]:
+                      - text: "Note: Wrap in forward slash / to use regex example:"
+                      - code [ref=f11e292]: /foo\d/
+              - group [ref=f11e293]:
+                - generic [ref=f11e294]:
+                  - generic [ref=f11e295]: Extract lines containing
+                  - textbox "Extract lines containing" [ref=f11e298]:
+                    - /placeholder: "celsius\ntemperature\nprice"
+                  - list [ref=f11e300]:
+                    - listitem [ref=f11e301]: Keep only lines that contain any of these words or phrases (plain text, case-insensitive)
+                    - listitem [ref=f11e302]: One entry per line — any line in the page text that contains a match is kept
+                    - listitem [ref=f11e303]: Simpler alternative to regex — use this when you just want lines about a specific topic
+                    - listitem [ref=f11e304]:
+                      - text: "Example: enter"
+                      - code [ref=f11e305]: celsius
+                      - text: to keep only lines mentioning temperature readings
+              - group [ref=f11e306]:
+                - generic [ref=f11e307]:
+                  - generic [ref=f11e308]: Extract text
+                  - textbox "Extract text" [ref=f11e311]:
+                    - /placeholder: "/.+?\\d+ comments.+?/\n or\nkeyword"
+                  - list [ref=f11e313]:
+                    - listitem [ref=f11e314]:
+                      - text: "Extracts text in the final output (line by line) after other filters using regular expressions or string match:"
+                      - list [ref=f11e315]:
+                        - listitem [ref=f11e316]:
+                          - text: Regular expression - example
+                          - code [ref=f11e317]: /reports.+?2022/i
+                        - listitem [ref=f11e318]:
+                          - text: Don't forget to consider the white-space at the start of a line
+                          - code [ref=f11e319]: /.+?reports.+?2022/i
+                        - listitem [ref=f11e320]:
+                          - text: Use
+                          - code [ref=f11e321]: //(?aiLmsux))
+                          - text: type flags (more
+                          - link "information here" [ref=f11e322] [cursor=pointer]:
+                            - /url: https://docs.python.org/3/library/re.html#index-15
+                          - text: )
+                        - listitem [ref=f11e323]:
+                          - text: "Keyword example - example:"
+                          - code [ref=f11e324]: Out of stock
+                        - listitem [ref=f11e325]:
+                          - text: Use groups to extract just that text - example
+                          - code [ref=f11e326]: /reports.+?(\d+)/i
+                          - text: returns a list of years only
+                        - listitem [ref=f11e327]:
+                          - text: Example - match lines containing a keyword
+                          - code [ref=f11e328]: /.*icecream.*/
+                    - listitem [ref=f11e329]: One line per regular-expression/string match
+        - generic [ref=f11e172]:
+          - button "Save" [ref=f11e173] [cursor=pointer]
+          - link "Delete" [ref=f11e174] [cursor=pointer]:
+            - /url: /delete?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link "Clone & Edit" [ref=f11e175] [cursor=pointer]:
+            - /url: /clone?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link [ref=f11e176] [cursor=pointer]:
+            - /url: /rss/watch/c53b03ed-62b1-4352-8d84-20f1d03409ff?token=63a1c33046708fbd5cf5d42f7b8008b7
+            - img "RSS Feed for this watch" [ref=f11e177]

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="None" data-darkmode="false">
+
+  <head>
+    <meta charset="utf-8" >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" >
+    <meta name="description" content="Self hosted website change detection." >
+    <meta name="robots" content="noindex">
+    <title>Change Detection</title>
+    <link rel="stylesheet" href="/static/styles/pure-min.css" >
+    <link rel="stylesheet" href="/static/styles/flag-icons.min.css" >
+    <link rel="stylesheet" href="/static/styles/styles.css?v=0.55.8" >
+    
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicons/favicon-16x16.png">
+    <link rel="manifest" href="/static/favicons/site.webmanifest" crossorigin="use-credentials">
+    <link rel="mask-icon" href="/static/favicons/safari-pinned-tab.svg" color="#5bbad5">
+    <link rel="shortcut icon" href="/static/favicons/favicon.ico">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="msapplication-config" content="favicons/browserconfig.xml">
+    <meta name="theme-color" content="#ffffff">
+    <script>
+        const csrftoken="ImNjOTYyODFjYWNlY2VmZTU0NTFhOTQwMTBjODE2OGU2NmJjYjY3MTki.apiRDQ.yCIOjDuKuhMvX3xkPaea6-dcnlg";
+        const socketio_url="/socket.io";
+        const is_authenticated = true;
+        // Translatable strings for modal.js (ModalDialog). Defined here in a Jinja
+        // template so Babel extract_messages picks them up; modal.js reads this
+        // object with English fallbacks. %(name)s is substituted client-side.
+        window.ModalDialogI18n = {
+            confirmTitle:   "Confirm Action",
+            confirmMessage: "Are you sure?",
+            proceedMessage: "\u003cp\u003eAre you sure you want to proceed?\u003c/p\u003e",
+            confirm:        "Confirm",
+            cancel:         "Cancel",
+            delete:         "Delete",
+            unlink:         "Unlink",
+            deleteTitle:    "Delete %(name)s?",
+            deleteMessage:  "\u003cp\u003eAre you sure you want to delete \u003cstrong\u003e%(name)s\u003c/strong\u003e?\u003c/p\u003e\u003cp\u003eThis action cannot be undone.\u003c/p\u003e",
+            unlinkTitle:    "Unlink %(name)s?",
+            unlinkMessage:  "\u003cp\u003eAre you sure you want to unlink all watches from \u003cstrong\u003e%(name)s\u003c/strong\u003e?\u003c/p\u003e\u003cp\u003eThe tag will be kept but watches will be removed from it.\u003c/p\u003e"
+        };
+        // Translatable strings for the plain .js files (alerts, prompts, dynamic
+        // labels). Defined here so Babel extract_messages picks them up; the JS
+        // reads them via i18nT() with an English fallback. %(...)s is substituted
+        // client-side.
+        window.i18n = {
+            serverCommError:  "There was an error communicating with the server.",
+            reloadProblem:    "There was a problem processing the request, please reload the page.",
+            requestProblem:   "There was a problem processing the request: %(error)s",
+            vsFiltersCleared: "Existing filters under the \u0027Filters \u0026 Triggers\u0027 tab were cleared.",
+            vsFetching:       "Fetching element data..",
+            vsRendering:      "Rendering..",
+            vsDrawMode:       "Draw mode - click and drag to select an area",
+            vsHover:          "Hover over elements to select",
+            imgCopied:        "Image copied to clipboard!",
+            imgCopyFailed:    "Failed to copy image. Your browser may not support this feature.",
+            imgSelectFirst:   "Please select the text/lines you want to capture first by highlighting with your mouse.",
+            imgSelectWithin:  "Please select text within the diff content.",
+            imgGenerateFailed:"Failed to generate image: %(error)s",
+            shareTitle:       "Change Detection Diff",
+            shareText:        "Check out this change detected via changedetection.io",
+            condFillFields:   "Please fill in all fields (Field, Operator, and Value) before verifying.",
+            condVerifyError:  "Error verifying condition.",
+            destEmailPrompt:  "Destination email",
+            highlightTrigger: "Triggers a change if this text appears, AND something changed in the document.",
+            highlightIgnored: "Ignored for calculating changes, but still shown.",
+            highlightBlocked: "No change-detection will occur because this text exists.",
+            tabContentAfter:  "Content after filters",
+            tabContentBefore: "Content raw/before filters"
+        };
+        window.i18nT = function (key, fallback) {
+            return (window.i18n && key in window.i18n) ? window.i18n[key] : fallback;
+        };
+    </script>
+    <script src="/static/js/jquery-3.6.0.min.js"></script>
+    <script src="/static/js/csrf.js" defer></script>
+    <script src="/static/js/feather-icons.min.js" defer></script>
+    
+    <script src="/static/js/socket.io.min.js"></script>
+    <script src="/static/js/realtime.js" defer></script>
+    
+  </head>
+
+  <body class="">
+    <div class="header">
+    <div class="pure-menu-fixed" style="width: 100%;">
+      <div class="home-menu pure-menu pure-menu-horizontal" id="nav-menu">
+
+        
+          <a  id="cdio-logo" class="pure-menu-heading" href="/">
+            <strong>Change</strong>Detection.io</a>
+        
+        
+          
+        
+
+        <ul class="pure-menu-list" id="top-right-menu">
+          <!-- Collapsible menu items (hidden on mobile, shown in drawer) -->
+          
+
+
+
+
+
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/tags/list" class="pure-menu-link">GROUPS</a>
+    </li>
+    <li class="pure-menu-item menu-collapsible active">
+        <a href="/settings" class="pure-menu-link">SETTINGS</a>
+    </li>
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/imports/import" class="pure-menu-link">IMPORT</a>
+    </li>
+    <li class="pure-menu-item" id="menu-pause">
+        <a href="/settings/toggle-all-paused" ><img src="/static/images/pause.svg" alt="Pause auto-queue scheduling of watches" title="Pause auto-queue scheduling of watches" class="icon icon-pause" style="opacity: 0.3"></a>
+    </li>
+    <li class="pure-menu-item " id="menu-mute">
+        <a href="/settings/toggle-all-muted" ><img src="/static/images/bell-off.svg" alt="Mute notifications" title="Mute notifications" class="icon icon-mute" style="opacity: 0.3"></a>
+    </li>
+
+    <li class="pure-menu-item menu-collapsible" id="inline-menu-extras-group">
+        
+        <button class="toggle-button toggle-ai-mode" type="button" title="Toggle AI Mode" data-llm-configured="false" data-llm-settings-url="/settings#ai">
+            <span class="visually-hidden">Toggle AI mode</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M12 2L13.8 9.2L21 11L13.8 12.8L12 22L10.2 12.8L3 11L10.2 9.2Z"/>
+  <circle cx="20" cy="3.5" r="1.4" opacity="0.75"/>
+  <circle cx="18" cy="18.5" r="0.9" opacity="0.5"/>
+</svg><span class="ai-mode-label">LLM</span>
+        </button>
+        
+        <button class="toggle-button toggle-light-mode " type="button" title="Toggle Light/Dark Mode">
+            <span class="visually-hidden">Toggle light/dark mode</span>
+            <span class="icon-light">
+            <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 256.04"><path d="M128.02 0h.18c22.03 0 42.83 5.66 61 15.6h210.38c30.89 0 59 12.65 79.38 33.04C499.35 68.99 512 97.1 512 128.02c0 30.92-12.66 59.03-33.02 79.4l-.42.38c-20.34 20.15-48.29 32.64-78.98 32.64H189.24c-18.17 9.93-38.98 15.6-61.04 15.6h-.18c-35.2 0-67.22-14.41-90.42-37.6C14.41 195.25 0 163.24 0 128.02s14.4-67.24 37.59-90.43l.91-.83C61.65 14.05 93.29 0 128.02 0zm-5.95 54.42c0-1.95.8-3.73 2.08-5 2.74-2.77 7.27-2.76 10.02-.01l.14.16a7.042 7.042 0 0 1 1.94 4.85v12.95c0 1.95-.8 3.73-2.08 5.01-2.75 2.75-7.27 2.75-10.02 0a7.084 7.084 0 0 1-2.08-5.01V54.42zm6.05 31.17c11.72 0 22.32 4.75 30 12.43 7.67 7.68 12.43 18.29 12.43 30 0 11.72-4.75 22.32-12.43 30s-18.28 12.43-30 12.43c-11.72 0-22.32-4.75-30.01-12.43-7.67-7.68-12.43-18.28-12.43-30 0-11.72 4.76-22.32 12.43-30 7.69-7.67 18.3-12.43 30.01-12.43zm-56.33-5.34a7.114 7.114 0 0 1-2.07-5.01c0-3.9 3.18-7.09 7.09-7.09 1.81 0 3.62.69 5 2.07l9.16 9.16a7.065 7.065 0 0 1 2.08 5.01c0 1.8-.7 3.62-2.08 5.01a7.057 7.057 0 0 1-5.01 2.08c-1.8 0-3.61-.7-5-2.07l-9.17-9.16zm-17.28 53.81c-1.95 0-3.73-.8-5-2.08-2.77-2.74-2.76-7.27-.01-10.01l.15-.14a7.04 7.04 0 0 1 4.86-1.94h12.94a7.082 7.082 0 0 1 7.09 7.09c0 1.95-.8 3.73-2.07 5.01a7.099 7.099 0 0 1-5.02 2.07H54.51zm25.82 50.28a7.049 7.049 0 0 1-5 2.07c-3.91 0-7.09-3.16-7.09-7.08 0-1.81.68-3.62 2.07-5.01l9.31-9.29a7.02 7.02 0 0 1 4.86-1.94 7.09 7.09 0 0 1 7.09 7.09c0 1.79-.69 3.6-2.08 4.99l-9.16 9.17zm53.82 17.29c0 1.94-.8 3.73-2.08 5-2.74 2.76-7.27 2.75-10.02 0l-.13-.15a7.033 7.033 0 0 1-1.94-4.85v-12.95c0-1.96.8-3.73 2.07-5.01 2.76-2.75 7.27-2.75 10.03 0a7.1 7.1 0 0 1 2.07 5.01v12.95zm50.28-25.83a7.055 7.055 0 0 1 2.07 5.01c0 3.89-3.18 7.09-7.08 7.09-1.81 0-3.63-.69-5.01-2.07l-9.16-9.16a7.095 7.095 0 0 1-2.07-5.02c0-3.9 3.18-7.09 7.08-7.09 1.8 0 3.61.7 5 2.08l9.17 9.16zm17.29-53.82c1.93 0 3.73.81 5 2.08 2.76 2.75 2.75 7.27 0 10.02l-.15.14a7.098 7.098 0 0 1-4.85 1.94h-12.95c-1.96 0-3.74-.8-5.01-2.08-2.76-2.75-2.76-7.27 0-10.02a7.049 7.049 0 0 1 5.01-2.08h12.95zM175.89 71.7a7.074 7.074 0 0 1 5-2.07c3.9 0 7.1 3.19 7.1 7.09 0 1.81-.69 3.62-2.07 5l-9.32 9.31a7.12 7.12 0 0 1-4.86 1.93c-3.91 0-7.09-3.18-7.09-7.09 0-1.8.7-3.61 2.08-5l9.16-9.17zm34.17-41.87c2.96 2.47 5.81 5.07 8.53 7.8 23.22 23.15 37.63 55.17 37.63 90.39s-14.42 67.23-37.6 90.42a130.2 130.2 0 0 1-8.5 7.77h189.46c26.83 0 51.24-10.91 69.02-28.5l.32-.35c17.79-17.79 28.85-42.35 28.85-69.34 0-26.99-11.06-51.55-28.85-69.35-17.77-17.8-42.33-28.84-69.34-28.84H210.06zm-82.04-14.71h.18c62.09 0 112.89 50.81 112.89 112.9 0 62.1-50.86 112.9-112.89 112.9h-.18c-62.03 0-112.9-50.8-112.9-112.9 0-62.09 50.81-112.9 112.9-112.9z"/></svg>
+          </span>
+            <span class="icon-dark">
+            <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 262.86"><path fill-rule="nonzero" d="M316.78 16.55h-205.9c-30.5 0-58.22 12.48-78.31 32.57C12.47 69.21 0 96.93 0 127.44c0 30.5 12.47 58.22 32.57 78.31 20.09 20.1 47.81 32.57 78.31 32.57h193.25c21.54 15.43 47.9 24.54 76.26 24.54h.18c36.14 0 69.02-14.79 92.83-38.6 23.8-23.81 38.6-56.67 38.6-92.83 0-36.15-14.78-69.03-38.63-92.8C449.53 14.8 416.67 0 380.57 0h-.18c-23.02 0-44.72 6.02-63.61 16.55zm70.62 97.17.43.09c.82-3.45 2.83-6.19 6.04-8.16 3.2-1.98 6.53-2.57 10.01-1.75l.1-.43c-3.47-.82-6.2-2.83-8.17-6.03-1.98-3.22-2.57-6.55-1.75-10.01l-.43-.1c-.82 3.47-2.83 6.2-6.03 8.18-3.21 1.98-6.55 2.56-10.02 1.74l-.1.43c3.47.82 6.2 2.84 8.18 6.04 1.99 3.19 2.56 6.52 1.74 10zm36.87 16.77.53.12c1.02-4.35 3.55-7.78 7.58-10.26 4.02-2.49 8.2-3.22 12.56-2.19l.13-.53c-4.35-1.03-7.78-3.55-10.26-7.59-2.49-4.03-3.22-8.22-2.2-12.56l-.53-.12c-1.02 4.35-3.55 7.77-7.58 10.26-4.02 2.49-8.21 3.22-12.56 2.19l-.13.53c4.36 1.03 7.78 3.55 10.26 7.58 2.49 4.02 3.22 8.22 2.2 12.57zm-38.79-61.01c-15.69 7.67-26.98 23.26-28.29 41.93-1.96 27.88 19.05 52.06 46.92 54.02 13.23.93 25.64-3.32 35.22-11.02 4.75-3.82 9.66-.45 7.59 4.36-11.33 26.42-38.45 44.04-68.74 41.91-38.29-2.69-67.14-35.91-64.45-74.19C316.3 89.8 347.05 61.67 383.44 62c6.71.06 8.13 4.5 2.04 7.48zm-5.09-53.95h.18c63.75 0 115.91 52.15 115.91 115.9 0 63.75-52.23 115.91-115.91 115.91h-.18c-63.68 0-115.91-52.16-115.91-115.91s52.16-115.9 115.91-115.9z"/></svg>
+          </span>
+        </button>
+        <button class="toggle-button language-selector" type="button" title="Change Language">
+            <span class="visually-hidden">Change language</span>
+            <span class="🌐" id="language-selector-flag"></span>
+        </button>
+        <a class="github-link" href="https://github.com/dgtlmoon/changedetection.io"
+           target="_blank" 
+          rel="noopener" >
+            <svg class="octicon octicon-mark-github v-align-middle"  viewbox="0 0 16 16" version="1.1" aria-hidden="true">
+    <path
+     fill-rule="evenodd"
+     d="M 8,0 C 3.58,0 0,3.58 0,8 c 0,3.54 2.29,6.53 5.47,7.59 0.4,0.07 0.55,-0.17 0.55,-0.38 0,-0.19 -0.01,-0.82 -0.01,-1.49 C 4,14.09 3.48,13.23 3.32,12.78 3.23,12.55 2.84,11.84 2.5,11.65 2.22,11.5 1.82,11.13 2.49,11.12 3.12,11.11 3.57,11.7 3.72,11.94 4.44,13.15 5.59,12.81 6.05,12.6 6.12,12.08 6.33,11.73 6.56,11.53 4.78,11.33 2.92,10.64 2.92,7.58 2.92,6.71 3.23,5.99 3.74,5.43 3.66,5.23 3.38,4.41 3.82,3.31 c 0,0 0.67,-0.21 2.2,0.82 0.64,-0.18 1.32,-0.27 2,-0.27 0.68,0 1.36,0.09 2,0.27 1.53,-1.04 2.2,-0.82 2.2,-0.82 0.44,1.1 0.16,1.92 0.08,2.12 0.51,0.56 0.82,1.27 0.82,2.15 0,3.07 -1.87,3.75 -3.65,3.95 0.29,0.25 0.54,0.73 0.54,1.48 0,1.07 -0.01,1.93 -0.01,2.2 0,0.21 0.15,0.46 0.55,0.38 A 8.013,8.013 0 0 0 16,8 C 16,3.58 12.42,0 8,0 Z"
+     id="path2" />
+</svg>
+        </a>
+    </li>
+
+
+          
+            
+              <li class="pure-menu-item  menu-collapsible">
+                <button class="toggle-button" id="open-search-modal" type="button" title="Search, or Use Alt+S Key">
+                  <svg version="1.1" id="search" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 122.879 119.799" enable-background="new 0 0 122.879 119.799" xml:space="preserve"><g><path d="M49.988,0h0.016v0.007C63.803,0.011,76.298,5.608,85.34,14.652c9.027,9.031,14.619,21.515,14.628,35.303h0.007v0.033v0.04 h-0.007c-0.005,5.557-0.917,10.905-2.594,15.892c-0.281,0.837-0.575,1.641-0.877,2.409v0.007c-1.446,3.66-3.315,7.12-5.547,10.307 l29.082,26.139l0.018,0.016l0.157,0.146l0.011,0.011c1.642,1.563,2.536,3.656,2.649,5.78c0.11,2.1-0.543,4.248-1.979,5.971 l-0.011,0.016l-0.175,0.203l-0.035,0.035l-0.146,0.16l-0.016,0.021c-1.565,1.642-3.654,2.534-5.78,2.646 c-2.097,0.111-4.247-0.54-5.971-1.978l-0.015-0.011l-0.204-0.175l-0.029-0.024L78.761,90.865c-0.88,0.62-1.778,1.209-2.687,1.765 c-1.233,0.755-2.51,1.466-3.813,2.115c-6.699,3.342-14.269,5.222-22.272,5.222v0.007h-0.016v-0.007 c-13.799-0.004-26.296-5.601-35.338-14.645C5.605,76.291,0.016,63.805,0.007,50.021H0v-0.033v-0.016h0.007 c0.004-13.799,5.601-26.296,14.645-35.338C23.683,5.608,36.167,0.016,49.955,0.007V0H49.988L49.988,0z M50.004,11.21v0.007h-0.016 h-0.033V11.21c-10.686,0.007-20.372,4.35-27.384,11.359C15.56,29.578,11.213,39.274,11.21,49.973h0.007v0.016v0.033H11.21 c0.007,10.686,4.347,20.367,11.359,27.381c7.009,7.012,16.705,11.359,27.403,11.361v-0.007h0.016h0.033v0.007 c10.686-0.007,20.368-4.348,27.382-11.359c7.011-7.009,11.358-16.702,11.36-27.4h-0.006v-0.016v-0.033h0.006 c-0.006-10.686-4.35-20.372-11.358-27.384C70.396,15.56,60.703,11.213,50.004,11.21L50.004,11.21z"/></g></svg>
+                </button>
+              </li>
+
+            
+          
+
+          <li class="pure-menu-item" id="heart-us">
+                <svg
+                   fill="#ff0000"
+                   class="bi bi-heart"
+                   preserveAspectRatio="xMidYMid meet"
+                   viewBox="0 0 16.9 16.1"
+                   id="svg-heart"
+                   xmlns="http://www.w3.org/2000/svg"
+                   >
+                  <path id="heartpath" d="M 5.338316,0.50302766 C 0.71136983,0.50647126 -3.9576371,7.2707777 8.5004254,15.503028 23.833425,5.3700277 13.220206,-2.5384409 8.6762066,1.6475589 c -0.060791,0.054322 -0.11943,0.1110064 -0.1757812,0.1699219 -0.057,-0.059 -0.1157813,-0.116875 -0.1757812,-0.171875 C 7.4724566,0.86129334 6.4060729,0.50223298 5.338316,0.50302766 Z" style="fill:var(--color-background);fill-opacity:1;stroke:#ff0000;stroke-opacity:1" />
+                </svg>
+          </li>
+          <!-- Hamburger menu button (mobile only) -->
+          <li class="pure-menu-item">
+            <button class="hamburger-menu" id="hamburger-toggle" aria-label="Toggle menu">
+              <div class="hamburger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Mobile menu drawer -->
+      <div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
+      <div class="mobile-menu-drawer" id="mobile-menu-drawer">
+        <ul class="mobile-menu-items">
+          
+
+
+
+
+
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/tags/list" class="pure-menu-link">GROUPS</a>
+    </li>
+    <li class="pure-menu-item menu-collapsible active">
+        <a href="/settings" class="pure-menu-link">SETTINGS</a>
+    </li>
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/imports/import" class="pure-menu-link">IMPORT</a>
+    </li>
+    <li class="pure-menu-item" id="menu-pause">
+        <a href="/settings/toggle-all-paused" ><img src="/static/images/pause.svg" alt="Pause auto-queue scheduling of watches" title="Pause auto-queue scheduling of watches" class="icon icon-pause" style="opacity: 0.3"></a>
+    </li>
+    <li class="pure-menu-item " id="menu-mute">
+        <a href="/settings/toggle-all-muted" ><img src="/static/images/bell-off.svg" alt="Mute notifications" title="Mute notifications" class="icon icon-mute" style="opacity: 0.3"></a>
+    </li>
+
+    <li class="pure-menu-item menu-collapsible" id="inline-menu-extras-group">
+        
+        <button class="toggle-button toggle-ai-mode" type="button" title="Toggle AI Mode" data-llm-configured="false" data-llm-settings-url="/settings#ai">
+            <span class="visually-hidden">Toggle AI mode</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M12 2L13.8 9.2L21 11L13.8 12.8L12 22L10.2 12.8L3 11L10.2 9.2Z"/>
+  <circle cx="20" cy="3.5" r="1.4" opacity="0.75"/>
+  <circle cx="18" cy="18.5" r="0.9" opacity="0.5"/>
+</svg><span class="ai-mode-label">LLM</span>
+        </button>
+        
+        <button class="toggle-button toggle-light-mode " type="button" title="Toggle Light/Dark Mode">
+            <span class="visually-hidden">Toggle light/dark mode</span>
+            <span class="icon-light">
+            <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 256.04"><path d="M128.02 0h.18c22.03 0 42.83 5.66 61 15.6h210.38c30.89 0 59 12.65 79.38 33.04C499.35 68.99 512 97.1 512 128.02c0 30.92-12.66 59.03-33.02 79.4l-.42.38c-20.34 20.15-48.29 32.64-78.98 32.64H189.24c-18.17 9.93-38.98 15.6-61.04 15.6h-.18c-35.2 0-67.22-14.41-90.42-37.6C14.41 195.25 0 163.24 0 128.02s14.4-67.24 37.59-90.43l.91-.83C61.65 14.05 93.29 0 128.02 0zm-5.95 54.42c0-1.95.8-3.73 2.08-5 2.74-2.77 7.27-2.76 10.02-.01l.14.16a7.042 7.042 0 0 1 1.94 4.85v12.95c0 1.95-.8 3.73-2.08 5.01-2.75 2.75-7.27 2.75-10.02 0a7.084 7.084 0 0 1-2.08-5.01V54.42zm6.05 31.17c11.72 0 22.32 4.75 30 12.43 7.67 7.68 12.43 18.29 12.43 30 0 11.72-4.75 22.32-12.43 30s-18.28 12.43-30 12.43c-11.72 0-22.32-4.75-30.01-12.43-7.67-7.68-12.43-18.28-12.43-30 0-11.72 4.76-22.32 12.43-30 7.69-7.67 18.3-12.43 30.01-12.43zm-56.33-5.34a7.114 7.114 0 0 1-2.07-5.01c0-3.9 3.18-7.09 7.09-7.09 1.81 0 3.62.69 5 2.07l9.16 9.16a7.065 7.065 0 0 1 2.08 5.01c0 1.8-.7 3.62-2.08 5.01a7.057 7.057 0 0 1-5.01 2.08c-1.8 0-3.61-.7-5-2.07l-9.17-9.16zm-17.28 53.81c-1.95 0-3.73-.8-5-2.08-2.77-2.74-2.76-7.27-.01-10.01l.15-.14a7.04 7.04 0 0 1 4.86-1.94h12.94a7.082 7.082 0 0 1 7.09 7.09c0 1.95-.8 3.73-2.07 5.01a7.099 7.099 0 0 1-5.02 2.07H54.51zm25.82 50.28a7.049 7.049 0 0 1-5 2.07c-3.91 0-7.09-3.16-7.09-7.08 0-1.81.68-3.62 2.07-5.01l9.31-9.29a7.02 7.02 0 0 1 4.86-1.94 7.09 7.09 0 0 1 7.09 7.09c0 1.79-.69 3.6-2.08 4.99l-9.16 9.17zm53.82 17.29c0 1.94-.8 3.73-2.08 5-2.74 2.76-7.27 2.75-10.02 0l-.13-.15a7.033 7.033 0 0 1-1.94-4.85v-12.95c0-1.96.8-3.73 2.07-5.01 2.76-2.75 7.27-2.75 10.03 0a7.1 7.1 0 0 1 2.07 5.01v12.95zm50.28-25.83a7.055 7.055 0 0 1 2.07 5.01c0 3.89-3.18 7.09-7.08 7.09-1.81 0-3.63-.69-5.01-2.07l-9.16-9.16a7.095 7.095 0 0 1-2.07-5.02c0-3.9 3.18-7.09 7.08-7.09 1.8 0 3.61.7 5 2.08l9.17 9.16zm17.29-53.82c1.93 0 3.73.81 5 2.08 2.76 2.75 2.75 7.27 0 10.02l-.15.14a7.098 7.098 0 0 1-4.85 1.94h-12.95c-1.96 0-3.74-.8-5.01-2.08-2.76-2.75-2.76-7.27 0-10.02a7.049 7.049 0 0 1 5.01-2.08h12.95zM175.89 71.7a7.074 7.074 0 0 1 5-2.07c3.9 0 7.1 3.19 7.1 7.09 0 1.81-.69 3.62-2.07 5l-9.32 9.31a7.12 7.12 0 0 1-4.86 1.93c-3.91 0-7.09-3.18-7.09-7.09 0-1.8.7-3.61 2.08-5l9.16-9.17zm34.17-41.87c2.96 2.47 5.81 5.07 8.53 7.8 23.22 23.15 37.63 55.17 37.63 90.39s-14.42 67.23-37.6 90.42a130.2 130.2 0 0 1-8.5 7.77h189.46c26.83 0 51.24-10.91 69.02-28.5l.32-.35c17.79-17.79 28.85-42.35 28.85-69.34 0-26.99-11.06-51.55-28.85-69.35-17.77-17.8-42.33-28.84-69.34-28.84H210.06zm-82.04-14.71h.18c62.09 0 112.89 50.81 112.89 112.9 0 62.1-50.86 112.9-112.89 112.9h-.18c-62.03 0-112.9-50.8-112.9-112.9 0-62.09 50.81-112.9 112.9-112.9z"/></svg>
+          </span>
+            <span class="icon-dark">
+            <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 262.86"><path fill-rule="nonzero" d="M316.78 16.55h-205.9c-30.5 0-58.22 12.48-78.31 32.57C12.47 69.21 0 96.93 0 127.44c0 30.5 12.47 58.22 32.57 78.31 20.09 20.1 47.81 32.57 78.31 32.57h193.25c21.54 15.43 47.9 24.54 76.26 24.54h.18c36.14 0 69.02-14.79 92.83-38.6 23.8-23.81 38.6-56.67 38.6-92.83 0-36.15-14.78-69.03-38.63-92.8C449.53 14.8 416.67 0 380.57 0h-.18c-23.02 0-44.72 6.02-63.61 16.55zm70.62 97.17.43.09c.82-3.45 2.83-6.19 6.04-8.16 3.2-1.98 6.53-2.57 10.01-1.75l.1-.43c-3.47-.82-6.2-2.83-8.17-6.03-1.98-3.22-2.57-6.55-1.75-10.01l-.43-.1c-.82 3.47-2.83 6.2-6.03 8.18-3.21 1.98-6.55 2.56-10.02 1.74l-.1.43c3.47.82 6.2 2.84 8.18 6.04 1.99 3.19 2.56 6.52 1.74 10zm36.87 16.77.53.12c1.02-4.35 3.55-7.78 7.58-10.26 4.02-2.49 8.2-3.22 12.56-2.19l.13-.53c-4.35-1.03-7.78-3.55-10.26-7.59-2.49-4.03-3.22-8.22-2.2-12.56l-.53-.12c-1.02 4.35-3.55 7.77-7.58 10.26-4.02 2.49-8.21 3.22-12.56 2.19l-.13.53c4.36 1.03 7.78 3.55 10.26 7.58 2.49 4.02 3.22 8.22 2.2 12.57zm-38.79-61.01c-15.69 7.67-26.98 23.26-28.29 41.93-1.96 27.88 19.05 52.06 46.92 54.02 13.23.93 25.64-3.32 35.22-11.02 4.75-3.82 9.66-.45 7.59 4.36-11.33 26.42-38.45 44.04-68.74 41.91-38.29-2.69-67.14-35.91-64.45-74.19C316.3 89.8 347.05 61.67 383.44 62c6.71.06 8.13 4.5 2.04 7.48zm-5.09-53.95h.18c63.75 0 115.91 52.15 115.91 115.9 0 63.75-52.23 115.91-115.91 115.91h-.18c-63.68 0-115.91-52.16-115.91-115.91s52.16-115.9 115.91-115.9z"/></svg>
+          </span>
+        </button>
+        <button class="toggle-button language-selector" type="button" title="Change Language">
+            <span class="visually-hidden">Change language</span>
+            <span class="🌐" id="language-selector-flag"></span>
+        </button>
+        <a class="github-link" href="https://github.com/dgtlmoon/changedetection.io"
+           target="_blank" 
+          rel="noopener" >
+            <svg class="octicon octicon-mark-github v-align-middle"  viewbox="0 0 16 16" version="1.1" aria-hidden="true">
+    <path
+     fill-rule="evenodd"
+     d="M 8,0 C 3.58,0 0,3.58 0,8 c 0,3.54 2.29,6.53 5.47,7.59 0.4,0.07 0.55,-0.17 0.55,-0.38 0,-0.19 -0.01,-0.82 -0.01,-1.49 C 4,14.09 3.48,13.23 3.32,12.78 3.23,12.55 2.84,11.84 2.5,11.65 2.22,11.5 1.82,11.13 2.49,11.12 3.12,11.11 3.57,11.7 3.72,11.94 4.44,13.15 5.59,12.81 6.05,12.6 6.12,12.08 6.33,11.73 6.56,11.53 4.78,11.33 2.92,10.64 2.92,7.58 2.92,6.71 3.23,5.99 3.74,5.43 3.66,5.23 3.38,4.41 3.82,3.31 c 0,0 0.67,-0.21 2.2,0.82 0.64,-0.18 1.32,-0.27 2,-0.27 0.68,0 1.36,0.09 2,0.27 1.53,-1.04 2.2,-0.82 2.2,-0.82 0.44,1.1 0.16,1.92 0.08,2.12 0.51,0.56 0.82,1.27 0.82,2.15 0,3.07 -1.87,3.75 -3.65,3.95 0.29,0.25 0.54,0.73 0.54,1.48 0,1.07 -0.01,1.93 -0.01,2.2 0,0.21 0.15,0.46 0.55,0.38 A 8.013,8.013 0 0 0 16,8 C 16,3.58 12.42,0 8,0 Z"
+     id="path2" />
+</svg>
+        </a>
+    </li>
+
+            <li class="pure-menu-item menu-collapsible"><div>v0.55.8</div><a href="https://changedetection.io/?ref=">Let us host your instance!</a><br>
+            </li>
+        </ul>
+      </div>
+      <div id="pure-menu-horizontal-spinner"></div>
+      </div>
+
+    </div>
+    
+    
+    
+      <div class="sticky-tab" id="right-sticky">v0.55.8</div>
+    
+    <section class="content">
+        <div id="overlay">
+            <div class="content">
+                <h4>Try our Chrome extension</h4>
+                <p>
+                    <a id="chrome-extension-link"
+                       title="Chrome Extension - Web Page Change Detection with changedetection.io!"
+                       href="https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop">
+                        <img alt="Chrome store icon" src="/static/images/google-chrome-icon.png">
+                        Chrome Webstore
+                    </a>
+                </p>
+                Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+                <h4>Changedetection.io needs your support!</h4>
+                <p>
+                    You can help us by supporting changedetection.io on these platforms;
+                </p>
+                <p>
+                <ul>
+                    <li>
+                        <a href="https://alternativeto.net/software/changedetection-io/about/" title="Web page change detection at alternativeto.net">Rate us at
+                        AlternativeTo.net</a>
+                    </li>
+                <li>
+                    <a href="https://github.com/dgtlmoon/changedetection.io" title="Web page change detection on GitHub">Star us on GitHub</a>
+                </li>
+                <li>
+                    <a rel="nofollow" href="https://twitter.com/change_det_io" title="Web page change detection on Twitter">Follow us at Twitter/X</a>
+                </li>
+                <li>
+                    <a rel="nofollow" href="https://www.g2.com/products/changedetection-io/reviews" title="Web page change detection reviews at G2">G2 Software reviews</a>
+                </li>
+                <li>
+                    <a rel="nofollow" href="https://www.linkedin.com/company/changedetection-io" title="Visit web page change detection at LinkedIn">Check us out on LinkedIn</a>
+                </li>
+                <li>
+                    And tell your friends and colleagues :)
+                </li>
+                </ul>
+                <p>
+                    The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+                </p>
+                <p>
+                    Many thanks :)<br>
+                </p>
+                <p>
+                    <i>changedetection.io team</i>
+                </p>
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+
+          <div class="content-main">
+            <header>
+              
+            </header>
+
+            
+            
+            
+            
+            
+<div class="edit-form">
+     <div class="inner">
+
+         <h4 style="margin-top: 0px;">Notification debug log</h4>
+                <div id="notification-error-log">
+                <ul style="font-size: 80%; margin:0px; padding: 0 0 0 7px">
+                
+                    <li>Wed Sep  2 22:57:00 2026 - SENDING - [{&#34;title&#34;: &#34;Init7 Maintenance Alert - Agno/6982&#34;, &#34;body&#34;: &#34;  * #42454137 (18.9.2026, 00:00:00): Planned Maintenance in 6370 Stans (710STA &amp; 1710ROZ)\n\nTicket link: https://www.init7.net/en/support/faq/status-info?ticket=  * #42454137 (18.9.2026, 00:00:00): Planned Maintenance in 6370 Stans (710STA &amp; 1710ROZ)&#34;, &#34;url&#34;: &#34;https://discord.com/api/webhooks/1441918212798419084/x5iSolXlPQHK8xD_3sMkZhUctPz6e_p-_YyNr1uJak1Y3DlqVneRwG-24CfTzVgZEFrm?avatar_url=https://raw.githubusercontent.com/dgtlmoon/changedetection.io/master/changedetectionio/static/images/avatar-256x256.png&amp;format=text&#34;, &#34;original_context&#34;: {&#34;base_url&#34;: &#34;https://changedetection.nicolkrit.ch/&#34;, &#34;change_datetime&#34;: &#34;2026-09-02 22:56:49 CEST&#34;, &#34;current_snapshot&#34;: &#34;  * #42454137 (18.9.2026, 00:00:00): Planned Maintenance in 6370 Stans (710STA &amp; 1710ROZ)\n  * #42454486 (18.9.2026, 00:00:00): Planned Maintenance in 6600 Muralto, 6600 Locarno, 6612 Ascona, 6598 Tenero (630MUR, 630MOT, 630ASC, 630TEN)&#34;, &#34;diff&#34;: &#34;&#34;, &#34;diff_clean&#34;: &#34;&#34;, &#34;diff_added&#34;: &#34;&#34;, &#34;diff_added_clean&#34;: &#34;&#34;, &#34;diff_full&#34;: &#34;&#34;, &#34;diff_full_clean&#34;: &#34;&#34;, &#34;diff_patch&#34;: &#34;&#34;, &#34;diff_removed&#34;: &#34;&#34;, &#34;diff_removed_clean&#34;: &#34;&#34;, &#34;diff_changed_from&#34;: &#34;&#34;, &#34;diff_changed_to&#34;: &#34;&#34;, &#34;diff_url&#34;: &#34;https://changedetection.nicolkrit.ch/diff/c53b03ed-62b1-4352-8d84-20f1d03409ff&#34;, &#34;raw_diff&#34;: &#34;&#34;, &#34;markup_text_links_to_html_links&#34;: false, &#34;restock&#34;: {}, &#34;notification_timestamp&#34;: 1788382619.5841796, &#34;prev_snapshot&#34;: &#34;  * #42454137 (18.9.2026, 00:00:00): Planned Maintenance in 6370 Stans (710STA &amp; 1710ROZ)\n  * #42454486 (18.9.2026, 00:00:00): Planned Maintenance in 6600 Muralto, 6600 Locarno, 6612 Ascona, 6598 Tenero (630MUR, 630MOT, 630ASC, 630TEN)&#34;, &#34;preview_url&#34;: &#34;https://changedetection.nicolkrit.ch/preview/c53b03ed-62b1-4352-8d84-20f1d03409ff&#34;, &#34;screenshot&#34;: null, &#34;timestamp_from&#34;: null, &#34;timestamp_to&#34;: null, &#34;triggered_text&#34;: &#34;  * #42454137 (18.9.2026, 00:00:00): Planned Maintenance in 6370 Stans (710STA &amp; 1710ROZ)&#34;, &#34;llm_summary&#34;: null, &#34;llm_intent&#34;: null, &#34;uuid&#34;: &#34;c53b03ed-62b1-4352-8d84-20f1d03409ff&#34;, &#34;watch_mime_type&#34;: &#34;text/html&#34;, &#34;watch_tag&#34;: &#34;self-hosting&#34;, &#34;watch_title&#34;: &#34;Current Status of Init7 Services | Init7&#34;, &#34;watch_url&#34;: &#34;https://www.init7.net/en/support/faq/status-info&#34;, &#34;watch_uuid&#34;: &#34;c53b03ed-62b1-4352-8d84-20f1d03409ff&#34;, &#34;notification_urls&#34;: [&#34;https://discord.com/api/webhooks/1441918212798419084/x5iSolXlPQHK8xD_3sMkZhUctPz6e_p-_YyNr1uJak1Y3DlqVneRwG-24CfTzVgZEFrm&#34;], &#34;notification_title&#34;: &#34;Init7 Maintenance Alert - Agno/6982&#34;, &#34;notification_body&#34;: &#34;{{ triggered_text }}\r\n\r\nTicket link: https://www.init7.net/en/support/faq/status-info?ticket={{ triggered_text | regex_replace(&#39;.*?#(\\d+).*&#39;, &#39;\\1&#39;) }}&#34;, &#34;notification_format&#34;: &#34;text&#34;, &#34;_llm_result&#34;: null, &#34;_llm_intent&#34;: &#34;&#34;, &#34;_llm_change_summary&#34;: &#34;&#34;, &#34;edit_url&#34;: &#34;https://changedetection.nicolkrit.ch/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff&#34;}}]</li>
+                
+                    <li>Wed Sep  2 21:00:17 2026 - SENDING - [{&#34;title&#34;: &#34;ChangeDetection.io Notification&#34;, &#34;body&#34;: &#34;## [What&#39;s New - Quad Lock\u00ae Europe - Official Store](https://www.quadlockcase.eu/collections/whats-new)\n\nA change was detected.\n\n&gt; [**&gt;&gt; View Change Diff &lt;&lt;**](https://changedetection.nicolkrit.ch/diff/8d942bd8-2988-4515-bce1-2609e27b5fd4)\nhttps://changedetection.nicolkrit.ch/preview/8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;url&#34;: &#34;https://discord.com/api/webhooks/1441918212798419084/x5iSolXlPQHK8xD_3sMkZhUctPz6e_p-_YyNr1uJak1Y3DlqVneRwG-24CfTzVgZEFrm?avatar_url=https://raw.githubusercontent.com/dgtlmoon/changedetection.io/master/changedetectionio/static/images/avatar-256x256.png&amp;format=text&#34;, &#34;original_context&#34;: {&#34;base_url&#34;: &#34;https://changedetection.nicolkrit.ch/&#34;, &#34;change_datetime&#34;: &#34;2026-09-02 21:00:03 CEST&#34;, &#34;current_snapshot&#34;: &#34;                Account Login\n\n                      PIXEL 11 MAG CASES | Shop Now\n\n                      AIRPODS CASES | Shop Now\n\n                      QUAD LOCK EUROPE\u00ae - OFFICIAL STORE\n\n                      FREE SHIPPING ON ALL ORDERS OVER 50 \u20ac\n\n                      30 DAY MONEY BACK GUARANTEE\n\n                      BIKE ALARM AND FINDER | Shop Now\n\n                      GALAXY S26 FE MAG CASE | Shop Now\n\n                      PIXEL 11 MAG CASES | Shop Now\n\n                      AIRPODS CASES | Shop Now\n\n                      QUAD LOCK EUROPE\u00ae - OFFICIAL STORE\n\n                      FREE SHIPPING ON ALL ORDERS OVER 50 \u20ac\n\n                Support\n                  English\n                      * English\n                      * Deutsch\n                      * Espa\u00f1ol\n                      * Fran\u00e7ais\n                      * Italiano\n                  Europe\n                      * UK\n                      * Australia\n                      * USA\n                      * Canada\n                      * Asia\n                      * International\n              Quad Lock homepage\n            MENU\n                * Activity\n                    + Motorcycle\n                    + Car\n                    + Cycle\n                    + Off Road\n                    + Everyday\n                    + Marine\n                    + Aviation\n                    + Golf\n                    + Run\n                    + Camera\n                    + Travel\n                * Device\n                    + iPhone\n                        o All iPhone\n                        o iPhone 17 Pro\n                        o iPhone 17 Pro Max\n                        o iPhone 17\n                        o iPhone Air\n                        o iPhone 17e\n                        o iPhone 16 Pro\n                        o iPhone 16 Pro Max\n                        o iPhone 16\n                        o iPhone 16 Plus\n                        o iPhone 16e\n                        o iPhone 15 Pro\n                        o iPhone 15 Pro Max\n                        o iPhone 15\n                        o iPhone 15 Plus\n                        o iPhone 14 Pro\n                        o iPhone 14 Pro Max\n                        o iPhone 14 Plus\n                        o iPhone 14\n                        o iPhone 13 Pro\n                        o iPhone 13 Pro Max\n                        o iPhone 13\n                        o iPhone 13 mini\n                        o iPhone SE (3rd Gen)\n                        o iPhone 12 Pro\n                        o iPhone 12 Pro Max\n                        o iPhone 12\n                        o iPhone 12 mini\n                        o iPhone 11 Pro\n                        o iPhone 11 Pro Max\n                        o iPhone 11\n                        o iPhone SE (2nd Gen)\n                        o iPhone X/Xs\n                        o iPhone XS Max\n                        o iPhone XR\n                        o iPhone 8 Plus\n                        o iPhone 8\n                        o iPhone 7 Plus\n                        o iPhone 7\n                    + iPad\n                        o All iPad\n                        o iPad mini (A17 Pro)\n                        o iPad mini (6th Gen)\n                    + AirPods NEW\n                    + Samsung\n                        o All Galaxy\n                        o Galaxy S26 Ultra NEW\n                        o Galaxy S26+ NEW\n                        o Galaxy S26 NEW\n                        o Galaxy S26 FE NEW\n                        o Galaxy A57\n                        o Galaxy A37\n                        o Galaxy S25 Ultra\n                        o Galaxy S25+\n                        o Galaxy S25\n                        o Galaxy S25 FE\n                        o Galaxy S25 Edge\n                        o Galaxy A56\n                        o Galaxy A36\n                        o Galaxy S24 FE\n                        o Galaxy S24 Ultra\n                        o Galaxy S24+\n                        o Galaxy S24\n                        o Galaxy A55\n                        o Galaxy A35\n                        o Galaxy S23 FE\n                        o Galaxy S23 Ultra\n                        o Galaxy S23+\n                        o Galaxy S23\n                        o Galaxy A54\n                        o Galaxy A34\n                        o Galaxy S22 Ultra\n                        o Galaxy S22+\n                        o Galaxy S22\n                        o Galaxy S21 FE\n                        o Galaxy S21 Ultra\n                        o Galaxy S21+\n                        o Galaxy S21\n                        o Galaxy S20 FE\n                        o Galaxy S20 Ultra\n                        o Galaxy S20+\n                        o Galaxy S20\n                        o Galaxy Note10+\n                        o Galaxy S10\n                        o Galaxy S10e\n                    + Google\n                        o All Pixel\n                        o Pixel 11 Pro XL NEW\n                        o Pixel 11 Pro NEW\n                        o Pixel 11 NEW\n                        o Pixel 10 Pro XL\n                        o Pixel 10 Pro\n                        o Pixel 10\n                        o Pixel 10a\n                        o Pixel 9 Pro XL\n                        o Pixel 9 Pro\n                        o Pixel 9\n                        o Pixel 9a\n                        o Pixel 8 Pro\n                        o Pixel 8\n                        o Pixel 8a\n                        o Pixel 7 Pro\n                        o Pixel 7\n                        o Pixel 7a\n                    + Universal\n                        o Universal Fit\n                    + Action Camera\n                * Build Your Own\n                    + 360 Kit Builder\n                    + All 360 Products\n                * MAG\n                * Cases\n                * Mounts\n                * Accessories\n                * What&#39;s New\n                * Best Sellers\n                * \n                * \n                * Chat\n                * 1 10 \u20ac Off\n                * Shipping\n                * Support\n                    + Support\n                    + Contact Us\n                    + Privacy Policy\n                    + Cookie Policy\n                    + GDPR Compliance\n                    + Warranty &amp; Returns\n                    + Withdrawal\n                    + Shipping\n                * About\n                    + About Us\n                    + Blog\n                    + Intellectual Property\n                    + World Bicycle Relief\n                    + Wholesale &amp; Commercial\n                    + Sponsorship &amp; Media\n                * Account Login\n                  * Location: Europe\n                      + UK\n                      + Australia\n                      + USA\n                      + Canada\n                      + Asia\n                      + International\n                  * Language: English\n                      + English\n                      + Deutsch\n                      + Espa\u00f1ol\n                      + Fran\u00e7ais\n                      + Italiano\n            1 10 \u20ac Off Shipping\n            Cart 0\n    Search our store\n  Uh oh! Looks like you&#39;re on an old browser like Internet Explorer or Safari 12, which no longer supports a number of basic web functions. Please use an updated browser (Chrome, Firefox... pretty much anything else) to properly access this site.\n  Uh oh! You may be blocking cookies, which our site relies on for cart and checkout functionality. Please enable cookies or use another device to properly access this site.\n\n      WHAT&#39;S NEW\n\n      Filter products\n        Filter By:\n      Reset All\n          By product type Limited Edition Motorcycle Car Cycle Everyday Golf Travel Quad Lock 360\u2122\n        WATCH VIDEO Know it all (0:51)\n\n          LIMITED EDITION (9 Products)\n\n          Limited Edition McLaren Edition MAG Cases From 59,99 \u20ac\n            16,949 reviews\n          Limited Edition Oscar Piastri Edition MAG Cases From 59,99 \u20ac\n            16,919 reviews\n          Limited Edition Lando Norris Edition MAG Cases From 59,99 \u20ac\n            16,919 reviews\n          Limited Edition AirPods - McLaren Edition Cases From 39,99 \u20ac\n            0 reviews\n          Limited Edition MAG Bottle Mount - McLaren Edition Accessory 59,99 \u20ac\n            50 reviews\n          Limited Edition Ducati Corse Edition MAG Cases From 59,99 \u20ac\n            57 reviews\n          Limited Edition Ducati 100 Years Edition MAG Cases From 59,99 \u20ac\n            28 reviews\n          Limited Edition Acosta Edition MAG Cases From 59,99 \u20ac\n            15 reviews\n          Limited Edition Zarco Edition MAG Cases From 59,99 \u20ac\n            4 reviews\n\n          MOTORCYCLE (5 Products)\n\n          NEW Neck Gaiter Accessory 29,99 \u20ac\n            0 reviews\n          Traverse Backpack Motorcycle 129,99 \u20ac\n            28 reviews\n          Wireless Charging Heads Motorcycle From 79,99 \u20ac\n            2,658 reviews\n          USB-C Power Cable USB Waterproof Wireless Charging Head 24,99 \u20ac\n            6 reviews\n          Anti-Theft Screw Kit Accessory 19,99 \u20ac\n            51 reviews\n\n          CAR (5 Products)\n\n          Suction Mounts Car From 49,99 \u20ac\n            7,720 reviews\n          Cup Holder Mount Car From 49,99 \u20ac\n            136 reviews\n          Wireless CarPlay/\u200bAndroid Auto Adaptor Car 79,99 \u20ac\n            606 reviews\n          Ball Top Cap Adaptors Car From 14,99 \u20ac\n            17 reviews\n          EV Mounts Car From 62,97 \u20ac\n            1 review\n\n          CYCLE (7 Products)\n\n          NEW Bike Alarm and Finder Cycling 59,99 \u20ac\n            0 reviews\n          NEW Saddle Rail Adaptor Cycling 14,99 \u20ac\n            0 reviews\n          NEW Bottle Cage Adaptor Bike Alarm and Finder 14,99 \u20ac\n            0 reviews\n          Out Front Mounts Cycling From 39,99 \u20ac\n            4,090 reviews\n          Waterproof Wireless Charging Head Cycling 79,99 \u20ac\n            39 reviews\n          Power Cables Cycling From 24,99 \u20ac\n            2 reviews\n          Light/\u200bCamera Adaptor Out Front Mounts 9,99 \u20ac\n            762 reviews\n\n          EVERYDAY (1 Product)\n\n          NEW AirPods Cases From 29,99 \u20ac\n            0 reviews\n\n          GOLF (1 Product)\n\n          Cup Holder Mount Golf 49,99 \u20ac\n            136 reviews\n\n          TRAVEL (3 Products)\n\n          NEW Travel Organisers Carry From 34,99 \u20ac\n            0 reviews\n          Traverse Backpack Carry 129,99 \u20ac\n            28 reviews\n          NEW AUX Bluetooth Adaptor Accessory 49,99 \u20ac\n            0 reviews\n\n          QUAD LOCK 360\u2122 (1 Product)\n\n          USB Waterproof Wireless Charging Head Quad Lock 360 Head 79,99 \u20ac\n            2,658 reviews\n\n    Every day. Every adventure.\u2122\n\n        Quad Lock homepage\n        Sign up for 10 \u20ac Off\n\n        Shop by\n\n          * Motorcycle\n          * Car\n          * Cycle\n          * Off Road\n          * Everyday\n          * Marine\n          * Aviation\n          * Golf\n          * Run\n          * Camera\n          * Parts &amp; Accessories\n\n        Customers\n\n          * Support\n          * Contact Us\n          * Account Login\n          * Privacy Policy\n          * Cookie Policy\n          * GDPR Compliance\n          * Compliance Certificates\n          * Warranty &amp; Returns\n          * Withdrawal\n          * Shipping\n          * MAG Battery Pack Recall\n\n        About\n\n          * About Us\n          * Blog\n          * Intellectual Property\n          * World Bicycle Relief\n          * Wholesale &amp; Commercial\n          * Sponsorship &amp; Media\n\n        Follow\n\n          * 556k\n          * 373k\n          * 161k\n          * 53k\n          * 33k\n          * 9k\n          Sign up for 10 \u20ac Off\n\n        Certified Reviews\n\n                161K\n              4.8 star rating\n                Certified reviews\n                Powered by YOTPO\n            \u00a9 Copyright 2014 - 2026 Annex Products PTY LTD | All Rights Reserved\n      Close popup\n\n              Free Shipping on orders over 50 \u20ac\n\n              Fast Free Shipping!\n\n            FREE tracked shipping for all orders over 50 \u20ac. * Free shipping unavailable for the Balearic Islands, Canary Islands, T\u00fcrkiye, and the Middle East.\n\n            Express Shipping upgrades available.\n\n            EU Orders ship out locally from NL via GLS &amp; DHL.\n\n            We are not currently shipping to Russia.\n\n            Due to airspace closures in the Middle East, carriers are experiencing extended delays which may impact some deliveries to the area and orders may take longer than usual to arrive. We apologise for any inconvenience.\n\n            Learn More\n\n      Close popup\n\n            30 day money Back Guarantee\n\n            Risk Free!\n\n          If you purchase a Quad Lock\u00ae product from us and don&#39;t like it, you have 30 days to arrange for a return and refund. No questions asked.\n\n          Learn More\n\n      Close popup\n\n              Buy Now. Pay Later.\n\n            We have partnered with PayPal to bring you simple, interest-free payment plans. Buy today and pay in four installments.\n\n              Select PayPal at checkout.\n\n              Terms &amp; Conditions Apply\n\n      Close popup\n\n          Close popup\n\n              Sign up\n\n              New releases, product news, and everything worth knowing from Quad Lock.\n\n              Email Subscribe\n            No Thanks\n\n              WELCOME TO THE CLUB!\n\n              You&#39;re first in line for new releases, product news, and everything worth knowing from Quad Lock.\n\n            CONTINUE SHOPPING\n  10 \u20ac Off\n    Chat\n              GET 10 \u20ac OFF YOUR FIRST ORDER!\n\n            Minimum spend 65 \u20ac\n\n            Enter your email here to receive the discount\n          GET DISCOUNT\n          No thanks, I don\u2019t want a discount&#34;, &#34;diff&#34;: &#34;@changed_PLACEMARKER_OPEN            9 reviews@changed_PLACEMARKER_CLOSED\n@changed_into_PLACEMARKER_OPEN            15 reviews@changed_into_PLACEMARKER_CLOSED&#34;, &#34;diff_clean&#34;: &#34;&#34;, &#34;diff_added&#34;: &#34;&#34;, &#34;diff_added_clean&#34;: &#34;&#34;, &#34;diff_full&#34;: &#34;&#34;, &#34;diff_full_clean&#34;: &#34;&#34;, &#34;diff_patch&#34;: &#34;&#34;, &#34;diff_removed&#34;: &#34;&#34;, &#34;diff_removed_clean&#34;: &#34;&#34;, &#34;diff_changed_from&#34;: &#34;&#34;, &#34;diff_changed_to&#34;: &#34;&#34;, &#34;diff_url&#34;: &#34;https://changedetection.nicolkrit.ch/diff/8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;raw_diff&#34;: &#34;@changed_PLACEMARKER_OPEN            9 reviews@changed_PLACEMARKER_CLOSED\n@changed_into_PLACEMARKER_OPEN            15 reviews@changed_into_PLACEMARKER_CLOSED&#34;, &#34;markup_text_links_to_html_links&#34;: false, &#34;restock&#34;: {}, &#34;notification_timestamp&#34;: 1788375617.6184063, &#34;prev_snapshot&#34;: &#34;                Account Login\n\n                      PIXEL 11 MAG CASES | Shop Now\n\n                      AIRPODS CASES | Shop Now\n\n                      QUAD LOCK EUROPE\u00ae - OFFICIAL STORE\n\n                      FREE SHIPPING ON ALL ORDERS OVER 50 \u20ac\n\n                      30 DAY MONEY BACK GUARANTEE\n\n                      BIKE ALARM AND FINDER | Shop Now\n\n                      GALAXY S26 FE MAG CASE | Shop Now\n\n                      PIXEL 11 MAG CASES | Shop Now\n\n                      AIRPODS CASES | Shop Now\n\n                      QUAD LOCK EUROPE\u00ae - OFFICIAL STORE\n\n                      FREE SHIPPING ON ALL ORDERS OVER 50 \u20ac\n\n                Support\n                  English\n                      * English\n                      * Deutsch\n                      * Espa\u00f1ol\n                      * Fran\u00e7ais\n                      * Italiano\n                  Europe\n                      * UK\n                      * Australia\n                      * USA\n                      * Canada\n                      * Asia\n                      * International\n              Quad Lock homepage\n            MENU\n                * Activity\n                    + Motorcycle\n                    + Car\n                    + Cycle\n                    + Off Road\n                    + Everyday\n                    + Marine\n                    + Aviation\n                    + Golf\n                    + Run\n                    + Camera\n                    + Travel\n                * Device\n                    + iPhone\n                        o All iPhone\n                        o iPhone 17 Pro\n                        o iPhone 17 Pro Max\n                        o iPhone 17\n                        o iPhone Air\n                        o iPhone 17e\n                        o iPhone 16 Pro\n                        o iPhone 16 Pro Max\n                        o iPhone 16\n                        o iPhone 16 Plus\n                        o iPhone 16e\n                        o iPhone 15 Pro\n                        o iPhone 15 Pro Max\n                        o iPhone 15\n                        o iPhone 15 Plus\n                        o iPhone 14 Pro\n                        o iPhone 14 Pro Max\n                        o iPhone 14 Plus\n                        o iPhone 14\n                        o iPhone 13 Pro\n                        o iPhone 13 Pro Max\n                        o iPhone 13\n                        o iPhone 13 mini\n                        o iPhone SE (3rd Gen)\n                        o iPhone 12 Pro\n                        o iPhone 12 Pro Max\n                        o iPhone 12\n                        o iPhone 12 mini\n                        o iPhone 11 Pro\n                        o iPhone 11 Pro Max\n                        o iPhone 11\n                        o iPhone SE (2nd Gen)\n                        o iPhone X/Xs\n                        o iPhone XS Max\n                        o iPhone XR\n                        o iPhone 8 Plus\n                        o iPhone 8\n                        o iPhone 7 Plus\n                        o iPhone 7\n                    + iPad\n                        o All iPad\n                        o iPad mini (A17 Pro)\n                        o iPad mini (6th Gen)\n                    + AirPods NEW\n                    + Samsung\n                        o All Galaxy\n                        o Galaxy S26 Ultra NEW\n                        o Galaxy S26+ NEW\n                        o Galaxy S26 NEW\n                        o Galaxy S26 FE NEW\n                        o Galaxy A57\n                        o Galaxy A37\n                        o Galaxy S25 Ultra\n                        o Galaxy S25+\n                        o Galaxy S25\n                        o Galaxy S25 FE\n                        o Galaxy S25 Edge\n                        o Galaxy A56\n                        o Galaxy A36\n                        o Galaxy S24 FE\n                        o Galaxy S24 Ultra\n                        o Galaxy S24+\n                        o Galaxy S24\n                        o Galaxy A55\n                        o Galaxy A35\n                        o Galaxy S23 FE\n                        o Galaxy S23 Ultra\n                        o Galaxy S23+\n                        o Galaxy S23\n                        o Galaxy A54\n                        o Galaxy A34\n                        o Galaxy S22 Ultra\n                        o Galaxy S22+\n                        o Galaxy S22\n                        o Galaxy S21 FE\n                        o Galaxy S21 Ultra\n                        o Galaxy S21+\n                        o Galaxy S21\n                        o Galaxy S20 FE\n                        o Galaxy S20 Ultra\n                        o Galaxy S20+\n                        o Galaxy S20\n                        o Galaxy Note10+\n                        o Galaxy S10\n                        o Galaxy S10e\n                    + Google\n                        o All Pixel\n                        o Pixel 11 Pro XL NEW\n                        o Pixel 11 Pro NEW\n                        o Pixel 11 NEW\n                        o Pixel 10 Pro XL\n                        o Pixel 10 Pro\n                        o Pixel 10\n                        o Pixel 10a\n                        o Pixel 9 Pro XL\n                        o Pixel 9 Pro\n                        o Pixel 9\n                        o Pixel 9a\n                        o Pixel 8 Pro\n                        o Pixel 8\n                        o Pixel 8a\n                        o Pixel 7 Pro\n                        o Pixel 7\n                        o Pixel 7a\n                    + Universal\n                        o Universal Fit\n                    + Action Camera\n                * Build Your Own\n                    + 360 Kit Builder\n                    + All 360 Products\n                * MAG\n                * Cases\n                * Mounts\n                * Accessories\n                * What&#39;s New\n                * Best Sellers\n                * \n                * \n                * Chat\n                * 1 10 \u20ac Off\n                * Shipping\n                * Support\n                    + Support\n                    + Contact Us\n                    + Privacy Policy\n                    + Cookie Policy\n                    + GDPR Compliance\n                    + Warranty &amp; Returns\n                    + Withdrawal\n                    + Shipping\n                * About\n                    + About Us\n                    + Blog\n                    + Intellectual Property\n                    + World Bicycle Relief\n                    + Wholesale &amp; Commercial\n                    + Sponsorship &amp; Media\n                * Account Login\n                  * Location: Europe\n                      + UK\n                      + Australia\n                      + USA\n                      + Canada\n                      + Asia\n                      + International\n                  * Language: English\n                      + English\n                      + Deutsch\n                      + Espa\u00f1ol\n                      + Fran\u00e7ais\n                      + Italiano\n            1 10 \u20ac Off Shipping\n            Cart 0\n    Search our store\n  Uh oh! Looks like you&#39;re on an old browser like Internet Explorer or Safari 12, which no longer supports a number of basic web functions. Please use an updated browser (Chrome, Firefox... pretty much anything else) to properly access this site.\n  Uh oh! You may be blocking cookies, which our site relies on for cart and checkout functionality. Please enable cookies or use another device to properly access this site.\n\n      WHAT&#39;S NEW\n\n      Filter products\n        Filter By:\n      Reset All\n          By product type Limited Edition Motorcycle Car Cycle Everyday Golf Travel Quad Lock 360\u2122\n        WATCH VIDEO Know it all (0:51)\n\n          LIMITED EDITION (9 Products)\n\n          Limited Edition McLaren Edition MAG Cases From 59,99 \u20ac\n            16,949 reviews\n          Limited Edition Oscar Piastri Edition MAG Cases From 59,99 \u20ac\n            16,919 reviews\n          Limited Edition Lando Norris Edition MAG Cases From 59,99 \u20ac\n            16,919 reviews\n          Limited Edition AirPods - McLaren Edition Cases From 39,99 \u20ac\n            0 reviews\n          Limited Edition MAG Bottle Mount - McLaren Edition Accessory 59,99 \u20ac\n            50 reviews\n          Limited Edition Ducati Corse Edition MAG Cases From 59,99 \u20ac\n            57 reviews\n          Limited Edition Ducati 100 Years Edition MAG Cases From 59,99 \u20ac\n            28 reviews\n          Limited Edition Acosta Edition MAG Cases From 59,99 \u20ac\n            9 reviews\n          Limited Edition Zarco Edition MAG Cases From 59,99 \u20ac\n            4 reviews\n\n          MOTORCYCLE (5 Products)\n\n          NEW Neck Gaiter Accessory 29,99 \u20ac\n            0 reviews\n          Traverse Backpack Motorcycle 129,99 \u20ac\n            28 reviews\n          Wireless Charging Heads Motorcycle From 79,99 \u20ac\n            2,658 reviews\n          USB-C Power Cable USB Waterproof Wireless Charging Head 24,99 \u20ac\n            6 reviews\n          Anti-Theft Screw Kit Accessory 19,99 \u20ac\n            51 reviews\n\n          CAR (5 Products)\n\n          Suction Mounts Car From 49,99 \u20ac\n            7,720 reviews\n          Cup Holder Mount Car From 49,99 \u20ac\n            136 reviews\n          Wireless CarPlay/\u200bAndroid Auto Adaptor Car 79,99 \u20ac\n            606 reviews\n          Ball Top Cap Adaptors Car From 14,99 \u20ac\n            17 reviews\n          EV Mounts Car From 62,97 \u20ac\n            1 review\n\n          CYCLE (7 Products)\n\n          NEW Bike Alarm and Finder Cycling 59,99 \u20ac\n            0 reviews\n          NEW Saddle Rail Adaptor Cycling 14,99 \u20ac\n            0 reviews\n          NEW Bottle Cage Adaptor Bike Alarm and Finder 14,99 \u20ac\n            0 reviews\n          Out Front Mounts Cycling From 39,99 \u20ac\n            4,090 reviews\n          Waterproof Wireless Charging Head Cycling 79,99 \u20ac\n            39 reviews\n          Power Cables Cycling From 24,99 \u20ac\n            2 reviews\n          Light/\u200bCamera Adaptor Out Front Mounts 9,99 \u20ac\n            762 reviews\n\n          EVERYDAY (1 Product)\n\n          NEW AirPods Cases From 29,99 \u20ac\n            0 reviews\n\n          GOLF (1 Product)\n\n          Cup Holder Mount Golf 49,99 \u20ac\n            136 reviews\n\n          TRAVEL (3 Products)\n\n          NEW Travel Organisers Carry From 34,99 \u20ac\n            0 reviews\n          Traverse Backpack Carry 129,99 \u20ac\n            28 reviews\n          NEW AUX Bluetooth Adaptor Accessory 49,99 \u20ac\n            0 reviews\n\n          QUAD LOCK 360\u2122 (1 Product)\n\n          USB Waterproof Wireless Charging Head Quad Lock 360 Head 79,99 \u20ac\n            2,658 reviews\n\n    Every day. Every adventure.\u2122\n\n        Quad Lock homepage\n        Sign up for 10 \u20ac Off\n\n        Shop by\n\n          * Motorcycle\n          * Car\n          * Cycle\n          * Off Road\n          * Everyday\n          * Marine\n          * Aviation\n          * Golf\n          * Run\n          * Camera\n          * Parts &amp; Accessories\n\n        Customers\n\n          * Support\n          * Contact Us\n          * Account Login\n          * Privacy Policy\n          * Cookie Policy\n          * GDPR Compliance\n          * Compliance Certificates\n          * Warranty &amp; Returns\n          * Withdrawal\n          * Shipping\n          * MAG Battery Pack Recall\n\n        About\n\n          * About Us\n          * Blog\n          * Intellectual Property\n          * World Bicycle Relief\n          * Wholesale &amp; Commercial\n          * Sponsorship &amp; Media\n\n        Follow\n\n          * 556k\n          * 373k\n          * 161k\n          * 53k\n          * 33k\n          * 9k\n          Sign up for 10 \u20ac Off\n\n        Certified Reviews\n\n                161K\n              4.8 star rating\n                Certified reviews\n                Powered by YOTPO\n            \u00a9 Copyright 2014 - 2026 Annex Products PTY LTD | All Rights Reserved\n      Close popup\n\n              Free Shipping on orders over 50 \u20ac\n\n              Fast Free Shipping!\n\n            FREE tracked shipping for all orders over 50 \u20ac. * Free shipping unavailable for the Balearic Islands, Canary Islands, T\u00fcrkiye, and the Middle East.\n\n            Express Shipping upgrades available.\n\n            EU Orders ship out locally from NL via GLS &amp; DHL.\n\n            We are not currently shipping to Russia.\n\n            Due to airspace closures in the Middle East, carriers are experiencing extended delays which may impact some deliveries to the area and orders may take longer than usual to arrive. We apologise for any inconvenience.\n\n            Learn More\n\n      Close popup\n\n            30 day money Back Guarantee\n\n            Risk Free!\n\n          If you purchase a Quad Lock\u00ae product from us and don&#39;t like it, you have 30 days to arrange for a return and refund. No questions asked.\n\n          Learn More\n\n      Close popup\n\n              Buy Now. Pay Later.\n\n            We have partnered with PayPal to bring you simple, interest-free payment plans. Buy today and pay in four installments.\n\n              Select PayPal at checkout.\n\n              Terms &amp; Conditions Apply\n\n      Close popup\n\n          Close popup\n\n              Sign up\n\n              New releases, product news, and everything worth knowing from Quad Lock.\n\n              Email Subscribe\n            No Thanks\n\n              WELCOME TO THE CLUB!\n\n              You&#39;re first in line for new releases, product news, and everything worth knowing from Quad Lock.\n\n            CONTINUE SHOPPING\n  10 \u20ac Off\n    Chat\n              GET 10 \u20ac OFF YOUR FIRST ORDER!\n\n            Minimum spend 65 \u20ac\n\n            Enter your email here to receive the discount\n          GET DISCOUNT\n          No thanks, I don\u2019t want a discount&#34;, &#34;preview_url&#34;: &#34;https://changedetection.nicolkrit.ch/preview/8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;screenshot&#34;: null, &#34;timestamp_from&#34;: null, &#34;timestamp_to&#34;: null, &#34;triggered_text&#34;: &#34;&#34;, &#34;llm_summary&#34;: null, &#34;llm_intent&#34;: null, &#34;uuid&#34;: &#34;8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;watch_mime_type&#34;: &#34;text/html; charset=utf-8&#34;, &#34;watch_tag&#34;: &#34;&#34;, &#34;watch_title&#34;: &#34;What&#39;s New - Quad Lock\u00ae Europe - Official Store&#34;, &#34;watch_url&#34;: &#34;https://www.quadlockcase.eu/collections/whats-new&#34;, &#34;watch_uuid&#34;: &#34;8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;notification_urls&#34;: [&#34;https://discord.com/api/webhooks/1441918212798419084/x5iSolXlPQHK8xD_3sMkZhUctPz6e_p-_YyNr1uJak1Y3DlqVneRwG-24CfTzVgZEFrm&#34;], &#34;notification_title&#34;: &#34;ChangeDetection.io Notification&#34;, &#34;notification_body&#34;: &#34;## [{{ watch_title }}]({{ watch_url }})\r\n\r\nA change was detected.\r\n\r\n&gt; [**&gt;&gt; View Change Diff &lt;&lt;**]({{ diff_url }})\r\n{{preview_url}}&#34;, &#34;notification_format&#34;: &#34;text&#34;, &#34;_llm_result&#34;: null, &#34;_llm_intent&#34;: &#34;&#34;, &#34;_llm_change_summary&#34;: &#34;&#34;, &#34;edit_url&#34;: &#34;https://changedetection.nicolkrit.ch/edit/8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;}}]</li>
+                
+                    <li>Wed Sep  2 18:00:17 2026 - SENDING - [{&#34;title&#34;: &#34;ChangeDetection.io Notification&#34;, &#34;body&#34;: &#34;## [What&#39;s New - Quad Lock\u00ae Europe - Official Store](https://www.quadlockcase.eu/collections/whats-new)\n\nA change was detected.\n\n&gt; [**&gt;&gt; View Change Diff &lt;&lt;**](https://changedetection.nicolkrit.ch/diff/8d942bd8-2988-4515-bce1-2609e27b5fd4)\nhttps://changedetection.nicolkrit.ch/preview/8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;url&#34;: &#34;https://discord.com/api/webhooks/1441918212798419084/x5iSolXlPQHK8xD_3sMkZhUctPz6e_p-_YyNr1uJak1Y3DlqVneRwG-24CfTzVgZEFrm?avatar_url=https://raw.githubusercontent.com/dgtlmoon/changedetection.io/master/changedetectionio/static/images/avatar-256x256.png&amp;format=text&#34;, &#34;original_context&#34;: {&#34;base_url&#34;: &#34;https://changedetection.nicolkrit.ch/&#34;, &#34;change_datetime&#34;: &#34;2026-09-02 18:00:02 CEST&#34;, &#34;current_snapshot&#34;: &#34;                Account Login\n\n                      PIXEL 11 MAG CASES | Shop Now\n\n                      AIRPODS CASES | Shop Now\n\n                      QUAD LOCK EUROPE\u00ae - OFFICIAL STORE\n\n                      FREE SHIPPING ON ALL ORDERS OVER 50 \u20ac\n\n                      30 DAY MONEY BACK GUARANTEE\n\n                      BIKE ALARM AND FINDER | Shop Now\n\n                      GALAXY S26 FE MAG CASE | Shop Now\n\n                      PIXEL 11 MAG CASES | Shop Now\n\n                      AIRPODS CASES | Shop Now\n\n                      QUAD LOCK EUROPE\u00ae - OFFICIAL STORE\n\n                      FREE SHIPPING ON ALL ORDERS OVER 50 \u20ac\n\n                Support\n                  English\n                      * English\n                      * Deutsch\n                      * Espa\u00f1ol\n                      * Fran\u00e7ais\n                      * Italiano\n                  Europe\n                      * UK\n                      * Australia\n                      * USA\n                      * Canada\n                      * Asia\n                      * International\n              Quad Lock homepage\n            MENU\n                * Activity\n                    + Motorcycle\n                    + Car\n                    + Cycle\n                    + Off Road\n                    + Everyday\n                    + Marine\n                    + Aviation\n                    + Golf\n                    + Run\n                    + Camera\n                    + Travel\n                * Device\n                    + iPhone\n                        o All iPhone\n                        o iPhone 17 Pro\n                        o iPhone 17 Pro Max\n                        o iPhone 17\n                        o iPhone Air\n                        o iPhone 17e\n                        o iPhone 16 Pro\n                        o iPhone 16 Pro Max\n                        o iPhone 16\n                        o iPhone 16 Plus\n                        o iPhone 16e\n                        o iPhone 15 Pro\n                        o iPhone 15 Pro Max\n                        o iPhone 15\n                        o iPhone 15 Plus\n                        o iPhone 14 Pro\n                        o iPhone 14 Pro Max\n                        o iPhone 14 Plus\n                        o iPhone 14\n                        o iPhone 13 Pro\n                        o iPhone 13 Pro Max\n                        o iPhone 13\n                        o iPhone 13 mini\n                        o iPhone SE (3rd Gen)\n                        o iPhone 12 Pro\n                        o iPhone 12 Pro Max\n                        o iPhone 12\n                        o iPhone 12 mini\n                        o iPhone 11 Pro\n                        o iPhone 11 Pro Max\n                        o iPhone 11\n                        o iPhone SE (2nd Gen)\n                        o iPhone X/Xs\n                        o iPhone XS Max\n                        o iPhone XR\n                        o iPhone 8 Plus\n                        o iPhone 8\n                        o iPhone 7 Plus\n                        o iPhone 7\n                    + iPad\n                        o All iPad\n                        o iPad mini (A17 Pro)\n                        o iPad mini (6th Gen)\n                    + AirPods NEW\n                    + Samsung\n                        o All Galaxy\n                        o Galaxy S26 Ultra NEW\n                        o Galaxy S26+ NEW\n                        o Galaxy S26 NEW\n                        o Galaxy S26 FE NEW\n                        o Galaxy A57\n                        o Galaxy A37\n                        o Galaxy S25 Ultra\n                        o Galaxy S25+\n                        o Galaxy S25\n                        o Galaxy S25 FE\n                        o Galaxy S25 Edge\n                        o Galaxy A56\n                        o Galaxy A36\n                        o Galaxy S24 FE\n                        o Galaxy S24 Ultra\n                        o Galaxy S24+\n                        o Galaxy S24\n                        o Galaxy A55\n                        o Galaxy A35\n                        o Galaxy S23 FE\n                        o Galaxy S23 Ultra\n                        o Galaxy S23+\n                        o Galaxy S23\n                        o Galaxy A54\n                        o Galaxy A34\n                        o Galaxy S22 Ultra\n                        o Galaxy S22+\n                        o Galaxy S22\n                        o Galaxy S21 FE\n                        o Galaxy S21 Ultra\n                        o Galaxy S21+\n                        o Galaxy S21\n                        o Galaxy S20 FE\n                        o Galaxy S20 Ultra\n                        o Galaxy S20+\n                        o Galaxy S20\n                        o Galaxy Note10+\n                        o Galaxy S10\n                        o Galaxy S10e\n                    + Google\n                        o All Pixel\n                        o Pixel 11 Pro XL NEW\n                        o Pixel 11 Pro NEW\n                        o Pixel 11 NEW\n                        o Pixel 10 Pro XL\n                        o Pixel 10 Pro\n                        o Pixel 10\n                        o Pixel 10a\n                        o Pixel 9 Pro XL\n                        o Pixel 9 Pro\n                        o Pixel 9\n                        o Pixel 9a\n                        o Pixel 8 Pro\n                        o Pixel 8\n                        o Pixel 8a\n                        o Pixel 7 Pro\n                        o Pixel 7\n                        o Pixel 7a\n                    + Universal\n                        o Universal Fit\n                    + Action Camera\n                * Build Your Own\n                    + 360 Kit Builder\n                    + All 360 Products\n                * MAG\n                * Cases\n                * Mounts\n                * Accessories\n                * What&#39;s New\n                * Best Sellers\n                * \n                * \n                * Chat\n                * 1 10 \u20ac Off\n                * Shipping\n                * Support\n                    + Support\n                    + Contact Us\n                    + Privacy Policy\n                    + Cookie Policy\n                    + GDPR Compliance\n                    + Warranty &amp; Returns\n                    + Withdrawal\n                    + Shipping\n                * About\n                    + About Us\n                    + Blog\n                    + Intellectual Property\n                    + World Bicycle Relief\n                    + Wholesale &amp; Commercial\n                    + Sponsorship &amp; Media\n                * Account Login\n                  * Location: Europe\n                      + UK\n                      + Australia\n                      + USA\n                      + Canada\n                      + Asia\n                      + International\n                  * Language: English\n                      + English\n                      + Deutsch\n                      + Espa\u00f1ol\n                      + Fran\u00e7ais\n                      + Italiano\n            1 10 \u20ac Off Shipping\n            Cart 0\n    Search our store\n  Uh oh! Looks like you&#39;re on an old browser like Internet Explorer or Safari 12, which no longer supports a number of basic web functions. Please use an updated browser (Chrome, Firefox... pretty much anything else) to properly access this site.\n  Uh oh! You may be blocking cookies, which our site relies on for cart and checkout functionality. Please enable cookies or use another device to properly access this site.\n\n      WHAT&#39;S NEW\n\n      Filter products\n        Filter By:\n      Reset All\n          By product type Limited Edition Motorcycle Car Cycle Everyday Golf Travel Quad Lock 360\u2122\n        WATCH VIDEO Know it all (0:51)\n\n          LIMITED EDITION (9 Products)\n\n          Limited Edition McLaren Edition MAG Cases From 59,99 \u20ac\n            16,949 reviews\n          Limited Edition Oscar Piastri Edition MAG Cases From 59,99 \u20ac\n            16,919 reviews\n          Limited Edition Lando Norris Edition MAG Cases From 59,99 \u20ac\n            16,919 reviews\n          Limited Edition AirPods - McLaren Edition Cases From 39,99 \u20ac\n            0 reviews\n          Limited Edition MAG Bottle Mount - McLaren Edition Accessory 59,99 \u20ac\n            50 reviews\n          Limited Edition Ducati Corse Edition MAG Cases From 59,99 \u20ac\n            57 reviews\n          Limited Edition Ducati 100 Years Edition MAG Cases From 59,99 \u20ac\n            28 reviews\n          Limited Edition Acosta Edition MAG Cases From 59,99 \u20ac\n            9 reviews\n          Limited Edition Zarco Edition MAG Cases From 59,99 \u20ac\n            4 reviews\n\n          MOTORCYCLE (5 Products)\n\n          NEW Neck Gaiter Accessory 29,99 \u20ac\n            0 reviews\n          Traverse Backpack Motorcycle 129,99 \u20ac\n            28 reviews\n          Wireless Charging Heads Motorcycle From 79,99 \u20ac\n            2,658 reviews\n          USB-C Power Cable USB Waterproof Wireless Charging Head 24,99 \u20ac\n            6 reviews\n          Anti-Theft Screw Kit Accessory 19,99 \u20ac\n            51 reviews\n\n          CAR (5 Products)\n\n          Suction Mounts Car From 49,99 \u20ac\n            7,720 reviews\n          Cup Holder Mount Car From 49,99 \u20ac\n            136 reviews\n          Wireless CarPlay/\u200bAndroid Auto Adaptor Car 79,99 \u20ac\n            606 reviews\n          Ball Top Cap Adaptors Car From 14,99 \u20ac\n            17 reviews\n          EV Mounts Car From 62,97 \u20ac\n            1 review\n\n          CYCLE (7 Products)\n\n          NEW Bike Alarm and Finder Cycling 59,99 \u20ac\n            0 reviews\n          NEW Saddle Rail Adaptor Cycling 14,99 \u20ac\n            0 reviews\n          NEW Bottle Cage Adaptor Bike Alarm and Finder 14,99 \u20ac\n            0 reviews\n          Out Front Mounts Cycling From 39,99 \u20ac\n            4,090 reviews\n          Waterproof Wireless Charging Head Cycling 79,99 \u20ac\n            39 reviews\n          Power Cables Cycling From 24,99 \u20ac\n            2 reviews\n          Light/\u200bCamera Adaptor Out Front Mounts 9,99 \u20ac\n            762 reviews\n\n          EVERYDAY (1 Product)\n\n          NEW AirPods Cases From 29,99 \u20ac\n            0 reviews\n\n          GOLF (1 Product)\n\n          Cup Holder Mount Golf 49,99 \u20ac\n            136 reviews\n\n          TRAVEL (3 Products)\n\n          NEW Travel Organisers Carry From 34,99 \u20ac\n            0 reviews\n          Traverse Backpack Carry 129,99 \u20ac\n            28 reviews\n          NEW AUX Bluetooth Adaptor Accessory 49,99 \u20ac\n            0 reviews\n\n          QUAD LOCK 360\u2122 (1 Product)\n\n          USB Waterproof Wireless Charging Head Quad Lock 360 Head 79,99 \u20ac\n            2,658 reviews\n\n    Every day. Every adventure.\u2122\n\n        Quad Lock homepage\n        Sign up for 10 \u20ac Off\n\n        Shop by\n\n          * Motorcycle\n          * Car\n          * Cycle\n          * Off Road\n          * Everyday\n          * Marine\n          * Aviation\n          * Golf\n          * Run\n          * Camera\n          * Parts &amp; Accessories\n\n        Customers\n\n          * Support\n          * Contact Us\n          * Account Login\n          * Privacy Policy\n          * Cookie Policy\n          * GDPR Compliance\n          * Compliance Certificates\n          * Warranty &amp; Returns\n          * Withdrawal\n          * Shipping\n          * MAG Battery Pack Recall\n\n        About\n\n          * About Us\n          * Blog\n          * Intellectual Property\n          * World Bicycle Relief\n          * Wholesale &amp; Commercial\n          * Sponsorship &amp; Media\n\n        Follow\n\n          * 556k\n          * 373k\n          * 161k\n          * 53k\n          * 33k\n          * 9k\n          Sign up for 10 \u20ac Off\n\n        Certified Reviews\n\n                161K\n              4.8 star rating\n                Certified reviews\n                Powered by YOTPO\n            \u00a9 Copyright 2014 - 2026 Annex Products PTY LTD | All Rights Reserved\n      Close popup\n\n              Free Shipping on orders over 50 \u20ac\n\n              Fast Free Shipping!\n\n            FREE tracked shipping for all orders over 50 \u20ac. * Free shipping unavailable for the Balearic Islands, Canary Islands, T\u00fcrkiye, and the Middle East.\n\n            Express Shipping upgrades available.\n\n            EU Orders ship out locally from NL via GLS &amp; DHL.\n\n            We are not currently shipping to Russia.\n\n            Due to airspace closures in the Middle East, carriers are experiencing extended delays which may impact some deliveries to the area and orders may take longer than usual to arrive. We apologise for any inconvenience.\n\n            Learn More\n\n      Close popup\n\n            30 day money Back Guarantee\n\n            Risk Free!\n\n          If you purchase a Quad Lock\u00ae product from us and don&#39;t like it, you have 30 days to arrange for a return and refund. No questions asked.\n\n          Learn More\n\n      Close popup\n\n              Buy Now. Pay Later.\n\n            We have partnered with PayPal to bring you simple, interest-free payment plans. Buy today and pay in four installments.\n\n              Select PayPal at checkout.\n\n              Terms &amp; Conditions Apply\n\n      Close popup\n\n          Close popup\n\n              Sign up\n\n              New releases, product news, and everything worth knowing from Quad Lock.\n\n              Email Subscribe\n            No Thanks\n\n              WELCOME TO THE CLUB!\n\n              You&#39;re first in line for new releases, product news, and everything worth knowing from Quad Lock.\n\n            CONTINUE SHOPPING\n  10 \u20ac Off\n    Chat\n              GET 10 \u20ac OFF YOUR FIRST ORDER!\n\n            Minimum spend 65 \u20ac\n\n            Enter your email here to receive the discount\n          GET DISCOUNT\n          No thanks, I don\u2019t want a discount&#34;, &#34;diff&#34;: &#34;@changed_PLACEMARKER_OPEN            15 reviews@changed_PLACEMARKER_CLOSED\n@changed_into_PLACEMARKER_OPEN            9 reviews@changed_into_PLACEMARKER_CLOSED&#34;, &#34;diff_clean&#34;: &#34;&#34;, &#34;diff_added&#34;: &#34;&#34;, &#34;diff_added_clean&#34;: &#34;&#34;, &#34;diff_full&#34;: &#34;&#34;, &#34;diff_full_clean&#34;: &#34;&#34;, &#34;diff_patch&#34;: &#34;&#34;, &#34;diff_removed&#34;: &#34;&#34;, &#34;diff_removed_clean&#34;: &#34;&#34;, &#34;diff_changed_from&#34;: &#34;&#34;, &#34;diff_changed_to&#34;: &#34;&#34;, &#34;diff_url&#34;: &#34;https://changedetection.nicolkrit.ch/diff/8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;raw_diff&#34;: &#34;@changed_PLACEMARKER_OPEN            15 reviews@changed_PLACEMARKER_CLOSED\n@changed_into_PLACEMARKER_OPEN            9 reviews@changed_into_PLACEMARKER_CLOSED&#34;, &#34;markup_text_links_to_html_links&#34;: false, &#34;restock&#34;: {}, &#34;notification_timestamp&#34;: 1788364816.8379006, &#34;prev_snapshot&#34;: &#34;                Account Login\n\n                      PIXEL 11 MAG CASES | Shop Now\n\n                      AIRPODS CASES | Shop Now\n\n                      QUAD LOCK EUROPE\u00ae - OFFICIAL STORE\n\n                      FREE SHIPPING ON ALL ORDERS OVER 50 \u20ac\n\n                      30 DAY MONEY BACK GUARANTEE\n\n                      BIKE ALARM AND FINDER | Shop Now\n\n                      GALAXY S26 FE MAG CASE | Shop Now\n\n                      PIXEL 11 MAG CASES | Shop Now\n\n                      AIRPODS CASES | Shop Now\n\n                      QUAD LOCK EUROPE\u00ae - OFFICIAL STORE\n\n                      FREE SHIPPING ON ALL ORDERS OVER 50 \u20ac\n\n                Support\n                  English\n                      * English\n                      * Deutsch\n                      * Espa\u00f1ol\n                      * Fran\u00e7ais\n                      * Italiano\n                  Europe\n                      * UK\n                      * Australia\n                      * USA\n                      * Canada\n                      * Asia\n                      * International\n              Quad Lock homepage\n            MENU\n                * Activity\n                    + Motorcycle\n                    + Car\n                    + Cycle\n                    + Off Road\n                    + Everyday\n                    + Marine\n                    + Aviation\n                    + Golf\n                    + Run\n                    + Camera\n                    + Travel\n                * Device\n                    + iPhone\n                        o All iPhone\n                        o iPhone 17 Pro\n                        o iPhone 17 Pro Max\n                        o iPhone 17\n                        o iPhone Air\n                        o iPhone 17e\n                        o iPhone 16 Pro\n                        o iPhone 16 Pro Max\n                        o iPhone 16\n                        o iPhone 16 Plus\n                        o iPhone 16e\n                        o iPhone 15 Pro\n                        o iPhone 15 Pro Max\n                        o iPhone 15\n                        o iPhone 15 Plus\n                        o iPhone 14 Pro\n                        o iPhone 14 Pro Max\n                        o iPhone 14 Plus\n                        o iPhone 14\n                        o iPhone 13 Pro\n                        o iPhone 13 Pro Max\n                        o iPhone 13\n                        o iPhone 13 mini\n                        o iPhone SE (3rd Gen)\n                        o iPhone 12 Pro\n                        o iPhone 12 Pro Max\n                        o iPhone 12\n                        o iPhone 12 mini\n                        o iPhone 11 Pro\n                        o iPhone 11 Pro Max\n                        o iPhone 11\n                        o iPhone SE (2nd Gen)\n                        o iPhone X/Xs\n                        o iPhone XS Max\n                        o iPhone XR\n                        o iPhone 8 Plus\n                        o iPhone 8\n                        o iPhone 7 Plus\n                        o iPhone 7\n                    + iPad\n                        o All iPad\n                        o iPad mini (A17 Pro)\n                        o iPad mini (6th Gen)\n                    + AirPods NEW\n                    + Samsung\n                        o All Galaxy\n                        o Galaxy S26 Ultra NEW\n                        o Galaxy S26+ NEW\n                        o Galaxy S26 NEW\n                        o Galaxy S26 FE NEW\n                        o Galaxy A57\n                        o Galaxy A37\n                        o Galaxy S25 Ultra\n                        o Galaxy S25+\n                        o Galaxy S25\n                        o Galaxy S25 FE\n                        o Galaxy S25 Edge\n                        o Galaxy A56\n                        o Galaxy A36\n                        o Galaxy S24 FE\n                        o Galaxy S24 Ultra\n                        o Galaxy S24+\n                        o Galaxy S24\n                        o Galaxy A55\n                        o Galaxy A35\n                        o Galaxy S23 FE\n                        o Galaxy S23 Ultra\n                        o Galaxy S23+\n                        o Galaxy S23\n                        o Galaxy A54\n                        o Galaxy A34\n                        o Galaxy S22 Ultra\n                        o Galaxy S22+\n                        o Galaxy S22\n                        o Galaxy S21 FE\n                        o Galaxy S21 Ultra\n                        o Galaxy S21+\n                        o Galaxy S21\n                        o Galaxy S20 FE\n                        o Galaxy S20 Ultra\n                        o Galaxy S20+\n                        o Galaxy S20\n                        o Galaxy Note10+\n                        o Galaxy S10\n                        o Galaxy S10e\n                    + Google\n                        o All Pixel\n                        o Pixel 11 Pro XL NEW\n                        o Pixel 11 Pro NEW\n                        o Pixel 11 NEW\n                        o Pixel 10 Pro XL\n                        o Pixel 10 Pro\n                        o Pixel 10\n                        o Pixel 10a\n                        o Pixel 9 Pro XL\n                        o Pixel 9 Pro\n                        o Pixel 9\n                        o Pixel 9a\n                        o Pixel 8 Pro\n                        o Pixel 8\n                        o Pixel 8a\n                        o Pixel 7 Pro\n                        o Pixel 7\n                        o Pixel 7a\n                    + Universal\n                        o Universal Fit\n                    + Action Camera\n                * Build Your Own\n                    + 360 Kit Builder\n                    + All 360 Products\n                * MAG\n                * Cases\n                * Mounts\n                * Accessories\n                * What&#39;s New\n                * Best Sellers\n                * \n                * \n                * Chat\n                * 1 10 \u20ac Off\n                * Shipping\n                * Support\n                    + Support\n                    + Contact Us\n                    + Privacy Policy\n                    + Cookie Policy\n                    + GDPR Compliance\n                    + Warranty &amp; Returns\n                    + Withdrawal\n                    + Shipping\n                * About\n                    + About Us\n                    + Blog\n                    + Intellectual Property\n                    + World Bicycle Relief\n                    + Wholesale &amp; Commercial\n                    + Sponsorship &amp; Media\n                * Account Login\n                  * Location: Europe\n                      + UK\n                      + Australia\n                      + USA\n                      + Canada\n                      + Asia\n                      + International\n                  * Language: English\n                      + English\n                      + Deutsch\n                      + Espa\u00f1ol\n                      + Fran\u00e7ais\n                      + Italiano\n            1 10 \u20ac Off Shipping\n            Cart 0\n    Search our store\n  Uh oh! Looks like you&#39;re on an old browser like Internet Explorer or Safari 12, which no longer supports a number of basic web functions. Please use an updated browser (Chrome, Firefox... pretty much anything else) to properly access this site.\n  Uh oh! You may be blocking cookies, which our site relies on for cart and checkout functionality. Please enable cookies or use another device to properly access this site.\n\n      WHAT&#39;S NEW\n\n      Filter products\n        Filter By:\n      Reset All\n          By product type Limited Edition Motorcycle Car Cycle Everyday Golf Travel Quad Lock 360\u2122\n        WATCH VIDEO Know it all (0:51)\n\n          LIMITED EDITION (9 Products)\n\n          Limited Edition McLaren Edition MAG Cases From 59,99 \u20ac\n            16,949 reviews\n          Limited Edition Oscar Piastri Edition MAG Cases From 59,99 \u20ac\n            16,919 reviews\n          Limited Edition Lando Norris Edition MAG Cases From 59,99 \u20ac\n            16,919 reviews\n          Limited Edition AirPods - McLaren Edition Cases From 39,99 \u20ac\n            0 reviews\n          Limited Edition MAG Bottle Mount - McLaren Edition Accessory 59,99 \u20ac\n            50 reviews\n          Limited Edition Ducati Corse Edition MAG Cases From 59,99 \u20ac\n            57 reviews\n          Limited Edition Ducati 100 Years Edition MAG Cases From 59,99 \u20ac\n            28 reviews\n          Limited Edition Acosta Edition MAG Cases From 59,99 \u20ac\n            15 reviews\n          Limited Edition Zarco Edition MAG Cases From 59,99 \u20ac\n            4 reviews\n\n          MOTORCYCLE (5 Products)\n\n          NEW Neck Gaiter Accessory 29,99 \u20ac\n            0 reviews\n          Traverse Backpack Motorcycle 129,99 \u20ac\n            28 reviews\n          Wireless Charging Heads Motorcycle From 79,99 \u20ac\n            2,658 reviews\n          USB-C Power Cable USB Waterproof Wireless Charging Head 24,99 \u20ac\n            6 reviews\n          Anti-Theft Screw Kit Accessory 19,99 \u20ac\n            51 reviews\n\n          CAR (5 Products)\n\n          Suction Mounts Car From 49,99 \u20ac\n            7,720 reviews\n          Cup Holder Mount Car From 49,99 \u20ac\n            136 reviews\n          Wireless CarPlay/\u200bAndroid Auto Adaptor Car 79,99 \u20ac\n            606 reviews\n          Ball Top Cap Adaptors Car From 14,99 \u20ac\n            17 reviews\n          EV Mounts Car From 62,97 \u20ac\n            1 review\n\n          CYCLE (7 Products)\n\n          NEW Bike Alarm and Finder Cycling 59,99 \u20ac\n            0 reviews\n          NEW Saddle Rail Adaptor Cycling 14,99 \u20ac\n            0 reviews\n          NEW Bottle Cage Adaptor Bike Alarm and Finder 14,99 \u20ac\n            0 reviews\n          Out Front Mounts Cycling From 39,99 \u20ac\n            4,090 reviews\n          Waterproof Wireless Charging Head Cycling 79,99 \u20ac\n            39 reviews\n          Power Cables Cycling From 24,99 \u20ac\n            2 reviews\n          Light/\u200bCamera Adaptor Out Front Mounts 9,99 \u20ac\n            762 reviews\n\n          EVERYDAY (1 Product)\n\n          NEW AirPods Cases From 29,99 \u20ac\n            0 reviews\n\n          GOLF (1 Product)\n\n          Cup Holder Mount Golf 49,99 \u20ac\n            136 reviews\n\n          TRAVEL (3 Products)\n\n          NEW Travel Organisers Carry From 34,99 \u20ac\n            0 reviews\n          Traverse Backpack Carry 129,99 \u20ac\n            28 reviews\n          NEW AUX Bluetooth Adaptor Accessory 49,99 \u20ac\n            0 reviews\n\n          QUAD LOCK 360\u2122 (1 Product)\n\n          USB Waterproof Wireless Charging Head Quad Lock 360 Head 79,99 \u20ac\n            2,658 reviews\n\n    Every day. Every adventure.\u2122\n\n        Quad Lock homepage\n        Sign up for 10 \u20ac Off\n\n        Shop by\n\n          * Motorcycle\n          * Car\n          * Cycle\n          * Off Road\n          * Everyday\n          * Marine\n          * Aviation\n          * Golf\n          * Run\n          * Camera\n          * Parts &amp; Accessories\n\n        Customers\n\n          * Support\n          * Contact Us\n          * Account Login\n          * Privacy Policy\n          * Cookie Policy\n          * GDPR Compliance\n          * Compliance Certificates\n          * Warranty &amp; Returns\n          * Withdrawal\n          * Shipping\n          * MAG Battery Pack Recall\n\n        About\n\n          * About Us\n          * Blog\n          * Intellectual Property\n          * World Bicycle Relief\n          * Wholesale &amp; Commercial\n          * Sponsorship &amp; Media\n\n        Follow\n\n          * 556k\n          * 373k\n          * 161k\n          * 53k\n          * 33k\n          * 9k\n          Sign up for 10 \u20ac Off\n\n        Certified Reviews\n\n                161K\n              4.8 star rating\n                Certified reviews\n                Powered by YOTPO\n            \u00a9 Copyright 2014 - 2026 Annex Products PTY LTD | All Rights Reserved\n      Close popup\n\n              Free Shipping on orders over 50 \u20ac\n\n              Fast Free Shipping!\n\n            FREE tracked shipping for all orders over 50 \u20ac. * Free shipping unavailable for the Balearic Islands, Canary Islands, T\u00fcrkiye, and the Middle East.\n\n            Express Shipping upgrades available.\n\n            EU Orders ship out locally from NL via GLS &amp; DHL.\n\n            We are not currently shipping to Russia.\n\n            Due to airspace closures in the Middle East, carriers are experiencing extended delays which may impact some deliveries to the area and orders may take longer than usual to arrive. We apologise for any inconvenience.\n\n            Learn More\n\n      Close popup\n\n            30 day money Back Guarantee\n\n            Risk Free!\n\n          If you purchase a Quad Lock\u00ae product from us and don&#39;t like it, you have 30 days to arrange for a return and refund. No questions asked.\n\n          Learn More\n\n      Close popup\n\n              Buy Now. Pay Later.\n\n            We have partnered with PayPal to bring you simple, interest-free payment plans. Buy today and pay in four installments.\n\n              Select PayPal at checkout.\n\n              Terms &amp; Conditions Apply\n\n      Close popup\n\n          Close popup\n\n              Sign up\n\n              New releases, product news, and everything worth knowing from Quad Lock.\n\n              Email Subscribe\n            No Thanks\n\n              WELCOME TO THE CLUB!\n\n              You&#39;re first in line for new releases, product news, and everything worth knowing from Quad Lock.\n\n            CONTINUE SHOPPING\n  10 \u20ac Off\n    Chat\n              GET 10 \u20ac OFF YOUR FIRST ORDER!\n\n            Minimum spend 65 \u20ac\n\n            Enter your email here to receive the discount\n          GET DISCOUNT\n          No thanks, I don\u2019t want a discount&#34;, &#34;preview_url&#34;: &#34;https://changedetection.nicolkrit.ch/preview/8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;screenshot&#34;: null, &#34;timestamp_from&#34;: null, &#34;timestamp_to&#34;: null, &#34;triggered_text&#34;: &#34;&#34;, &#34;llm_summary&#34;: null, &#34;llm_intent&#34;: null, &#34;uuid&#34;: &#34;8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;watch_mime_type&#34;: &#34;text/html; charset=utf-8&#34;, &#34;watch_tag&#34;: &#34;&#34;, &#34;watch_title&#34;: &#34;What&#39;s New - Quad Lock\u00ae Europe - Official Store&#34;, &#34;watch_url&#34;: &#34;https://www.quadlockcase.eu/collections/whats-new&#34;, &#34;watch_uuid&#34;: &#34;8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;, &#34;notification_urls&#34;: [&#34;https://discord.com/api/webhooks/1441918212798419084/x5iSolXlPQHK8xD_3sMkZhUctPz6e_p-_YyNr1uJak1Y3DlqVneRwG-24CfTzVgZEFrm&#34;], &#34;notification_title&#34;: &#34;ChangeDetection.io Notification&#34;, &#34;notification_body&#34;: &#34;## [{{ watch_title }}]({{ watch_url }})\r\n\r\nA change was detected.\r\n\r\n&gt; [**&gt;&gt; View Change Diff &lt;&lt;**]({{ diff_url }})\r\n{{preview_url}}&#34;, &#34;notification_format&#34;: &#34;text&#34;, &#34;_llm_result&#34;: null, &#34;_llm_intent&#34;: &#34;&#34;, &#34;_llm_change_summary&#34;: &#34;&#34;, &#34;edit_url&#34;: &#34;https://changedetection.nicolkrit.ch/edit/8d942bd8-2988-4515-bce1-2609e27b5fd4&#34;}}]</li>
+                
+                </ul>
+                </div>
+
+     </div>
+</div>
+
+
+          </div>
+        </div>
+    </section>
+    <script src="/static/js/toggle-theme.js" defer></script>
+    <script src="/static/js/hamburger-menu.js" defer></script>
+
+    <div id="checking-now-fixed-tab" style="display: none;"><span class="spinner"></span><span class="status-text">&nbsp;Checking now</span></div>
+    <div id="realtime-conn-error" style="display:none">Real-time updates offline</div>
+    
+
+    <!-- Language Selection Modal -->
+    <dialog id="language-modal" class="modal-dialog" aria-labelledby="language-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="language-modal-title">Select Language</h2>
+      </div>
+      <div class="modal-body">
+        <div class="language-list">
+          
+          <a href="/set-language/cs?redirect=/settings/notification-logs" class="language-option" data-locale="cs">
+            <span class="lang-option fi fi-cz fis"></span> <span class="language-name">Čeština</span>
+          </a>
+          
+          <a href="/set-language/de?redirect=/settings/notification-logs" class="language-option" data-locale="de">
+            <span class="lang-option fi fi-de fis"></span> <span class="language-name">Deutsch</span>
+          </a>
+          
+          <a href="/set-language/en_GB?redirect=/settings/notification-logs" class="language-option" data-locale="en_GB">
+            <span class="lang-option fi fi-gb fis"></span> <span class="language-name">English (UK)</span>
+          </a>
+          
+          <a href="/set-language/en_US?redirect=/settings/notification-logs" class="language-option" data-locale="en_US">
+            <span class="lang-option fi fi-us fis"></span> <span class="language-name">English (US)</span>
+          </a>
+          
+          <a href="/set-language/es?redirect=/settings/notification-logs" class="language-option" data-locale="es">
+            <span class="lang-option fi fi-es fis"></span> <span class="language-name">Español</span>
+          </a>
+          
+          <a href="/set-language/fr?redirect=/settings/notification-logs" class="language-option" data-locale="fr">
+            <span class="lang-option fi fi-fr fis"></span> <span class="language-name">Français</span>
+          </a>
+          
+          <a href="/set-language/it?redirect=/settings/notification-logs" class="language-option" data-locale="it">
+            <span class="lang-option fi fi-it fis"></span> <span class="language-name">Italiano</span>
+          </a>
+          
+          <a href="/set-language/ja?redirect=/settings/notification-logs" class="language-option" data-locale="ja">
+            <span class="lang-option fi fi-jp fis"></span> <span class="language-name">日本語</span>
+          </a>
+          
+          <a href="/set-language/ko?redirect=/settings/notification-logs" class="language-option" data-locale="ko">
+            <span class="lang-option fi fi-kr fis"></span> <span class="language-name">한국어</span>
+          </a>
+          
+          <a href="/set-language/pt_BR?redirect=/settings/notification-logs" class="language-option" data-locale="pt_BR">
+            <span class="lang-option fi fi-br fis"></span> <span class="language-name">Português (Brasil)</span>
+          </a>
+          
+          <a href="/set-language/ru?redirect=/settings/notification-logs" class="language-option" data-locale="ru">
+            <span class="lang-option fi fi-ru fis"></span> <span class="language-name">Русский</span>
+          </a>
+          
+          <a href="/set-language/tr?redirect=/settings/notification-logs" class="language-option" data-locale="tr">
+            <span class="lang-option fi fi-tr fis"></span> <span class="language-name">Türkçe</span>
+          </a>
+          
+          <a href="/set-language/uk?redirect=/settings/notification-logs" class="language-option" data-locale="uk">
+            <span class="lang-option fi fi-ua fis"></span> <span class="language-name">Українська</span>
+          </a>
+          
+          <a href="/set-language/zh?redirect=/settings/notification-logs" class="language-option" data-locale="zh">
+            <span class="lang-option fi fi-cn fis"></span> <span class="language-name">中文 (简体)</span>
+          </a>
+          
+          <a href="/set-language/zh_Hant_TW?redirect=/settings/notification-logs" class="language-option" data-locale="zh_Hant_TW">
+            <span class="lang-option fi fi-tw fis"></span> <span class="language-name">繁體中文</span>
+          </a>
+          
+        </div>
+        <div>
+            <a href="/language/auto-detect?redirect=/settings/notification-logs" >Auto-detect from browser</a>
+        </div>
+        <div>
+            Language support is in beta, please help us improve by opening a PR on GitHub with any updates.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="pure-button" id="close-language-modal">Cancel</button>
+      </div>
+    </dialog>
+
+    
+    <!-- LLM Not Configured Modal -->
+    <dialog id="llm-not-configured-modal" class="modal-dialog" aria-labelledby="llm-not-configured-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="llm-not-configured-modal-title">AI / LLM not configured</h2>
+      </div>
+      <div class="modal-body">
+        <p>LLM-powered summaries are not yet enabled. Configure an AI provider in Settings to get started.</p>
+        <p><a href="/settings#ai" class="pure-button pure-button-primary">Go to AI / LLM Settings</a></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="pure-button" id="close-llm-not-configured-modal">Close</button>
+      </div>
+    </dialog>
+    
+
+    <!-- Search Modal -->
+    
+    <dialog id="search-modal" class="modal-dialog" aria-labelledby="search-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="search-modal-title">Search</h2>
+      </div>
+      <div class="modal-body">
+        <form id="search-form" method="GET">
+          <div class="pure-control-group">
+            <label for="search-modal-input">URL or Title</label>
+            <input id="search-modal-input" class="m-d" name="q" placeholder="Enter search term..." required type="text" value="" autofocus>
+            <input name="tags" type="hidden" value="">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="pure-button button-cancel" id="close-search-modal">Cancel</button>
+        <button type="submit" form="search-form" class="pure-button pure-button-primary">Search</button>
+      </div>
+    </dialog>
+    
+
+
+  <script>
+  (function() {
+      /* AUTOMATIC TAB COLUMN-IZER FOR WHEN TABS WRAP */
+    // Exit early if no tabs on page
+    if (!document.querySelector('.tab')) return;
+
+    const cache = new Map();
+
+    function checkWrapping(ul) {
+      const tabs = ul.querySelectorAll('.tab');
+      if (tabs.length < 2) return false;
+
+      // Init cache on first run
+      if (!cache.has(ul)) {
+        ul.style.setProperty('--tab-width', '');
+        void ul.offsetHeight;
+        let max = 0;
+        tabs.forEach(t => max = Math.max(max, t.offsetWidth));
+        cache.set(ul, max);
+      }
+
+      // Temporarily use flex wrap to check if wrapping occurs
+      ul.style.display = 'flex';
+      ul.style.flexWrap = 'wrap';
+      void ul.offsetHeight;
+
+      const top = tabs[0].offsetTop;
+      const wrapped = Array.from(tabs).some((t, i) => i > 0 && t.offsetTop !== top);
+
+      // Reset display to use CSS grid
+      ul.style.display = '';
+      ul.style.flexWrap = '';
+
+      // Set CSS variable for wrapped mode
+      if (wrapped) {
+        ul.style.setProperty('--tab-width', `${cache.get(ul) + 10}px`);
+      } else {
+        ul.style.setProperty('--tab-width', '');
+      }
+
+      return wrapped;
+    }
+
+    function check() {
+      let any = false;
+      document.querySelectorAll('ul').forEach(ul => {
+        if (ul.querySelector('.tab') && checkWrapping(ul)) any = true;
+      });
+      document.body.classList.toggle('wrapped-tabs', any);
+    }
+
+    check();
+    let timer;
+    window.addEventListener('resize', () => {
+      clearTimeout(timer);
+      timer = setTimeout(check, 100);
+    });
+
+    // Re-check wrapping when tabs are switched via anchors
+    window.addEventListener('hashchange', () => {
+      clearTimeout(timer);
+      // Use requestAnimationFrame + setTimeout to ensure DOM has settled
+      requestAnimationFrame(() => {
+        timer = setTimeout(check, 0);
+      });
+    });
+  })();
+  </script>
+
+
+    <script src="/static/js/language-selector.js" defer></script>
+    <script src="/static/js/search-modal.js" defer></script>
+    <script src="/static/js/toast.js"></script>
+    <script src="/static/js/flask-toast-bridge.js" defer></script>
+  </body>
+
+</html>

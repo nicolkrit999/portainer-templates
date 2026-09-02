@@ -1,0 +1,949 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - link [ref=f2e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f2e5]: Change
+      - text: Detection.io
+    - list [ref=f2e6]:
+      - listitem [ref=f2e7]:
+        - link "GROUPS" [ref=f2e8] [cursor=pointer]:
+          - /url: /tags/list
+      - listitem [ref=f2e9]:
+        - link "SETTINGS" [ref=f2e10] [cursor=pointer]:
+          - /url: /settings
+      - listitem [ref=f2e11]:
+        - link "IMPORT" [ref=f2e12] [cursor=pointer]:
+          - /url: /imports/import
+      - listitem [ref=f2e13]:
+        - link [ref=f2e14] [cursor=pointer]:
+          - /url: /settings/toggle-all-paused
+          - img "Pause auto-queue scheduling of watches" [ref=f2e15]
+      - listitem [ref=f2e16]:
+        - link [ref=f2e17] [cursor=pointer]:
+          - /url: /settings/toggle-all-muted
+          - img "Mute notifications" [ref=f2e18]
+      - listitem [ref=f2e19]:
+        - button "Toggle AI mode LLM" [ref=f2e20] [cursor=pointer]:
+          - generic [ref=f2e21]: Toggle AI mode
+          - text: LLM
+        - button "Toggle light/dark mode" [ref=f2e26] [cursor=pointer]
+        - button "Change language" [ref=f2e31] [cursor=pointer]
+        - link [ref=f2e34] [cursor=pointer]:
+          - /url: https://github.com/dgtlmoon/changedetection.io
+      - listitem [ref=f2e37]:
+        - button "Search, or Use Alt+S Key" [ref=f2e38] [cursor=pointer]
+      - listitem [ref=f2e42]
+      - listitem
+  - generic [ref=f2e46]: v0.55.8
+  - generic [ref=f2e47]:
+    - generic [ref=f2e49]:
+      - heading "Try our Chrome extension" [level=4] [ref=f2e50]
+      - paragraph [ref=f2e51]:
+        - link [ref=f2e52] [cursor=pointer]:
+          - /url: https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop
+          - img "Chrome store icon" [ref=f2e53]
+          - text: Chrome Webstore
+      - text: Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+      - heading "Changedetection.io needs your support!" [level=4] [ref=f2e54]
+      - paragraph [ref=f2e55]: You can help us by supporting changedetection.io on these platforms;
+      - paragraph
+      - list [ref=f2e56]:
+        - listitem [ref=f2e57]:
+          - link "Rate us at AlternativeTo.net" [ref=f2e58] [cursor=pointer]:
+            - /url: https://alternativeto.net/software/changedetection-io/about/
+        - listitem [ref=f2e59]:
+          - link "Star us on GitHub" [ref=f2e60] [cursor=pointer]:
+            - /url: https://github.com/dgtlmoon/changedetection.io
+        - listitem [ref=f2e61]:
+          - link "Follow us at Twitter/X" [ref=f2e62] [cursor=pointer]:
+            - /url: https://twitter.com/change_det_io
+        - listitem [ref=f2e63]:
+          - link "G2 Software reviews" [ref=f2e64] [cursor=pointer]:
+            - /url: https://www.g2.com/products/changedetection-io/reviews
+        - listitem [ref=f2e65]:
+          - link "Check us out on LinkedIn" [ref=f2e66] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/changedetection-io
+        - listitem [ref=f2e67]: And tell your friends and colleagues :)
+      - paragraph [ref=f2e68]: The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+      - paragraph [ref=f2e69]: Many thanks :)
+      - paragraph [ref=f2e70]: changedetection.io team
+    - generic [ref=f2e73]:
+      - list [ref=f2e75]:
+        - listitem [ref=f2e76]:
+          - link "General" [ref=f2e77] [cursor=pointer]:
+            - /url: "#general"
+        - listitem [ref=f2e78]:
+          - link "Notifications" [ref=f2e79] [cursor=pointer]:
+            - /url: "#notifications"
+        - listitem [ref=f2e80]:
+          - link "Fetching" [ref=f2e81] [cursor=pointer]:
+            - /url: "#fetching"
+        - listitem [ref=f2e82]:
+          - link "Global Filters" [ref=f2e83] [cursor=pointer]:
+            - /url: "#filters"
+        - listitem [ref=f2e84]:
+          - link "UI Options" [ref=f2e85] [cursor=pointer]:
+            - /url: "#ui-options"
+        - listitem [ref=f2e86]:
+          - link "API" [ref=f2e87] [cursor=pointer]:
+            - /url: "#api"
+        - listitem [ref=f2e88]:
+          - link "RSS" [ref=f2e89] [cursor=pointer]:
+            - /url: "#rss"
+        - listitem [ref=f2e90]:
+          - link "Backups" [ref=f2e91] [cursor=pointer]:
+            - /url: /backups/create
+        - listitem [ref=f2e92]:
+          - link "Time & Date" [ref=f2e93] [cursor=pointer]:
+            - /url: "#timedate"
+        - listitem [ref=f2e94]:
+          - link "CAPTCHA & Proxies" [ref=f2e95] [cursor=pointer]:
+            - /url: "#proxies"
+        - listitem [ref=f2e96]:
+          - link "AI / LLM" [ref=f2e97] [cursor=pointer]:
+            - /url: "#ai"
+        - listitem [ref=f2e98]:
+          - link "Info" [ref=f2e99] [cursor=pointer]:
+            - /url: "#info"
+      - generic [ref=f2e101]:
+        - group [ref=f2e103]:
+          - generic [ref=f2e104]:
+            - generic [ref=f2e105]: Time Between Check
+            - table [ref=f2e108]:
+              - rowgroup [ref=f2e109]:
+                - row [ref=f2e110]:
+                  - rowheader "Weeks" [ref=f2e111]
+                  - cell [ref=f2e113]:
+                    - spinbutton "Weeks" [ref=f2e114]
+                - row [ref=f2e115]:
+                  - rowheader "Days" [ref=f2e116]
+                  - cell [ref=f2e118]:
+                    - spinbutton "Days" [ref=f2e119]
+                - row [ref=f2e120]:
+                  - rowheader "Hours" [ref=f2e121]
+                  - cell [ref=f2e123]:
+                    - spinbutton "Hours" [ref=f2e124]: "3"
+                - row [ref=f2e125]:
+                  - rowheader "Minutes" [ref=f2e126]
+                  - cell [ref=f2e128]:
+                    - spinbutton "Minutes" [ref=f2e129]
+                - row [ref=f2e130]:
+                  - rowheader "Seconds" [ref=f2e131]
+                  - cell [ref=f2e133]:
+                    - spinbutton "Seconds" [ref=f2e134]
+            - generic [ref=f2e135]:
+              - text: Default recheck time for all watches, current system minimum is 3 seconds (
+              - link "more info" [ref=f2e136] [cursor=pointer]:
+                - /url: https://github.com/dgtlmoon/changedetection.io/wiki/Misc-system-settings#enviroment-variables
+              - text: ).
+            - generic [ref=f2e138]:
+              - generic [ref=f2e140]:
+                - generic [ref=f2e141]:
+                  - checkbox "Use time scheduler" [checked] [ref=f2e142]
+                  - text: Use time scheduler
+                - generic [ref=f2e143]: Set a hourly/week day schedule
+              - generic [ref=f2e144]:
+                - generic [ref=f2e145]: Schedule time limits
+                - generic [ref=f2e146] [cursor=pointer]: Business hours
+                - generic [ref=f2e147] [cursor=pointer]: Weekends
+                - generic [ref=f2e148] [cursor=pointer]: Reset
+                - list [ref=f2e149]:
+                  - listitem [ref=f2e150]:
+                    - table [ref=f2e152]:
+                      - rowgroup [ref=f2e153]:
+                        - row [ref=f2e154]:
+                          - rowheader "Monday" [ref=f2e155]
+                          - cell [ref=f2e157]:
+                            - checkbox "Monday" [checked] [ref=f2e158]
+                        - row [ref=f2e159]:
+                          - rowheader "Start At" [ref=f2e160]
+                          - cell [ref=f2e162]:
+                            - textbox "Start At" [ref=f2e163]: 09:00
+                        - row [ref=f2e164]:
+                          - rowheader "Run duration" [ref=f2e165]
+                          - cell [ref=f2e167]:
+                            - table [ref=f2e168]:
+                              - rowgroup [ref=f2e169]:
+                                - row [ref=f2e170]:
+                                  - rowheader "Hours" [ref=f2e171]
+                                  - cell "24" [ref=f2e173]:
+                                    - combobox "Hours" [ref=f2e174]:
+                                      - option "0"
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24" [selected]
+                                - row [ref=f2e175]:
+                                  - rowheader "Minutes" [ref=f2e176]
+                                  - cell "0" [ref=f2e178]:
+                                    - combobox "Minutes" [ref=f2e179]:
+                                      - option "0" [selected]
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24"
+                                      - option "25"
+                                      - option "26"
+                                      - option "27"
+                                      - option "28"
+                                      - option "29"
+                                      - option "30"
+                                      - option "31"
+                                      - option "32"
+                                      - option "33"
+                                      - option "34"
+                                      - option "35"
+                                      - option "36"
+                                      - option "37"
+                                      - option "38"
+                                      - option "39"
+                                      - option "40"
+                                      - option "41"
+                                      - option "42"
+                                      - option "43"
+                                      - option "44"
+                                      - option "45"
+                                      - option "46"
+                                      - option "47"
+                                      - option "48"
+                                      - option "49"
+                                      - option "50"
+                                      - option "51"
+                                      - option "52"
+                                      - option "53"
+                                      - option "54"
+                                      - option "55"
+                                      - option "56"
+                                      - option "57"
+                                      - option "58"
+                                      - option "59"
+                  - listitem [ref=f2e180]:
+                    - table [ref=f2e182]:
+                      - rowgroup [ref=f2e183]:
+                        - row [ref=f2e184]:
+                          - rowheader "Tuesday" [ref=f2e185]
+                          - cell [ref=f2e187]:
+                            - checkbox "Tuesday" [checked] [ref=f2e188]
+                        - row [ref=f2e189]:
+                          - rowheader "Start At" [ref=f2e190]
+                          - cell [ref=f2e192]:
+                            - textbox "Start At" [ref=f2e193]: 09:00
+                        - row [ref=f2e194]:
+                          - rowheader "Run duration" [ref=f2e195]
+                          - cell [ref=f2e197]:
+                            - table [ref=f2e198]:
+                              - rowgroup [ref=f2e199]:
+                                - row [ref=f2e200]:
+                                  - rowheader "Hours" [ref=f2e201]
+                                  - cell "24" [ref=f2e203]:
+                                    - combobox "Hours" [ref=f2e204]:
+                                      - option "0"
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24" [selected]
+                                - row [ref=f2e205]:
+                                  - rowheader "Minutes" [ref=f2e206]
+                                  - cell "0" [ref=f2e208]:
+                                    - combobox "Minutes" [ref=f2e209]:
+                                      - option "0" [selected]
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24"
+                                      - option "25"
+                                      - option "26"
+                                      - option "27"
+                                      - option "28"
+                                      - option "29"
+                                      - option "30"
+                                      - option "31"
+                                      - option "32"
+                                      - option "33"
+                                      - option "34"
+                                      - option "35"
+                                      - option "36"
+                                      - option "37"
+                                      - option "38"
+                                      - option "39"
+                                      - option "40"
+                                      - option "41"
+                                      - option "42"
+                                      - option "43"
+                                      - option "44"
+                                      - option "45"
+                                      - option "46"
+                                      - option "47"
+                                      - option "48"
+                                      - option "49"
+                                      - option "50"
+                                      - option "51"
+                                      - option "52"
+                                      - option "53"
+                                      - option "54"
+                                      - option "55"
+                                      - option "56"
+                                      - option "57"
+                                      - option "58"
+                                      - option "59"
+                  - listitem [ref=f2e210]:
+                    - table [ref=f2e212]:
+                      - rowgroup [ref=f2e213]:
+                        - row [ref=f2e214]:
+                          - rowheader "Wednesday" [ref=f2e215]
+                          - cell [ref=f2e217]:
+                            - checkbox "Wednesday" [checked] [ref=f2e218]
+                        - row [ref=f2e219]:
+                          - rowheader "Start At" [ref=f2e220]
+                          - cell [ref=f2e222]:
+                            - textbox "Start At" [ref=f2e223]: 09:00
+                        - row [ref=f2e224]:
+                          - rowheader "Run duration" [ref=f2e225]
+                          - cell [ref=f2e227]:
+                            - table [ref=f2e228]:
+                              - rowgroup [ref=f2e229]:
+                                - row [ref=f2e230]:
+                                  - rowheader "Hours" [ref=f2e231]
+                                  - cell "24" [ref=f2e233]:
+                                    - combobox "Hours" [ref=f2e234]:
+                                      - option "0"
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24" [selected]
+                                - row [ref=f2e235]:
+                                  - rowheader "Minutes" [ref=f2e236]
+                                  - cell "0" [ref=f2e238]:
+                                    - combobox "Minutes" [ref=f2e239]:
+                                      - option "0" [selected]
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24"
+                                      - option "25"
+                                      - option "26"
+                                      - option "27"
+                                      - option "28"
+                                      - option "29"
+                                      - option "30"
+                                      - option "31"
+                                      - option "32"
+                                      - option "33"
+                                      - option "34"
+                                      - option "35"
+                                      - option "36"
+                                      - option "37"
+                                      - option "38"
+                                      - option "39"
+                                      - option "40"
+                                      - option "41"
+                                      - option "42"
+                                      - option "43"
+                                      - option "44"
+                                      - option "45"
+                                      - option "46"
+                                      - option "47"
+                                      - option "48"
+                                      - option "49"
+                                      - option "50"
+                                      - option "51"
+                                      - option "52"
+                                      - option "53"
+                                      - option "54"
+                                      - option "55"
+                                      - option "56"
+                                      - option "57"
+                                      - option "58"
+                                      - option "59"
+                  - listitem [ref=f2e240]:
+                    - table [ref=f2e242]:
+                      - rowgroup [ref=f2e243]:
+                        - row [ref=f2e244]:
+                          - rowheader "Thursday" [ref=f2e245]
+                          - cell [ref=f2e247]:
+                            - checkbox "Thursday" [checked] [ref=f2e248]
+                        - row [ref=f2e249]:
+                          - rowheader "Start At" [ref=f2e250]
+                          - cell [ref=f2e252]:
+                            - textbox "Start At" [ref=f2e253]: 09:00
+                        - row [ref=f2e254]:
+                          - rowheader "Run duration" [ref=f2e255]
+                          - cell [ref=f2e257]:
+                            - table [ref=f2e258]:
+                              - rowgroup [ref=f2e259]:
+                                - row [ref=f2e260]:
+                                  - rowheader "Hours" [ref=f2e261]
+                                  - cell "24" [ref=f2e263]:
+                                    - combobox "Hours" [ref=f2e264]:
+                                      - option "0"
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24" [selected]
+                                - row [ref=f2e265]:
+                                  - rowheader "Minutes" [ref=f2e266]
+                                  - cell "0" [ref=f2e268]:
+                                    - combobox "Minutes" [ref=f2e269]:
+                                      - option "0" [selected]
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24"
+                                      - option "25"
+                                      - option "26"
+                                      - option "27"
+                                      - option "28"
+                                      - option "29"
+                                      - option "30"
+                                      - option "31"
+                                      - option "32"
+                                      - option "33"
+                                      - option "34"
+                                      - option "35"
+                                      - option "36"
+                                      - option "37"
+                                      - option "38"
+                                      - option "39"
+                                      - option "40"
+                                      - option "41"
+                                      - option "42"
+                                      - option "43"
+                                      - option "44"
+                                      - option "45"
+                                      - option "46"
+                                      - option "47"
+                                      - option "48"
+                                      - option "49"
+                                      - option "50"
+                                      - option "51"
+                                      - option "52"
+                                      - option "53"
+                                      - option "54"
+                                      - option "55"
+                                      - option "56"
+                                      - option "57"
+                                      - option "58"
+                                      - option "59"
+                  - listitem [ref=f2e270]:
+                    - table [ref=f2e272]:
+                      - rowgroup [ref=f2e273]:
+                        - row [ref=f2e274]:
+                          - rowheader "Friday" [ref=f2e275]
+                          - cell [ref=f2e277]:
+                            - checkbox "Friday" [checked] [ref=f2e278]
+                        - row [ref=f2e279]:
+                          - rowheader "Start At" [ref=f2e280]
+                          - cell [ref=f2e282]:
+                            - textbox "Start At" [ref=f2e283]: 09:00
+                        - row [ref=f2e284]:
+                          - rowheader "Run duration" [ref=f2e285]
+                          - cell [ref=f2e287]:
+                            - table [ref=f2e288]:
+                              - rowgroup [ref=f2e289]:
+                                - row [ref=f2e290]:
+                                  - rowheader "Hours" [ref=f2e291]
+                                  - cell "24" [ref=f2e293]:
+                                    - combobox "Hours" [ref=f2e294]:
+                                      - option "0"
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24" [selected]
+                                - row [ref=f2e295]:
+                                  - rowheader "Minutes" [ref=f2e296]
+                                  - cell "0" [ref=f2e298]:
+                                    - combobox "Minutes" [ref=f2e299]:
+                                      - option "0" [selected]
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24"
+                                      - option "25"
+                                      - option "26"
+                                      - option "27"
+                                      - option "28"
+                                      - option "29"
+                                      - option "30"
+                                      - option "31"
+                                      - option "32"
+                                      - option "33"
+                                      - option "34"
+                                      - option "35"
+                                      - option "36"
+                                      - option "37"
+                                      - option "38"
+                                      - option "39"
+                                      - option "40"
+                                      - option "41"
+                                      - option "42"
+                                      - option "43"
+                                      - option "44"
+                                      - option "45"
+                                      - option "46"
+                                      - option "47"
+                                      - option "48"
+                                      - option "49"
+                                      - option "50"
+                                      - option "51"
+                                      - option "52"
+                                      - option "53"
+                                      - option "54"
+                                      - option "55"
+                                      - option "56"
+                                      - option "57"
+                                      - option "58"
+                                      - option "59"
+                  - listitem [ref=f2e300]:
+                    - table [ref=f2e302]:
+                      - rowgroup [ref=f2e303]:
+                        - row [ref=f2e304]:
+                          - rowheader "Saturday" [ref=f2e305]
+                          - cell [ref=f2e307]:
+                            - checkbox "Saturday" [checked] [ref=f2e308]
+                        - row [ref=f2e309]:
+                          - rowheader "Start At" [ref=f2e310]
+                          - cell [ref=f2e312]:
+                            - textbox "Start At" [ref=f2e313]: 09:00
+                        - row [ref=f2e314]:
+                          - rowheader "Run duration" [ref=f2e315]
+                          - cell [ref=f2e317]:
+                            - table [ref=f2e318]:
+                              - rowgroup [ref=f2e319]:
+                                - row [ref=f2e320]:
+                                  - rowheader "Hours" [ref=f2e321]
+                                  - cell "24" [ref=f2e323]:
+                                    - combobox "Hours" [ref=f2e324]:
+                                      - option "0"
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24" [selected]
+                                - row [ref=f2e325]:
+                                  - rowheader "Minutes" [ref=f2e326]
+                                  - cell "0" [ref=f2e328]:
+                                    - combobox "Minutes" [ref=f2e329]:
+                                      - option "0" [selected]
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24"
+                                      - option "25"
+                                      - option "26"
+                                      - option "27"
+                                      - option "28"
+                                      - option "29"
+                                      - option "30"
+                                      - option "31"
+                                      - option "32"
+                                      - option "33"
+                                      - option "34"
+                                      - option "35"
+                                      - option "36"
+                                      - option "37"
+                                      - option "38"
+                                      - option "39"
+                                      - option "40"
+                                      - option "41"
+                                      - option "42"
+                                      - option "43"
+                                      - option "44"
+                                      - option "45"
+                                      - option "46"
+                                      - option "47"
+                                      - option "48"
+                                      - option "49"
+                                      - option "50"
+                                      - option "51"
+                                      - option "52"
+                                      - option "53"
+                                      - option "54"
+                                      - option "55"
+                                      - option "56"
+                                      - option "57"
+                                      - option "58"
+                                      - option "59"
+                  - listitem [ref=f2e330]:
+                    - table [ref=f2e332]:
+                      - rowgroup [ref=f2e333]:
+                        - row [ref=f2e334]:
+                          - rowheader "Sunday" [ref=f2e335]
+                          - cell [ref=f2e337]:
+                            - checkbox "Sunday" [checked] [ref=f2e338]
+                        - row [ref=f2e339]:
+                          - rowheader "Start At" [ref=f2e340]
+                          - cell [ref=f2e342]:
+                            - textbox "Start At" [ref=f2e343]: 09:00
+                        - row [ref=f2e344]:
+                          - rowheader "Run duration" [ref=f2e345]
+                          - cell [ref=f2e347]:
+                            - table [ref=f2e348]:
+                              - rowgroup [ref=f2e349]:
+                                - row [ref=f2e350]:
+                                  - rowheader "Hours" [ref=f2e351]
+                                  - cell "24" [ref=f2e353]:
+                                    - combobox "Hours" [ref=f2e354]:
+                                      - option "0"
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24" [selected]
+                                - row [ref=f2e355]:
+                                  - rowheader "Minutes" [ref=f2e356]
+                                  - cell "0" [ref=f2e358]:
+                                    - combobox "Minutes" [ref=f2e359]:
+                                      - option "0" [selected]
+                                      - option "1"
+                                      - option "2"
+                                      - option "3"
+                                      - option "4"
+                                      - option "5"
+                                      - option "6"
+                                      - option "7"
+                                      - option "8"
+                                      - option "9"
+                                      - option "10"
+                                      - option "11"
+                                      - option "12"
+                                      - option "13"
+                                      - option "14"
+                                      - option "15"
+                                      - option "16"
+                                      - option "17"
+                                      - option "18"
+                                      - option "19"
+                                      - option "20"
+                                      - option "21"
+                                      - option "22"
+                                      - option "23"
+                                      - option "24"
+                                      - option "25"
+                                      - option "26"
+                                      - option "27"
+                                      - option "28"
+                                      - option "29"
+                                      - option "30"
+                                      - option "31"
+                                      - option "32"
+                                      - option "33"
+                                      - option "34"
+                                      - option "35"
+                                      - option "36"
+                                      - option "37"
+                                      - option "38"
+                                      - option "39"
+                                      - option "40"
+                                      - option "41"
+                                      - option "42"
+                                      - option "43"
+                                      - option "44"
+                                      - option "45"
+                                      - option "46"
+                                      - option "47"
+                                      - option "48"
+                                      - option "49"
+                                      - option "50"
+                                      - option "51"
+                                      - option "52"
+                                      - option "53"
+                                      - option "54"
+                                      - option "55"
+                                      - option "56"
+                                      - option "57"
+                                      - option "58"
+                                      - option "59"
+                  - listitem [ref=f2e360]:
+                    - generic [ref=f2e361]: Optional timezone to run in
+                    - combobox "Optional timezone to run in" [ref=f2e364]
+                - link "More help and examples about using the scheduler" [ref=f2e366] [cursor=pointer]:
+                  - /url: https://changedetection.io/tutorial/checking-web-pages-changes-according-schedule
+          - generic [ref=f2e367]:
+            - generic [ref=f2e368]: Number of times the filter can be missing before sending a notification
+            - spinbutton "Number of times the filter can be missing before sending a notification" [ref=f2e371]: "6"
+            - generic [ref=f2e372]:
+              - text: After this many consecutive times that the CSS/xPath filter is missing, send a notification Set to
+              - strong [ref=f2e373]: "0"
+              - text: to disable
+          - generic [ref=f2e374]:
+            - generic [ref=f2e375]: Number of history items per watch to keep
+            - spinbutton "Number of history items per watch to keep" [ref=f2e378]
+            - generic [ref=f2e379]: Limit collection of history snapshots for each watch to this number of history items. Set to empty to disable / no limit
+          - generic [ref=f2e380]:
+            - generic [ref=f2e381]: Password
+            - textbox "Password" [ref=f2e384]
+            - generic [ref=f2e385]: Password protection for your changedetection.io application.
+          - generic [ref=f2e386]:
+            - generic [ref=f2e387]:
+              - checkbox "Allow anonymous access to watch history page when password is enabled" [ref=f2e388]
+              - text: Allow anonymous access to watch history page when password is enabled
+            - generic [ref=f2e389]: Allow access to the watch change history page when password is enabled (Good for sharing the diff page)
+          - generic [ref=f2e390]:
+            - generic [ref=f2e391]:
+              - checkbox "Treat empty pages as a change?" [ref=f2e392]
+              - text: Treat empty pages as a change?
+            - generic [ref=f2e393]: When a request returns no content, or the HTML does not contain any text, is this considered a change?
+        - generic [ref=f2e395]:
+          - button "Save" [ref=f2e396] [cursor=pointer]
+          - link "Back" [ref=f2e397] [cursor=pointer]:
+            - /url: /
+          - link "Clear Snapshot History" [ref=f2e398] [cursor=pointer]:
+            - /url: /clear_history

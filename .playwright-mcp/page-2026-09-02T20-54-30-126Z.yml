@@ -1,0 +1,67 @@
+- generic [active] [ref=f14e1]:
+  - generic [ref=f14e3]:
+    - link [ref=f14e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f14e5]: Change
+      - text: Detection.io
+    - link "https://www.init7.net/en/support/faq/status-info" [ref=f14e6] [cursor=pointer]:
+      - /url: https://www.init7.net/en/support/faq/status-info
+    - list [ref=f14e7]:
+      - listitem [ref=f14e8]:
+        - link "EDIT" [ref=f14e9] [cursor=pointer]:
+          - /url: /edit/c53b03ed-62b1-4352-8d84-20f1d03409ff?next=diff
+      - listitem [ref=f14e10]:
+        - button "Toggle AI mode LLM" [ref=f14e11] [cursor=pointer]:
+          - generic [ref=f14e12]: Toggle AI mode
+          - text: LLM
+        - button "Toggle light/dark mode" [ref=f14e17] [cursor=pointer]
+        - button "Change language" [ref=f14e22] [cursor=pointer]
+        - link [ref=f14e25] [cursor=pointer]:
+          - /url: https://github.com/dgtlmoon/changedetection.io
+      - listitem [ref=f14e28]
+      - listitem
+  - generic [ref=f14e32]: v0.55.8
+  - generic [ref=f14e33]:
+    - generic [ref=f14e35]:
+      - heading "Try our Chrome extension" [level=4] [ref=f14e36]
+      - paragraph [ref=f14e37]:
+        - link [ref=f14e38] [cursor=pointer]:
+          - /url: https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop
+          - img "Chrome store icon" [ref=f14e39]
+          - text: Chrome Webstore
+      - text: Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+      - heading "Changedetection.io needs your support!" [level=4] [ref=f14e40]
+      - paragraph [ref=f14e41]: You can help us by supporting changedetection.io on these platforms;
+      - paragraph
+      - list [ref=f14e42]:
+        - listitem [ref=f14e43]:
+          - link "Rate us at AlternativeTo.net" [ref=f14e44] [cursor=pointer]:
+            - /url: https://alternativeto.net/software/changedetection-io/about/
+        - listitem [ref=f14e45]:
+          - link "Star us on GitHub" [ref=f14e46] [cursor=pointer]:
+            - /url: https://github.com/dgtlmoon/changedetection.io
+        - listitem [ref=f14e47]:
+          - link "Follow us at Twitter/X" [ref=f14e48] [cursor=pointer]:
+            - /url: https://twitter.com/change_det_io
+        - listitem [ref=f14e49]:
+          - link "G2 Software reviews" [ref=f14e50] [cursor=pointer]:
+            - /url: https://www.g2.com/products/changedetection-io/reviews
+        - listitem [ref=f14e51]:
+          - link "Check us out on LinkedIn" [ref=f14e52] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/changedetection-io
+        - listitem [ref=f14e53]: And tell your friends and colleagues :)
+      - paragraph [ref=f14e54]: The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+      - paragraph [ref=f14e55]: Many thanks :)
+      - paragraph [ref=f14e56]: changedetection.io team
+    - generic [ref=f14e58]:
+      - list [ref=f14e60]:
+        - listitem [ref=f14e61]:
+          - link "Text" [ref=f14e62] [cursor=pointer]:
+            - /url: "#text"
+        - listitem [ref=f14e63]:
+          - link "Current screenshot" [ref=f14e64] [cursor=pointer]:
+            - /url: "#screenshot"
+      - generic [ref=f14e66]:
+        - paragraph [ref=f14e67]: Triggered text Ignored text Blocked text
+        - generic [ref=f14e68]: 19 seconds ago
+        - generic [ref=f14e69]: "* #42454137 (18.9.2026, 00:00:00): Planned Maintenance in 6370 Stans (710STA & 1710ROZ) * #42454486 (18.9.2026, 00:00:00): Planned Maintenance in 6600 Muralto, 6600 Locarno, 6612 Ascona, 6598 Tenero (630MUR, 630MOT, 630ASC, 630TEN)"

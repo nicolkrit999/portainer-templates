@@ -1,0 +1,143 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - link [ref=f3e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f3e5]: Change
+      - text: Detection.io
+    - list [ref=f3e6]:
+      - listitem [ref=f3e7]:
+        - link "GROUPS" [ref=f3e8] [cursor=pointer]:
+          - /url: /tags/list
+      - listitem [ref=f3e9]:
+        - link "SETTINGS" [ref=f3e10] [cursor=pointer]:
+          - /url: /settings
+      - listitem [ref=f3e11]:
+        - link "IMPORT" [ref=f3e12] [cursor=pointer]:
+          - /url: /imports/import
+      - listitem [ref=f3e13]:
+        - link [ref=f3e14] [cursor=pointer]:
+          - /url: /settings/toggle-all-paused
+          - img "Pause auto-queue scheduling of watches" [ref=f3e15]
+      - listitem [ref=f3e16]:
+        - link [ref=f3e17] [cursor=pointer]:
+          - /url: /settings/toggle-all-muted
+          - img "Mute notifications" [ref=f3e18]
+      - listitem [ref=f3e19]:
+        - button "Toggle AI mode LLM" [ref=f3e20] [cursor=pointer]:
+          - generic [ref=f3e21]: Toggle AI mode
+          - text: LLM
+        - button "Toggle light/dark mode" [ref=f3e26] [cursor=pointer]
+        - button "Change language" [ref=f3e31] [cursor=pointer]
+        - link [ref=f3e34] [cursor=pointer]:
+          - /url: https://github.com/dgtlmoon/changedetection.io
+      - listitem [ref=f3e37]:
+        - button "Search, or Use Alt+S Key" [ref=f3e38] [cursor=pointer]
+      - listitem [ref=f3e42]
+      - listitem
+  - generic [ref=f3e46]: v0.55.8
+  - generic [ref=f3e47]:
+    - generic [ref=f3e49]:
+      - heading "Try our Chrome extension" [level=4] [ref=f3e50]
+      - paragraph [ref=f3e51]:
+        - link [ref=f3e52] [cursor=pointer]:
+          - /url: https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop
+          - img "Chrome store icon" [ref=f3e53]
+          - text: Chrome Webstore
+      - text: Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+      - heading "Changedetection.io needs your support!" [level=4] [ref=f3e54]
+      - paragraph [ref=f3e55]: You can help us by supporting changedetection.io on these platforms;
+      - paragraph
+      - list [ref=f3e56]:
+        - listitem [ref=f3e57]:
+          - link "Rate us at AlternativeTo.net" [ref=f3e58] [cursor=pointer]:
+            - /url: https://alternativeto.net/software/changedetection-io/about/
+        - listitem [ref=f3e59]:
+          - link "Star us on GitHub" [ref=f3e60] [cursor=pointer]:
+            - /url: https://github.com/dgtlmoon/changedetection.io
+        - listitem [ref=f3e61]:
+          - link "Follow us at Twitter/X" [ref=f3e62] [cursor=pointer]:
+            - /url: https://twitter.com/change_det_io
+        - listitem [ref=f3e63]:
+          - link "G2 Software reviews" [ref=f3e64] [cursor=pointer]:
+            - /url: https://www.g2.com/products/changedetection-io/reviews
+        - listitem [ref=f3e65]:
+          - link "Check us out on LinkedIn" [ref=f3e66] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/changedetection-io
+        - listitem [ref=f3e67]: And tell your friends and colleagues :)
+      - paragraph [ref=f3e68]: The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+      - paragraph [ref=f3e69]: Many thanks :)
+      - paragraph [ref=f3e70]: changedetection.io team
+    - generic [ref=f3e73]:
+      - list [ref=f3e75]:
+        - listitem [ref=f3e76]:
+          - link "General" [ref=f3e77] [cursor=pointer]:
+            - /url: "#general"
+        - listitem [ref=f3e78]:
+          - link "Request" [ref=f3e79] [cursor=pointer]:
+            - /url: "#request"
+        - listitem [ref=f3e80]:
+          - link "Browser Steps" [ref=f3e81] [cursor=pointer]:
+            - /url: "#browser-steps"
+        - listitem [ref=f3e82]:
+          - link "Visual Filter Selector" [ref=f3e83] [cursor=pointer]:
+            - /url: "#visualselector"
+        - listitem [ref=f3e84]:
+          - link "AI / LLM" [ref=f3e85] [cursor=pointer]:
+            - /url: "#ai-llm"
+        - listitem [ref=f3e86]:
+          - link "Filters & Triggers" [ref=f3e87] [cursor=pointer]:
+            - /url: "#filters-and-triggers"
+        - listitem [ref=f3e88]:
+          - link "Conditions" [ref=f3e89] [cursor=pointer]:
+            - /url: "#conditions"
+        - listitem [ref=f3e90]:
+          - link "Notifications" [ref=f3e91] [cursor=pointer]:
+            - /url: "#notifications"
+        - listitem [ref=f3e92]:
+          - link "Stats" [ref=f3e93] [cursor=pointer]:
+            - /url: "#stats"
+      - generic [ref=f3e95]:
+        - generic [ref=f3e428]:
+          - generic [ref=f3e429]:
+            - generic [ref=f3e430]: Fetch Method
+            - list [ref=f3e433]:
+              - listitem [ref=f3e434]:
+                - radio "Basic fast Plaintext/HTTP Client" [ref=f3e435]
+                - generic [ref=f3e436]: Basic fast Plaintext/HTTP Client
+              - listitem [ref=f3e437]:
+                - radio "Playwright Chromium/Javascript via 'ws://sockpuppetbrowser:3000'" [ref=f3e438]
+                - generic [ref=f3e439]: Playwright Chromium/Javascript via 'ws://sockpuppetbrowser:3000'
+              - listitem [ref=f3e440]:
+                - radio "System settings default" [checked] [ref=f3e441]
+                - generic [ref=f3e442]: System settings default
+            - generic [ref=f3e443]:
+              - paragraph [ref=f3e444]:
+                - text: Use the
+                - strong [ref=f3e445]: Basic
+                - text: method (default) where your watched sites don't need Javascript to render.
+              - paragraph [ref=f3e446]:
+                - text: The
+                - strong [ref=f3e447]: Chrome/Javascript
+                - text: method requires a network connection to a running WebDriver+Chrome server, set by the ENV var 'WEBDRIVER_URL'.
+              - text: "Tip:"
+              - link "Connect using Bright Data and Oxylabs Proxies, find out more here." [ref=f3e448] [cursor=pointer]:
+                - /url: https://github.com/dgtlmoon/changedetection.io/wiki/Proxy-configuration#brightdata-proxy-support
+          - group [ref=f3e449]:
+            - generic [ref=f3e450]:
+              - generic [ref=f3e451]: Wait seconds before extracting text
+              - spinbutton "Wait seconds before extracting text" [ref=f3e454]
+              - generic [ref=f3e455]:
+                - strong [ref=f3e456]: If you're having trouble waiting for the page to be fully rendered (text missing etc), try increasing the 'wait' time here.
+                - text: This will wait n seconds before extracting the text.
+                - strong [ref=f3e457]: Using the current global default settings
+            - generic [ref=f3e458]: Show advanced options
+          - group [ref=f3e460]
+        - generic [ref=f3e172]:
+          - button "Save" [ref=f3e173] [cursor=pointer]
+          - link "Delete" [ref=f3e174] [cursor=pointer]:
+            - /url: /delete?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link "Clone & Edit" [ref=f3e175] [cursor=pointer]:
+            - /url: /clone?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link [ref=f3e176] [cursor=pointer]:
+            - /url: /rss/watch/c53b03ed-62b1-4352-8d84-20f1d03409ff?token=63a1c33046708fbd5cf5d42f7b8008b7
+            - img "RSS Feed for this watch" [ref=f3e177]

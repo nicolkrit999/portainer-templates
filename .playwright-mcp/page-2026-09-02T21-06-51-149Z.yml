@@ -1,0 +1,299 @@
+- generic [active] [ref=f43e1]:
+  - generic [ref=f43e3]:
+    - link [ref=f43e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f43e5]: Change
+      - text: Detection.io
+    - list [ref=f43e6]:
+      - listitem [ref=f43e7]:
+        - link "GROUPS" [ref=f43e8] [cursor=pointer]:
+          - /url: /tags/list
+      - listitem [ref=f43e9]:
+        - link "SETTINGS" [ref=f43e10] [cursor=pointer]:
+          - /url: /settings
+      - listitem [ref=f43e11]:
+        - link "IMPORT" [ref=f43e12] [cursor=pointer]:
+          - /url: /imports/import
+      - listitem [ref=f43e13]:
+        - link [ref=f43e14] [cursor=pointer]:
+          - /url: /settings/toggle-all-paused
+          - img "Pause auto-queue scheduling of watches" [ref=f43e15]
+      - listitem [ref=f43e16]:
+        - link [ref=f43e17] [cursor=pointer]:
+          - /url: /settings/toggle-all-muted
+          - img "Mute notifications" [ref=f43e18]
+      - listitem [ref=f43e19]:
+        - button "Toggle AI mode LLM" [ref=f43e20] [cursor=pointer]:
+          - generic [ref=f43e21]: Toggle AI mode
+          - text: LLM
+        - button "Toggle light/dark mode" [ref=f43e26] [cursor=pointer]
+        - button "Change language" [ref=f43e31] [cursor=pointer]
+        - link [ref=f43e34] [cursor=pointer]:
+          - /url: https://github.com/dgtlmoon/changedetection.io
+      - listitem [ref=f43e37]:
+        - button "Search, or Use Alt+S Key" [ref=f43e38] [cursor=pointer]
+      - listitem [ref=f43e42]
+      - listitem
+  - link "Let us host your instance!" [ref=f43e47] [cursor=pointer]:
+    - /url: https://changedetection.io/?ref=cd528600-ef0e-4b43-b079-42f00285a275
+  - generic [ref=f43e48]: v0.55.8
+  - generic [ref=f43e49]:
+    - generic [ref=f43e51]:
+      - heading "Try our Chrome extension" [level=4] [ref=f43e52]
+      - paragraph [ref=f43e53]:
+        - link [ref=f43e54] [cursor=pointer]:
+          - /url: https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop
+          - img "Chrome store icon" [ref=f43e55]
+          - text: Chrome Webstore
+      - text: Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+      - heading "Changedetection.io needs your support!" [level=4] [ref=f43e56]
+      - paragraph [ref=f43e57]: You can help us by supporting changedetection.io on these platforms;
+      - paragraph
+      - list [ref=f43e58]:
+        - listitem [ref=f43e59]:
+          - link "Rate us at AlternativeTo.net" [ref=f43e60] [cursor=pointer]:
+            - /url: https://alternativeto.net/software/changedetection-io/about/
+        - listitem [ref=f43e61]:
+          - link "Star us on GitHub" [ref=f43e62] [cursor=pointer]:
+            - /url: https://github.com/dgtlmoon/changedetection.io
+        - listitem [ref=f43e63]:
+          - link "Follow us at Twitter/X" [ref=f43e64] [cursor=pointer]:
+            - /url: https://twitter.com/change_det_io
+        - listitem [ref=f43e65]:
+          - link "G2 Software reviews" [ref=f43e66] [cursor=pointer]:
+            - /url: https://www.g2.com/products/changedetection-io/reviews
+        - listitem [ref=f43e67]:
+          - link "Check us out on LinkedIn" [ref=f43e68] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/changedetection-io
+        - listitem [ref=f43e69]: And tell your friends and colleagues :)
+      - paragraph [ref=f43e70]: The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+      - paragraph [ref=f43e71]: Many thanks :)
+      - paragraph [ref=f43e72]: changedetection.io team
+    - generic [ref=f43e74]:
+      - generic [ref=f43e76]:
+        - group "Add a new web page change detection watch" [ref=f43e77]:
+          - generic [ref=f43e79]:
+            - textbox "https://..." [ref=f43e81]
+            - button "Watch" [ref=f43e83] [cursor=pointer]
+            - button "Edit > Watch" [ref=f43e85] [cursor=pointer]
+          - generic [ref=f43e86]:
+            - generic [ref=f43e87]: Group tag
+            - textbox "Group tag" [ref=f43e89]:
+              - /placeholder: Watch group / tag
+          - list [ref=f43e92]:
+            - listitem [ref=f43e93]:
+              - radio "Webpage Text/HTML, JSON and PDF changes" [checked] [ref=f43e94]
+              - generic [ref=f43e95]: Webpage Text/HTML, JSON and PDF changes
+            - listitem [ref=f43e96]:
+              - radio "Re-stock & Price detection for pages with a SINGLE product" [ref=f43e97]
+              - generic [ref=f43e98]: Re-stock & Price detection for pages with a SINGLE product
+        - generic [ref=f43e99]:
+          - strong [ref=f43e100]: "Tip:"
+          - text: Changedetection.io can monitor more than just web-pages! See our plugins!
+          - link "More info" [ref=f43e101] [cursor=pointer]:
+            - /url: https://changedetection.io/plugins
+      - generic [ref=f43e103]:
+        - generic [ref=f43e104]: "Queued size: 0"
+        - generic [ref=f43e106]:
+          - link "All" [ref=f43e107] [cursor=pointer]:
+            - /url: /
+          - link "networking" [ref=f43e108] [cursor=pointer]:
+            - /url: /?tag=0f78d7ad-dac0-412e-b2d7-f7e838cd5b5c
+          - link "self-hosting" [ref=f43e109] [cursor=pointer]:
+            - /url: /?tag=74641f08-a8e6-4a93-b90c-0037f9da13e8
+          - link "shopping" [ref=f43e110] [cursor=pointer]:
+            - /url: /?tag=01fbb403-aa20-4f40-bf11-194a5cadbd3b
+        - generic [ref=f43e111]:
+          - table [ref=f43e112]:
+            - rowgroup [ref=f43e113]:
+              - row [ref=f43e114]:
+                - columnheader [ref=f43e115]:
+                  - checkbox [ref=f43e116]
+                  - link "#" [ref=f43e117] [cursor=pointer]:
+                    - /url: /?sort=date_created&order=desc
+                - columnheader [ref=f43e118]:
+                  - link [ref=f43e119] [cursor=pointer]:
+                    - /url: /?sort=paused&order=desc
+                  - link [ref=f43e123] [cursor=pointer]:
+                    - /url: /?sort=notification_muted&order=desc
+                - columnheader [ref=f43e127]:
+                  - link "Website" [ref=f43e128] [cursor=pointer]:
+                    - /url: /?sort=label&order=desc
+                - columnheader [ref=f43e129]:
+                  - link "Last Checked" [ref=f43e130] [cursor=pointer]:
+                    - /url: /?sort=last_checked&order=desc
+                - columnheader [ref=f43e131]:
+                  - link "Last Changed" [ref=f43e132] [cursor=pointer]:
+                    - /url: /?sort=last_changed&order=desc
+                - columnheader [ref=f43e134]
+            - rowgroup [ref=f43e135]:
+              - row [ref=f43e136]:
+                - cell [ref=f43e137]:
+                  - generic [ref=f43e138]:
+                    - checkbox [ref=f43e139]
+                    - text: "1"
+                - cell [ref=f43e140]:
+                  - generic [ref=f43e141]:
+                    - link [ref=f43e142] [cursor=pointer]:
+                      - /url: /?op=pause&uuid=8d942bd8-2988-4515-bce1-2609e27b5fd4
+                      - img "Pause checks" [ref=f43e143]
+                    - link [ref=f43e144] [cursor=pointer]:
+                      - /url: /?op=mute&uuid=8d942bd8-2988-4515-bce1-2609e27b5fd4
+                      - img "Mute notification" [ref=f43e145]
+                - cell [ref=f43e146]:
+                  - generic [ref=f43e147]:
+                    - img "Favicon thumbnail" [ref=f43e149]
+                    - generic [ref=f43e150]:
+                      - text: Text
+                      - generic [ref=f43e151]:
+                        - text: https://www.quadlockcase.eu/collections/whats-new
+                        - link [ref=f43e152] [cursor=pointer]:
+                          - /url: https://www.quadlockcase.eu/collections/whats-new
+                      - link "shopping" [ref=f43e153] [cursor=pointer]:
+                        - /url: /?tag=01fbb403-aa20-4f40-bf11-194a5cadbd3b
+                    - generic [ref=f43e154]:
+                      - link [ref=f43e155] [cursor=pointer]:
+                        - /url: /share-url/8d942bd8-2988-4515-bce1-2609e27b5fd4
+                        - img "Create a link to share watch config with others" [ref=f43e156]
+                      - img "Using a Chrome browser" [ref=f43e157]
+                - cell "2 hours ago" [ref=f43e158]
+                - cell "2 hours ago" [ref=f43e159]
+                - cell [ref=f43e160]:
+                  - generic [ref=f43e161]:
+                    - link "Recheck" [ref=f43e162] [cursor=pointer]:
+                      - /url: /checknow?uuid=8d942bd8-2988-4515-bce1-2609e27b5fd4
+                    - link "Edit" [ref=f43e163] [cursor=pointer]:
+                      - /url: /edit/8d942bd8-2988-4515-bce1-2609e27b5fd4#general
+                    - link "History" [ref=f43e164] [cursor=pointer]:
+                      - /url: /diff/8d942bd8-2988-4515-bce1-2609e27b5fd4
+              - row [ref=f43e165]:
+                - cell [ref=f43e166]:
+                  - generic [ref=f43e167]:
+                    - checkbox [ref=f43e168]
+                    - text: "2"
+                - cell [ref=f43e169]:
+                  - generic [ref=f43e170]:
+                    - link [ref=f43e171] [cursor=pointer]:
+                      - /url: /?op=pause&uuid=90db751f-e37c-4817-94ca-0b9b018e1f67
+                      - img "Pause checks" [ref=f43e172]
+                    - link [ref=f43e173] [cursor=pointer]:
+                      - /url: /?op=mute&uuid=90db751f-e37c-4817-94ca-0b9b018e1f67
+                      - img "Mute notification" [ref=f43e174]
+                - cell [ref=f43e175]:
+                  - generic [ref=f43e176]:
+                    - img "Favicon thumbnail" [ref=f43e178]
+                    - generic [ref=f43e179]:
+                      - text: Text
+                      - generic [ref=f43e180]:
+                        - text: Marius Hosting ugreen
+                        - link [ref=f43e181] [cursor=pointer]:
+                          - /url: https://mariushosting.com/category/ugreen/
+                      - link "self-hosting" [ref=f43e182] [cursor=pointer]:
+                        - /url: /?tag=74641f08-a8e6-4a93-b90c-0037f9da13e8
+                    - generic [ref=f43e183]:
+                      - link [ref=f43e184] [cursor=pointer]:
+                        - /url: /share-url/90db751f-e37c-4817-94ca-0b9b018e1f67
+                        - img "Create a link to share watch config with others" [ref=f43e185]
+                      - img "Using a Chrome browser" [ref=f43e186]
+                - cell "2 hours ago" [ref=f43e187]
+                - cell "8 hours ago" [ref=f43e188]
+                - cell [ref=f43e189]:
+                  - generic [ref=f43e190]:
+                    - link "Recheck" [ref=f43e191] [cursor=pointer]:
+                      - /url: /checknow?uuid=90db751f-e37c-4817-94ca-0b9b018e1f67
+                    - link "Edit" [ref=f43e192] [cursor=pointer]:
+                      - /url: /edit/90db751f-e37c-4817-94ca-0b9b018e1f67#general
+                    - link "History" [ref=f43e193] [cursor=pointer]:
+                      - /url: /diff/90db751f-e37c-4817-94ca-0b9b018e1f67
+              - row [ref=f43e194]:
+                - cell [ref=f43e195]:
+                  - generic [ref=f43e196]:
+                    - checkbox [ref=f43e197]
+                    - text: "3"
+                - cell [ref=f43e198]:
+                  - generic [ref=f43e199]:
+                    - link [ref=f43e200] [cursor=pointer]:
+                      - /url: /?op=pause&uuid=ea871793-d1c3-419d-9e9f-9e14cfcbc411
+                      - img "Pause checks" [ref=f43e201]
+                    - link [ref=f43e202] [cursor=pointer]:
+                      - /url: /?op=mute&uuid=ea871793-d1c3-419d-9e9f-9e14cfcbc411
+                      - img "Mute notification" [ref=f43e203]
+                - cell [ref=f43e204]:
+                  - generic [ref=f43e205]:
+                    - img "Favicon thumbnail" [ref=f43e207]
+                    - generic [ref=f43e208]:
+                      - text: Text
+                      - generic [ref=f43e209]:
+                        - text: https://actualbudget.org/docs/releases/
+                        - link [ref=f43e210] [cursor=pointer]:
+                          - /url: https://actualbudget.org/docs/releases/
+                      - link "self-hosting" [ref=f43e211] [cursor=pointer]:
+                        - /url: /?tag=74641f08-a8e6-4a93-b90c-0037f9da13e8
+                    - generic [ref=f43e212]:
+                      - link [ref=f43e213] [cursor=pointer]:
+                        - /url: /share-url/ea871793-d1c3-419d-9e9f-9e14cfcbc411
+                        - img "Create a link to share watch config with others" [ref=f43e214]
+                      - img "Using a Chrome browser" [ref=f43e215]
+                - cell "2 hours ago" [ref=f43e216]
+                - cell "1 day ago" [ref=f43e217]
+                - cell [ref=f43e218]:
+                  - generic [ref=f43e219]:
+                    - link "Recheck" [ref=f43e220] [cursor=pointer]:
+                      - /url: /checknow?uuid=ea871793-d1c3-419d-9e9f-9e14cfcbc411
+                    - link "Edit" [ref=f43e221] [cursor=pointer]:
+                      - /url: /edit/ea871793-d1c3-419d-9e9f-9e14cfcbc411#general
+                    - link "History" [ref=f43e222] [cursor=pointer]:
+                      - /url: /diff/ea871793-d1c3-419d-9e9f-9e14cfcbc411
+              - row [ref=f43e223]:
+                - cell [ref=f43e224]:
+                  - generic [ref=f43e225]:
+                    - checkbox [ref=f43e226]
+                    - text: "4"
+                - cell [ref=f43e227]:
+                  - generic [ref=f43e228]:
+                    - link [ref=f43e229] [cursor=pointer]:
+                      - /url: /?op=pause&uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+                      - img "Pause checks" [ref=f43e230]
+                    - link [ref=f43e231] [cursor=pointer]:
+                      - /url: /?op=mute&uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+                      - img "Mute notification" [ref=f43e232]
+                - cell [ref=f43e233]:
+                  - generic [ref=f43e234]:
+                    - img "Favicon thumbnail" [ref=f43e236]
+                    - generic [ref=f43e237]:
+                      - text: Text
+                      - generic [ref=f43e238]:
+                        - text: https://www.init7.net/en/support/faq/status-info
+                        - link [ref=f43e239] [cursor=pointer]:
+                          - /url: https://www.init7.net/en/support/faq/status-info
+                      - link "self-hosting" [ref=f43e240] [cursor=pointer]:
+                        - /url: /?tag=74641f08-a8e6-4a93-b90c-0037f9da13e8
+                    - generic [ref=f43e241]:
+                      - link [ref=f43e242] [cursor=pointer]:
+                        - /url: /share-url/c53b03ed-62b1-4352-8d84-20f1d03409ff
+                        - img "Create a link to share watch config with others" [ref=f43e243]
+                      - img "Using a Chrome browser" [ref=f43e244]
+                - cell "1 minute ago" [ref=f43e245]
+                - cell "Not yet" [ref=f43e246]
+                - cell [ref=f43e247]:
+                  - generic [ref=f43e248]:
+                    - link "Recheck" [ref=f43e249] [cursor=pointer]:
+                      - /url: /checknow?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+                    - link "Edit" [ref=f43e250] [cursor=pointer]:
+                      - /url: /edit/c53b03ed-62b1-4352-8d84-20f1d03409ff#general
+                    - link "Preview" [ref=f43e251] [cursor=pointer]:
+                      - /url: /preview/c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - list [ref=f43e252]:
+            - listitem [ref=f43e253]:
+              - link "Mark all viewed" [ref=f43e254] [cursor=pointer]:
+                - /url: /form/mark-all-viewed?with_errors=0
+            - listitem [ref=f43e255]:
+              - link "Unread (3)" [ref=f43e256] [cursor=pointer]:
+                - /url: /?unread=1
+            - listitem [ref=f43e257]:
+              - link "Recheck all" [ref=f43e258] [cursor=pointer]:
+                - /url: /checknow?with_errors=0
+            - listitem [ref=f43e259]:
+              - link [ref=f43e260] [cursor=pointer]:
+                - /url: /rss?token=63a1c33046708fbd5cf5d42f7b8008b7
+                - img "RSS Feed" [ref=f43e261]

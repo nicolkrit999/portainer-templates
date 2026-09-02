@@ -1,0 +1,207 @@
+- generic [active] [ref=f21e1]:
+  - generic [ref=f21e3]:
+    - link [ref=f21e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f21e5]: Change
+      - text: Detection.io
+    - list [ref=f21e6]:
+      - listitem [ref=f21e7]:
+        - link "GROUPS" [ref=f21e8] [cursor=pointer]:
+          - /url: /tags/list
+      - listitem [ref=f21e9]:
+        - link "SETTINGS" [ref=f21e10] [cursor=pointer]:
+          - /url: /settings
+      - listitem [ref=f21e11]:
+        - link "IMPORT" [ref=f21e12] [cursor=pointer]:
+          - /url: /imports/import
+      - listitem [ref=f21e13]:
+        - link [ref=f21e14] [cursor=pointer]:
+          - /url: /settings/toggle-all-paused
+          - img "Pause auto-queue scheduling of watches" [ref=f21e15]
+      - listitem [ref=f21e16]:
+        - link [ref=f21e17] [cursor=pointer]:
+          - /url: /settings/toggle-all-muted
+          - img "Mute notifications" [ref=f21e18]
+      - listitem [ref=f21e19]:
+        - button "Toggle AI mode LLM" [ref=f21e20] [cursor=pointer]:
+          - generic [ref=f21e21]: Toggle AI mode
+          - text: LLM
+        - button "Toggle light/dark mode" [ref=f21e26] [cursor=pointer]
+        - button "Change language" [ref=f21e31] [cursor=pointer]
+        - link [ref=f21e34] [cursor=pointer]:
+          - /url: https://github.com/dgtlmoon/changedetection.io
+      - listitem [ref=f21e37]:
+        - button "Search, or Use Alt+S Key" [ref=f21e38] [cursor=pointer]
+      - listitem [ref=f21e42]
+      - listitem
+  - generic [ref=f21e46]: v0.55.8
+  - generic [ref=f21e47]:
+    - generic [ref=f21e49]:
+      - heading "Try our Chrome extension" [level=4] [ref=f21e50]
+      - paragraph [ref=f21e51]:
+        - link [ref=f21e52] [cursor=pointer]:
+          - /url: https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop
+          - img "Chrome store icon" [ref=f21e53]
+          - text: Chrome Webstore
+      - text: Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+      - heading "Changedetection.io needs your support!" [level=4] [ref=f21e54]
+      - paragraph [ref=f21e55]: You can help us by supporting changedetection.io on these platforms;
+      - paragraph
+      - list [ref=f21e56]:
+        - listitem [ref=f21e57]:
+          - link "Rate us at AlternativeTo.net" [ref=f21e58] [cursor=pointer]:
+            - /url: https://alternativeto.net/software/changedetection-io/about/
+        - listitem [ref=f21e59]:
+          - link "Star us on GitHub" [ref=f21e60] [cursor=pointer]:
+            - /url: https://github.com/dgtlmoon/changedetection.io
+        - listitem [ref=f21e61]:
+          - link "Follow us at Twitter/X" [ref=f21e62] [cursor=pointer]:
+            - /url: https://twitter.com/change_det_io
+        - listitem [ref=f21e63]:
+          - link "G2 Software reviews" [ref=f21e64] [cursor=pointer]:
+            - /url: https://www.g2.com/products/changedetection-io/reviews
+        - listitem [ref=f21e65]:
+          - link "Check us out on LinkedIn" [ref=f21e66] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/changedetection-io
+        - listitem [ref=f21e67]: And tell your friends and colleagues :)
+      - paragraph [ref=f21e68]: The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+      - paragraph [ref=f21e69]: Many thanks :)
+      - paragraph [ref=f21e70]: changedetection.io team
+    - generic [ref=f21e73]:
+      - list [ref=f21e75]:
+        - listitem [ref=f21e76]:
+          - link "General" [ref=f21e77] [cursor=pointer]:
+            - /url: "#general"
+        - listitem [ref=f21e78]:
+          - link "Request" [ref=f21e79] [cursor=pointer]:
+            - /url: "#request"
+        - listitem [ref=f21e80]:
+          - link "Browser Steps" [ref=f21e81] [cursor=pointer]:
+            - /url: "#browser-steps"
+        - listitem [ref=f21e82]:
+          - link "Visual Filter Selector" [ref=f21e83] [cursor=pointer]:
+            - /url: "#visualselector"
+        - listitem [ref=f21e84]:
+          - link "AI / LLM" [ref=f21e85] [cursor=pointer]:
+            - /url: "#ai-llm"
+        - listitem [ref=f21e86]:
+          - link "Filters & Triggers" [ref=f21e87] [cursor=pointer]:
+            - /url: "#filters-and-triggers"
+        - listitem [ref=f21e88]:
+          - link "Conditions" [ref=f21e89] [cursor=pointer]:
+            - /url: "#conditions"
+        - listitem [ref=f21e90]:
+          - link "Notifications" [ref=f21e91] [cursor=pointer]:
+            - /url: "#notifications"
+        - listitem [ref=f21e92]:
+          - link "Stats" [ref=f21e93] [cursor=pointer]:
+            - /url: "#stats"
+      - generic [ref=f21e95]:
+        - group [ref=f21e97]:
+          - generic [ref=f21e99]:
+            - generic [ref=f21e100]: Notifications
+            - generic [ref=f21e103]:
+              - generic [ref=f21e104] [cursor=pointer]:
+                - radio "Muted"
+                - generic [ref=f21e105]: Muted
+              - generic [ref=f21e106] [cursor=pointer]:
+                - radio "On" [checked]
+                - generic [ref=f21e107]: "On"
+          - generic [ref=f21e108]:
+            - generic [ref=f21e109]:
+              - checkbox "Attach screenshot to notification (where possible)" [ref=f21e110]
+              - text: Attach screenshot to notification (where possible)
+            - generic [ref=f21e111]:
+              - strong [ref=f21e112]: Use with caution!
+              - text: This will easily fill up your email storage quota or flood other storages.
+          - generic [ref=f21e113]:
+            - generic [ref=f21e114]:
+              - img "Look out!" [ref=f21e115]
+              - text: There are
+              - link "system-wide notification URLs enabled" [ref=f21e116] [cursor=pointer]:
+                - /url: /settings#notifications
+              - text: ", this form will override notification settings for this watch only ‐ an empty Notification URL list here will still send notifications."
+            - link "Use system defaults" [ref=f21e117] [cursor=pointer]:
+              - /url: "#notifications"
+            - generic [ref=f21e118]:
+              - generic [ref=f21e119]: Notification URL List
+              - textbox "Notification URL List" [ref=f21e122]:
+                - /placeholder: "Examples:\n    Gitter - gitter://token/room\n    Office365 - o365://TenantID:AccountEmail/ClientID/ClientSecret/TargetEmail\n    AWS SNS - sns://AccessKeyID/AccessSecretKey/RegionName/+PhoneNo\n    SMTPS - mailtos://user:pass@mail.domain.com?to=receivingAddress@example.com"
+              - generic [ref=f21e123]:
+                - paragraph [ref=f21e124]:
+                  - strong [ref=f21e125]: "Tip:"
+                  - text: Use
+                  - link "AppRise Notification URLs" [ref=f21e126] [cursor=pointer]:
+                    - /url: https://github.com/caronc/apprise
+                  - text: for notification to just about any service!
+                  - link "Please read the notification services wiki here for important configuration notes" [ref=f21e127] [cursor=pointer]:
+                    - /url: https://github.com/dgtlmoon/changedetection.io/wiki/Notification-configuration-notes
+                  - text: .
+                - generic [ref=f21e128] [cursor=pointer]: Show advanced help and tips
+              - generic [ref=f21e129]:
+                - generic [ref=f21e130] [cursor=pointer]: Send test notification
+                - link "Notification debug logs" [ref=f21e131] [cursor=pointer]:
+                  - /url: /settings/notification-logs
+            - generic [ref=f21e132]:
+              - generic [ref=f21e133]:
+                - generic [ref=f21e134]: Notification Title
+                - textbox "Notification Title" [ref=f21e137]:
+                  - /placeholder: ChangeDetection.io Notification
+                  - text: Init7 Maintenance Alert - Agno/6982
+                - generic [ref=f21e138]: Title for all notifications
+              - generic [ref=f21e139]:
+                - generic [ref=f21e140]: Notification Body
+                - textbox "Notification Body" [ref=f21e143]:
+                  - /placeholder: "## [{{ watch_title }}]({{ watch_url }})\n\nA change was detected.\n\n> [**>> View Change Diff <<**]({{ diff_url }})\n{{preview_url}}"
+                  - text: "{{ triggered_text }} Ticket link: https://www.init7.net/en/support/faq/status-info?ticket={{ triggered_text | regex_replace('.*?#(\\d+).*', '\\1') }}"
+                - generic [ref=f21e144]:
+                  - generic [ref=f21e145]:
+                    - text: Body for all notifications — You can use
+                    - link "Jinja2" [ref=f21e146] [cursor=pointer]:
+                      - /url: https://jinja.palletsprojects.com/en/3.0.x/templates/
+                    - text: templating in the notification title, body and URL, and tokens from below.
+                  - generic [ref=f21e147] [cursor=pointer]: Show token/placeholders
+                - list [ref=f21e149]:
+                  - listitem [ref=f21e150]:
+                    - generic [ref=f21e151]:
+                      - text: For JSON payloads, use
+                      - strong [ref=f21e152]: "|tojson"
+                      - text: without quotes for automatic escaping, for example -
+                      - code [ref=f21e153]: "{ \"name\": {{ watch_title|tojson }} }"
+                  - listitem [ref=f21e154]:
+                    - generic [ref=f21e155]:
+                      - text: URL encoding, use
+                      - strong [ref=f21e156]: "|urlencode"
+                      - text: ", for example -"
+                      - code [ref=f21e157]: "gets://hook-website.com/test.php?title={{ watch_title|urlencode }}"
+                  - listitem [ref=f21e158]:
+                    - generic [ref=f21e159]:
+                      - text: Regular-expression replace, use
+                      - strong [ref=f21e160]: "|regex_replace"
+                      - text: ", for example -"
+                      - code [ref=f21e161]: "{{ \"hello world 123\" | regex_replace('[0-9]+', 'no-more-numbers') }}"
+                  - listitem [ref=f21e162]:
+                    - generic [ref=f21e163]:
+                      - text: For a complete reference of all Jinja2 built-in filters, users can refer to the
+                      - link "https://jinja.palletsprojects.com/en/3.1.x/templates/#builtin-filters" [ref=f21e164] [cursor=pointer]:
+                        - /url: https://jinja.palletsprojects.com/en/3.1.x/templates/#builtin-filters
+              - generic [ref=f21e165]:
+                - generic [ref=f21e166]: Notification format
+                - combobox "Notification format" [ref=f21e169]:
+                  - option "Plain Text"
+                  - option "HTML"
+                  - option "HTML Color"
+                  - option "Markdown to HTML"
+                  - option "System default" [selected]
+                - generic [ref=f21e170]: Format for all notifications
+        - generic [ref=f21e172]:
+          - button "Save" [ref=f21e173] [cursor=pointer]
+          - link "Delete" [ref=f21e174] [cursor=pointer]:
+            - /url: /delete?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link "Clear History" [ref=f21e175] [cursor=pointer]:
+            - /url: /clear_history/c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link "Clone & Edit" [ref=f21e176] [cursor=pointer]:
+            - /url: /clone?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link [ref=f21e177] [cursor=pointer]:
+            - /url: /rss/watch/c53b03ed-62b1-4352-8d84-20f1d03409ff?token=63a1c33046708fbd5cf5d42f7b8008b7
+            - img "RSS Feed for this watch" [ref=f21e178]

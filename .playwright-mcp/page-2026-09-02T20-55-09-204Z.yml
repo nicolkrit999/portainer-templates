@@ -1,0 +1,320 @@
+- generic [active] [ref=f15e1]:
+  - generic [ref=f15e3]:
+    - link [ref=f15e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f15e5]: Change
+      - text: Detection.io
+    - list [ref=f15e6]:
+      - listitem [ref=f15e7]:
+        - link "GROUPS" [ref=f15e8] [cursor=pointer]:
+          - /url: /tags/list
+      - listitem [ref=f15e9]:
+        - link "SETTINGS" [ref=f15e10] [cursor=pointer]:
+          - /url: /settings
+      - listitem [ref=f15e11]:
+        - link "IMPORT" [ref=f15e12] [cursor=pointer]:
+          - /url: /imports/import
+      - listitem [ref=f15e13]:
+        - link [ref=f15e14] [cursor=pointer]:
+          - /url: /settings/toggle-all-paused
+          - img "Pause auto-queue scheduling of watches" [ref=f15e15]
+      - listitem [ref=f15e16]:
+        - link [ref=f15e17] [cursor=pointer]:
+          - /url: /settings/toggle-all-muted
+          - img "Mute notifications" [ref=f15e18]
+      - listitem [ref=f15e19]:
+        - button "Toggle AI mode LLM" [ref=f15e20] [cursor=pointer]:
+          - generic [ref=f15e21]: Toggle AI mode
+          - text: LLM
+        - button "Toggle light/dark mode" [ref=f15e26] [cursor=pointer]
+        - button "Change language" [ref=f15e31] [cursor=pointer]
+        - link [ref=f15e34] [cursor=pointer]:
+          - /url: https://github.com/dgtlmoon/changedetection.io
+      - listitem [ref=f15e37]:
+        - button "Search, or Use Alt+S Key" [ref=f15e38] [cursor=pointer]
+      - listitem [ref=f15e42]
+      - listitem
+  - generic [ref=f15e46]: v0.55.8
+  - generic [ref=f15e47]:
+    - generic [ref=f15e49]:
+      - heading "Try our Chrome extension" [level=4] [ref=f15e50]
+      - paragraph [ref=f15e51]:
+        - link [ref=f15e52] [cursor=pointer]:
+          - /url: https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop
+          - img "Chrome store icon" [ref=f15e53]
+          - text: Chrome Webstore
+      - text: Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+      - heading "Changedetection.io needs your support!" [level=4] [ref=f15e54]
+      - paragraph [ref=f15e55]: You can help us by supporting changedetection.io on these platforms;
+      - paragraph
+      - list [ref=f15e56]:
+        - listitem [ref=f15e57]:
+          - link "Rate us at AlternativeTo.net" [ref=f15e58] [cursor=pointer]:
+            - /url: https://alternativeto.net/software/changedetection-io/about/
+        - listitem [ref=f15e59]:
+          - link "Star us on GitHub" [ref=f15e60] [cursor=pointer]:
+            - /url: https://github.com/dgtlmoon/changedetection.io
+        - listitem [ref=f15e61]:
+          - link "Follow us at Twitter/X" [ref=f15e62] [cursor=pointer]:
+            - /url: https://twitter.com/change_det_io
+        - listitem [ref=f15e63]:
+          - link "G2 Software reviews" [ref=f15e64] [cursor=pointer]:
+            - /url: https://www.g2.com/products/changedetection-io/reviews
+        - listitem [ref=f15e65]:
+          - link "Check us out on LinkedIn" [ref=f15e66] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/changedetection-io
+        - listitem [ref=f15e67]: And tell your friends and colleagues :)
+      - paragraph [ref=f15e68]: The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+      - paragraph [ref=f15e69]: Many thanks :)
+      - paragraph [ref=f15e70]: changedetection.io team
+    - generic [ref=f15e73]:
+      - list [ref=f15e75]:
+        - listitem [ref=f15e76]:
+          - link "General" [ref=f15e77] [cursor=pointer]:
+            - /url: "#general"
+        - listitem [ref=f15e78]:
+          - link "Request" [ref=f15e79] [cursor=pointer]:
+            - /url: "#request"
+        - listitem [ref=f15e80]:
+          - link "Browser Steps" [ref=f15e81] [cursor=pointer]:
+            - /url: "#browser-steps"
+        - listitem [ref=f15e82]:
+          - link "Visual Filter Selector" [ref=f15e83] [cursor=pointer]:
+            - /url: "#visualselector"
+        - listitem [ref=f15e84]:
+          - link "AI / LLM" [ref=f15e85] [cursor=pointer]:
+            - /url: "#ai-llm"
+        - listitem [ref=f15e86]:
+          - link "Filters & Triggers" [ref=f15e87] [cursor=pointer]:
+            - /url: "#filters-and-triggers"
+        - listitem [ref=f15e88]:
+          - link "Conditions" [ref=f15e89] [cursor=pointer]:
+            - /url: "#conditions"
+        - listitem [ref=f15e90]:
+          - link "Notifications" [ref=f15e91] [cursor=pointer]:
+            - /url: "#notifications"
+        - listitem [ref=f15e92]:
+          - link "Stats" [ref=f15e93] [cursor=pointer]:
+            - /url: "#stats"
+      - generic [ref=f15e95]:
+        - group [ref=f15e97]:
+          - generic [ref=f15e99]:
+            - generic [ref=f15e100]: Notifications
+            - generic [ref=f15e103]:
+              - generic [ref=f15e104] [cursor=pointer]:
+                - radio "Muted"
+                - generic [ref=f15e105]: Muted
+              - generic [ref=f15e106] [cursor=pointer]:
+                - radio "On" [checked]
+                - generic [ref=f15e107]: "On"
+          - generic [ref=f15e108]:
+            - generic [ref=f15e109]:
+              - checkbox "Attach screenshot to notification (where possible)" [ref=f15e110]
+              - text: Attach screenshot to notification (where possible)
+            - generic [ref=f15e111]:
+              - strong [ref=f15e112]: Use with caution!
+              - text: This will easily fill up your email storage quota or flood other storages.
+          - generic [ref=f15e113]:
+            - generic [ref=f15e114]:
+              - img "Look out!" [ref=f15e115]
+              - text: There are
+              - link "system-wide notification URLs enabled" [ref=f15e116] [cursor=pointer]:
+                - /url: /settings#notifications
+              - text: ", this form will override notification settings for this watch only ‐ an empty Notification URL list here will still send notifications."
+            - link "Use system defaults" [ref=f15e117] [cursor=pointer]:
+              - /url: "#notifications"
+            - generic [ref=f15e118]:
+              - generic [ref=f15e119]: Notification URL List
+              - textbox "Notification URL List" [ref=f15e122]:
+                - /placeholder: "Examples:\n    Gitter - gitter://token/room\n    Office365 - o365://TenantID:AccountEmail/ClientID/ClientSecret/TargetEmail\n    AWS SNS - sns://AccessKeyID/AccessSecretKey/RegionName/+PhoneNo\n    SMTPS - mailtos://user:pass@mail.domain.com?to=receivingAddress@example.com"
+              - generic [ref=f15e123]:
+                - paragraph [ref=f15e124]:
+                  - strong [ref=f15e125]: "Tip:"
+                  - text: Use
+                  - link "AppRise Notification URLs" [ref=f15e126] [cursor=pointer]:
+                    - /url: https://github.com/caronc/apprise
+                  - text: for notification to just about any service!
+                  - link "Please read the notification services wiki here for important configuration notes" [ref=f15e127] [cursor=pointer]:
+                    - /url: https://github.com/dgtlmoon/changedetection.io/wiki/Notification-configuration-notes
+                  - text: .
+                - generic [ref=f15e128] [cursor=pointer]: Show advanced help and tips
+              - generic [ref=f15e129]:
+                - generic [ref=f15e130] [cursor=pointer]: Send test notification
+                - link "Notification debug logs" [ref=f15e131] [cursor=pointer]:
+                  - /url: /settings/notification-logs
+            - generic [ref=f15e132]:
+              - generic [ref=f15e133]:
+                - generic [ref=f15e134]: Notification Title
+                - textbox "Notification Title" [ref=f15e137]:
+                  - /placeholder: ChangeDetection.io Notification
+                - generic [ref=f15e138]: Title for all notifications
+              - generic [ref=f15e139]:
+                - generic [ref=f15e140]: Notification Body
+                - textbox "Notification Body" [ref=f15e143]:
+                  - /placeholder: "## [{{ watch_title }}]({{ watch_url }})\n\nA change was detected.\n\n> [**>> View Change Diff <<**]({{ diff_url }})\n{{preview_url}}"
+                - generic [ref=f15e144]:
+                  - generic [ref=f15e145]:
+                    - text: Body for all notifications — You can use
+                    - link "Jinja2" [ref=f15e146] [cursor=pointer]:
+                      - /url: https://jinja.palletsprojects.com/en/3.0.x/templates/
+                    - text: templating in the notification title, body and URL, and tokens from below.
+                  - generic [ref=f15e147] [cursor=pointer]: Show token/placeholders
+                - generic [ref=f15e179]:
+                  - table [ref=f15e180]:
+                    - rowgroup [ref=f15e181]:
+                      - row [ref=f15e182]:
+                        - columnheader "Token" [ref=f15e183]
+                        - columnheader "Description" [ref=f15e184]
+                    - rowgroup [ref=f15e185]:
+                      - row [ref=f15e186]:
+                        - cell [ref=f15e187]:
+                          - code [ref=f15e188]: "{{base_url}}"
+                        - cell "The URL of the changedetection.io instance you are running." [ref=f15e189]
+                      - row [ref=f15e190]:
+                        - cell [ref=f15e191]:
+                          - code [ref=f15e192]: "{{watch_url}}"
+                        - cell "The URL being watched." [ref=f15e193]
+                      - row [ref=f15e194]:
+                        - cell [ref=f15e195]:
+                          - code [ref=f15e196]: "{{watch_uuid}}"
+                        - cell "The UUID of the watch." [ref=f15e197]
+                      - row [ref=f15e198]:
+                        - cell [ref=f15e199]:
+                          - code [ref=f15e200]: "{{watch_title}}"
+                        - cell "The page title of the watch, uses <title> if not set, falls back to URL" [ref=f15e201]
+                      - row [ref=f15e202]:
+                        - cell [ref=f15e203]:
+                          - code [ref=f15e204]: "{{watch_tag}}"
+                        - cell "The watch group / tag" [ref=f15e205]
+                      - row [ref=f15e206]:
+                        - cell [ref=f15e207]:
+                          - code [ref=f15e208]: "{{preview_url}}"
+                        - cell "The URL of the preview page generated by changedetection.io." [ref=f15e209]
+                      - row [ref=f15e210]:
+                        - cell [ref=f15e211]:
+                          - code [ref=f15e212]: "{{change_datetime}}"
+                        - cell "Date/time of the change, accepts format=, change_datetime(format='%A'), default is '%Y-%m-%d %H:%M:%S %Z'" [ref=f15e213]
+                      - row [ref=f15e214]:
+                        - cell [ref=f15e215]:
+                          - code [ref=f15e216]: "{{diff_url}}"
+                        - cell "The URL of the diff output for the watch." [ref=f15e217]
+                      - row [ref=f15e218]:
+                        - cell [ref=f15e219]:
+                          - code [ref=f15e220]: "{{diff}}"
+                        - cell [ref=f15e221]:
+                          - text: The diff output - only changes, additions, and removals
+                          - generic [ref=f15e222]:
+                            - text: All diff variants accept
+                            - code [ref=f15e223]: lines=
+                            - text: ","
+                            - code [ref=f15e224]: context=
+                            - text: ","
+                            - code [ref=f15e225]: word_diff=
+                            - text: ","
+                            - code [ref=f15e226]: ignore_junk=
+                            - text: args, e.g.
+                            - code [ref=f15e227]: "{{diff(lines=10)}}"
+                            - text: ","
+                            - code [ref=f15e228]: "{{diff_added(lines=5, context=2)}}"
+                      - row [ref=f15e229]:
+                        - cell [ref=f15e230]:
+                          - code [ref=f15e231]: "{{diff_clean}}"
+                        - cell "The diff output - only changes, additions, and removals — Without (added) prefix or colors" [ref=f15e232]
+                      - row [ref=f15e233]:
+                        - cell [ref=f15e234]:
+                          - code [ref=f15e235]: "{{diff_added}}"
+                        - cell "The diff output - only changes and additions" [ref=f15e236]
+                      - row [ref=f15e237]:
+                        - cell [ref=f15e238]:
+                          - code [ref=f15e239]: "{{diff_added_clean}}"
+                        - cell "The diff output - only changes and additions — Without (added) prefix or colors" [ref=f15e240]
+                      - row [ref=f15e241]:
+                        - cell [ref=f15e242]:
+                          - code [ref=f15e243]: "{{diff_removed}}"
+                        - cell "The diff output - only changes and removals" [ref=f15e244]
+                      - row [ref=f15e245]:
+                        - cell [ref=f15e246]:
+                          - code [ref=f15e247]: "{{diff_removed_clean}}"
+                        - cell "The diff output - only changes and removals — Without (added) prefix or colors" [ref=f15e248]
+                      - row [ref=f15e249]:
+                        - cell [ref=f15e250]:
+                          - code [ref=f15e251]: "{{diff_full}}"
+                        - cell "The diff output - full difference output" [ref=f15e252]
+                      - row [ref=f15e253]:
+                        - cell [ref=f15e254]:
+                          - code [ref=f15e255]: "{{diff_full_clean}}"
+                        - cell "The diff output - full difference output — Without (added) prefix or colors" [ref=f15e256]
+                      - row [ref=f15e257]:
+                        - cell [ref=f15e258]:
+                          - code [ref=f15e259]: "{{diff_patch}}"
+                        - cell "The diff output - patch in unified format" [ref=f15e260]
+                      - row [ref=f15e261]:
+                        - cell [ref=f15e262]:
+                          - code [ref=f15e263]: "{{diff_changed_from}}"
+                        - cell "Only the changed words/values from the previous version — e.g. the old price. Best when a single value changes per line; multiple changed fragments are joined by newline." [ref=f15e264]
+                      - row [ref=f15e265]:
+                        - cell [ref=f15e266]:
+                          - code [ref=f15e267]: "{{diff_changed_to}}"
+                        - cell "Only the changed words/values from the new version — e.g. the new price. Best when a single value changes per line; multiple changed fragments are joined by newline." [ref=f15e268]
+                      - row [ref=f15e269]:
+                        - cell [ref=f15e270]:
+                          - code [ref=f15e271]: "{{current_snapshot}}"
+                        - cell "The current snapshot text contents value, useful when combined with JSON or CSS filters" [ref=f15e272]
+                      - row [ref=f15e273]:
+                        - cell [ref=f15e274]:
+                          - code [ref=f15e275]: "{{triggered_text}}"
+                        - cell "Text that tripped the trigger from filters" [ref=f15e276]
+                  - generic [ref=f15e277]:
+                    - text: "Warning: Contents of"
+                    - code [ref=f15e278]: "{{diff}}"
+                    - text: ","
+                    - code [ref=f15e279]: "{{diff_removed}}"
+                    - text: ", and"
+                    - code [ref=f15e280]: "{{diff_added}}"
+                    - text: depend on how the difference algorithm perceives the change. For example, an addition or removal could be perceived as a change in some cases.
+                    - link "More Here" [ref=f15e281] [cursor=pointer]:
+                      - /url: https://github.com/dgtlmoon/changedetection.io/wiki/Using-the-%7B%7Bdiff%7D%7D,-%7B%7Bdiff_added%7D%7D,-and-%7B%7Bdiff_removed%7D%7D-notification-tokens
+                - list [ref=f15e149]:
+                  - listitem [ref=f15e150]:
+                    - generic [ref=f15e151]:
+                      - text: For JSON payloads, use
+                      - strong [ref=f15e152]: "|tojson"
+                      - text: without quotes for automatic escaping, for example -
+                      - code [ref=f15e153]: "{ \"name\": {{ watch_title|tojson }} }"
+                  - listitem [ref=f15e154]:
+                    - generic [ref=f15e155]:
+                      - text: URL encoding, use
+                      - strong [ref=f15e156]: "|urlencode"
+                      - text: ", for example -"
+                      - code [ref=f15e157]: "gets://hook-website.com/test.php?title={{ watch_title|urlencode }}"
+                  - listitem [ref=f15e158]:
+                    - generic [ref=f15e159]:
+                      - text: Regular-expression replace, use
+                      - strong [ref=f15e160]: "|regex_replace"
+                      - text: ", for example -"
+                      - code [ref=f15e161]: "{{ \"hello world 123\" | regex_replace('[0-9]+', 'no-more-numbers') }}"
+                  - listitem [ref=f15e162]:
+                    - generic [ref=f15e163]:
+                      - text: For a complete reference of all Jinja2 built-in filters, users can refer to the
+                      - link "https://jinja.palletsprojects.com/en/3.1.x/templates/#builtin-filters" [ref=f15e164] [cursor=pointer]:
+                        - /url: https://jinja.palletsprojects.com/en/3.1.x/templates/#builtin-filters
+              - generic [ref=f15e165]:
+                - generic [ref=f15e166]: Notification format
+                - combobox "Notification format" [ref=f15e169]:
+                  - option "Plain Text"
+                  - option "HTML"
+                  - option "HTML Color"
+                  - option "Markdown to HTML"
+                  - option "System default" [selected]
+                - generic [ref=f15e170]: Format for all notifications
+        - generic [ref=f15e172]:
+          - button "Save" [ref=f15e173] [cursor=pointer]
+          - link "Delete" [ref=f15e174] [cursor=pointer]:
+            - /url: /delete?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link "Clear History" [ref=f15e175] [cursor=pointer]:
+            - /url: /clear_history/c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link "Clone & Edit" [ref=f15e176] [cursor=pointer]:
+            - /url: /clone?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff
+          - link [ref=f15e177] [cursor=pointer]:
+            - /url: /rss/watch/c53b03ed-62b1-4352-8d84-20f1d03409ff?token=63a1c33046708fbd5cf5d42f7b8008b7
+            - img "RSS Feed for this watch" [ref=f15e178]
