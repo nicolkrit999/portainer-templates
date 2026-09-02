@@ -1,0 +1,1879 @@
+<!DOCTYPE html>
+<html lang="None" data-darkmode="false">
+
+  <head>
+    <meta charset="utf-8" >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" >
+    <meta name="description" content="Self hosted website change detection." >
+    <meta name="robots" content="noindex">
+    <title>Change Detection - Edit - Current Status of Init7 Services | Init7</title>
+    
+        <link rel="alternate" type="application/rss+xml" title="Changedetection.io » Feed" href="http://change-detection.nicolkrit.ch/rss?tag=&amp;token=63a1c33046708fbd5cf5d42f7b8008b7" >
+
+        
+        <link rel="alternate" type="application/rss+xml" title="Feed » Current Status of Init7 Services | Init7" href="/rss/watch/c53b03ed-62b1-4352-8d84-20f1d03409ff?token=63a1c33046708fbd5cf5d42f7b8008b7" ><link rel="stylesheet" href="/static/styles/pure-min.css" >
+    <link rel="stylesheet" href="/static/styles/flag-icons.min.css" >
+    <link rel="stylesheet" href="/static/styles/styles.css?v=0.55.8" >
+    
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicons/favicon-16x16.png">
+    <link rel="manifest" href="/static/favicons/site.webmanifest" crossorigin="use-credentials">
+    <link rel="mask-icon" href="/static/favicons/safari-pinned-tab.svg" color="#5bbad5">
+    <link rel="shortcut icon" href="/static/favicons/favicon.ico">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="msapplication-config" content="favicons/browserconfig.xml">
+    <meta name="theme-color" content="#ffffff">
+    <script>
+        const csrftoken="IjhkMWZjZGYzNmQzNmE2ZTExMDU1MTJjZTY1ZjUyNzJlZTM3MmU1ZDMi.apiTqw.lnknsOaYB5DGbbEg7A1QtiAzqHM";
+        const socketio_url="/socket.io";
+        const is_authenticated = true;
+        // Translatable strings for modal.js (ModalDialog). Defined here in a Jinja
+        // template so Babel extract_messages picks them up; modal.js reads this
+        // object with English fallbacks. %(name)s is substituted client-side.
+        window.ModalDialogI18n = {
+            confirmTitle:   "Confirm Action",
+            confirmMessage: "Are you sure?",
+            proceedMessage: "\u003cp\u003eAre you sure you want to proceed?\u003c/p\u003e",
+            confirm:        "Confirm",
+            cancel:         "Cancel",
+            delete:         "Delete",
+            unlink:         "Unlink",
+            deleteTitle:    "Delete %(name)s?",
+            deleteMessage:  "\u003cp\u003eAre you sure you want to delete \u003cstrong\u003e%(name)s\u003c/strong\u003e?\u003c/p\u003e\u003cp\u003eThis action cannot be undone.\u003c/p\u003e",
+            unlinkTitle:    "Unlink %(name)s?",
+            unlinkMessage:  "\u003cp\u003eAre you sure you want to unlink all watches from \u003cstrong\u003e%(name)s\u003c/strong\u003e?\u003c/p\u003e\u003cp\u003eThe tag will be kept but watches will be removed from it.\u003c/p\u003e"
+        };
+        // Translatable strings for the plain .js files (alerts, prompts, dynamic
+        // labels). Defined here so Babel extract_messages picks them up; the JS
+        // reads them via i18nT() with an English fallback. %(...)s is substituted
+        // client-side.
+        window.i18n = {
+            serverCommError:  "There was an error communicating with the server.",
+            reloadProblem:    "There was a problem processing the request, please reload the page.",
+            requestProblem:   "There was a problem processing the request: %(error)s",
+            vsFiltersCleared: "Existing filters under the \u0027Filters \u0026 Triggers\u0027 tab were cleared.",
+            vsFetching:       "Fetching element data..",
+            vsRendering:      "Rendering..",
+            vsDrawMode:       "Draw mode - click and drag to select an area",
+            vsHover:          "Hover over elements to select",
+            imgCopied:        "Image copied to clipboard!",
+            imgCopyFailed:    "Failed to copy image. Your browser may not support this feature.",
+            imgSelectFirst:   "Please select the text/lines you want to capture first by highlighting with your mouse.",
+            imgSelectWithin:  "Please select text within the diff content.",
+            imgGenerateFailed:"Failed to generate image: %(error)s",
+            shareTitle:       "Change Detection Diff",
+            shareText:        "Check out this change detected via changedetection.io",
+            condFillFields:   "Please fill in all fields (Field, Operator, and Value) before verifying.",
+            condVerifyError:  "Error verifying condition.",
+            destEmailPrompt:  "Destination email",
+            highlightTrigger: "Triggers a change if this text appears, AND something changed in the document.",
+            highlightIgnored: "Ignored for calculating changes, but still shown.",
+            highlightBlocked: "No change-detection will occur because this text exists.",
+            tabContentAfter:  "Content after filters",
+            tabContentBefore: "Content raw/before filters"
+        };
+        window.i18nT = function (key, fallback) {
+            return (window.i18n && key in window.i18n) ? window.i18n[key] : fallback;
+        };
+    </script>
+    <script src="/static/js/jquery-3.6.0.min.js"></script>
+    <script src="/static/js/csrf.js" defer></script>
+    <script src="/static/js/feather-icons.min.js" defer></script>
+    
+    <script src="/static/js/socket.io.min.js"></script>
+    <script src="/static/js/realtime.js" defer></script>
+    
+  </head>
+
+  <body class="processor-text_json_diff checking-now">
+    <div class="header">
+    <div class="pure-menu-fixed" style="width: 100%;">
+      <div class="home-menu pure-menu pure-menu-horizontal" id="nav-menu">
+
+        
+          <a  id="cdio-logo" class="pure-menu-heading" href="/">
+            <strong>Change</strong>Detection.io</a>
+        
+        
+          
+        
+
+        <ul class="pure-menu-list" id="top-right-menu">
+          <!-- Collapsible menu items (hidden on mobile, shown in drawer) -->
+          
+
+
+
+
+
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/tags/list" class="pure-menu-link">GROUPS</a>
+    </li>
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/settings" class="pure-menu-link">SETTINGS</a>
+    </li>
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/imports/import" class="pure-menu-link">IMPORT</a>
+    </li>
+    <li class="pure-menu-item" id="menu-pause">
+        <a href="/settings/toggle-all-paused" ><img src="/static/images/pause.svg" alt="Pause auto-queue scheduling of watches" title="Pause auto-queue scheduling of watches" class="icon icon-pause" style="opacity: 0.3"></a>
+    </li>
+    <li class="pure-menu-item " id="menu-mute">
+        <a href="/settings/toggle-all-muted" ><img src="/static/images/bell-off.svg" alt="Mute notifications" title="Mute notifications" class="icon icon-mute" style="opacity: 0.3"></a>
+    </li>
+
+    <li class="pure-menu-item menu-collapsible" id="inline-menu-extras-group">
+        
+        <button class="toggle-button toggle-ai-mode" type="button" title="Toggle AI Mode" data-llm-configured="false" data-llm-settings-url="/settings#ai">
+            <span class="visually-hidden">Toggle AI mode</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M12 2L13.8 9.2L21 11L13.8 12.8L12 22L10.2 12.8L3 11L10.2 9.2Z"/>
+  <circle cx="20" cy="3.5" r="1.4" opacity="0.75"/>
+  <circle cx="18" cy="18.5" r="0.9" opacity="0.5"/>
+</svg><span class="ai-mode-label">LLM</span>
+        </button>
+        
+        <button class="toggle-button toggle-light-mode " type="button" title="Toggle Light/Dark Mode">
+            <span class="visually-hidden">Toggle light/dark mode</span>
+            <span class="icon-light">
+            <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 256.04"><path d="M128.02 0h.18c22.03 0 42.83 5.66 61 15.6h210.38c30.89 0 59 12.65 79.38 33.04C499.35 68.99 512 97.1 512 128.02c0 30.92-12.66 59.03-33.02 79.4l-.42.38c-20.34 20.15-48.29 32.64-78.98 32.64H189.24c-18.17 9.93-38.98 15.6-61.04 15.6h-.18c-35.2 0-67.22-14.41-90.42-37.6C14.41 195.25 0 163.24 0 128.02s14.4-67.24 37.59-90.43l.91-.83C61.65 14.05 93.29 0 128.02 0zm-5.95 54.42c0-1.95.8-3.73 2.08-5 2.74-2.77 7.27-2.76 10.02-.01l.14.16a7.042 7.042 0 0 1 1.94 4.85v12.95c0 1.95-.8 3.73-2.08 5.01-2.75 2.75-7.27 2.75-10.02 0a7.084 7.084 0 0 1-2.08-5.01V54.42zm6.05 31.17c11.72 0 22.32 4.75 30 12.43 7.67 7.68 12.43 18.29 12.43 30 0 11.72-4.75 22.32-12.43 30s-18.28 12.43-30 12.43c-11.72 0-22.32-4.75-30.01-12.43-7.67-7.68-12.43-18.28-12.43-30 0-11.72 4.76-22.32 12.43-30 7.69-7.67 18.3-12.43 30.01-12.43zm-56.33-5.34a7.114 7.114 0 0 1-2.07-5.01c0-3.9 3.18-7.09 7.09-7.09 1.81 0 3.62.69 5 2.07l9.16 9.16a7.065 7.065 0 0 1 2.08 5.01c0 1.8-.7 3.62-2.08 5.01a7.057 7.057 0 0 1-5.01 2.08c-1.8 0-3.61-.7-5-2.07l-9.17-9.16zm-17.28 53.81c-1.95 0-3.73-.8-5-2.08-2.77-2.74-2.76-7.27-.01-10.01l.15-.14a7.04 7.04 0 0 1 4.86-1.94h12.94a7.082 7.082 0 0 1 7.09 7.09c0 1.95-.8 3.73-2.07 5.01a7.099 7.099 0 0 1-5.02 2.07H54.51zm25.82 50.28a7.049 7.049 0 0 1-5 2.07c-3.91 0-7.09-3.16-7.09-7.08 0-1.81.68-3.62 2.07-5.01l9.31-9.29a7.02 7.02 0 0 1 4.86-1.94 7.09 7.09 0 0 1 7.09 7.09c0 1.79-.69 3.6-2.08 4.99l-9.16 9.17zm53.82 17.29c0 1.94-.8 3.73-2.08 5-2.74 2.76-7.27 2.75-10.02 0l-.13-.15a7.033 7.033 0 0 1-1.94-4.85v-12.95c0-1.96.8-3.73 2.07-5.01 2.76-2.75 7.27-2.75 10.03 0a7.1 7.1 0 0 1 2.07 5.01v12.95zm50.28-25.83a7.055 7.055 0 0 1 2.07 5.01c0 3.89-3.18 7.09-7.08 7.09-1.81 0-3.63-.69-5.01-2.07l-9.16-9.16a7.095 7.095 0 0 1-2.07-5.02c0-3.9 3.18-7.09 7.08-7.09 1.8 0 3.61.7 5 2.08l9.17 9.16zm17.29-53.82c1.93 0 3.73.81 5 2.08 2.76 2.75 2.75 7.27 0 10.02l-.15.14a7.098 7.098 0 0 1-4.85 1.94h-12.95c-1.96 0-3.74-.8-5.01-2.08-2.76-2.75-2.76-7.27 0-10.02a7.049 7.049 0 0 1 5.01-2.08h12.95zM175.89 71.7a7.074 7.074 0 0 1 5-2.07c3.9 0 7.1 3.19 7.1 7.09 0 1.81-.69 3.62-2.07 5l-9.32 9.31a7.12 7.12 0 0 1-4.86 1.93c-3.91 0-7.09-3.18-7.09-7.09 0-1.8.7-3.61 2.08-5l9.16-9.17zm34.17-41.87c2.96 2.47 5.81 5.07 8.53 7.8 23.22 23.15 37.63 55.17 37.63 90.39s-14.42 67.23-37.6 90.42a130.2 130.2 0 0 1-8.5 7.77h189.46c26.83 0 51.24-10.91 69.02-28.5l.32-.35c17.79-17.79 28.85-42.35 28.85-69.34 0-26.99-11.06-51.55-28.85-69.35-17.77-17.8-42.33-28.84-69.34-28.84H210.06zm-82.04-14.71h.18c62.09 0 112.89 50.81 112.89 112.9 0 62.1-50.86 112.9-112.89 112.9h-.18c-62.03 0-112.9-50.8-112.9-112.9 0-62.09 50.81-112.9 112.9-112.9z"/></svg>
+          </span>
+            <span class="icon-dark">
+            <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 262.86"><path fill-rule="nonzero" d="M316.78 16.55h-205.9c-30.5 0-58.22 12.48-78.31 32.57C12.47 69.21 0 96.93 0 127.44c0 30.5 12.47 58.22 32.57 78.31 20.09 20.1 47.81 32.57 78.31 32.57h193.25c21.54 15.43 47.9 24.54 76.26 24.54h.18c36.14 0 69.02-14.79 92.83-38.6 23.8-23.81 38.6-56.67 38.6-92.83 0-36.15-14.78-69.03-38.63-92.8C449.53 14.8 416.67 0 380.57 0h-.18c-23.02 0-44.72 6.02-63.61 16.55zm70.62 97.17.43.09c.82-3.45 2.83-6.19 6.04-8.16 3.2-1.98 6.53-2.57 10.01-1.75l.1-.43c-3.47-.82-6.2-2.83-8.17-6.03-1.98-3.22-2.57-6.55-1.75-10.01l-.43-.1c-.82 3.47-2.83 6.2-6.03 8.18-3.21 1.98-6.55 2.56-10.02 1.74l-.1.43c3.47.82 6.2 2.84 8.18 6.04 1.99 3.19 2.56 6.52 1.74 10zm36.87 16.77.53.12c1.02-4.35 3.55-7.78 7.58-10.26 4.02-2.49 8.2-3.22 12.56-2.19l.13-.53c-4.35-1.03-7.78-3.55-10.26-7.59-2.49-4.03-3.22-8.22-2.2-12.56l-.53-.12c-1.02 4.35-3.55 7.77-7.58 10.26-4.02 2.49-8.21 3.22-12.56 2.19l-.13.53c4.36 1.03 7.78 3.55 10.26 7.58 2.49 4.02 3.22 8.22 2.2 12.57zm-38.79-61.01c-15.69 7.67-26.98 23.26-28.29 41.93-1.96 27.88 19.05 52.06 46.92 54.02 13.23.93 25.64-3.32 35.22-11.02 4.75-3.82 9.66-.45 7.59 4.36-11.33 26.42-38.45 44.04-68.74 41.91-38.29-2.69-67.14-35.91-64.45-74.19C316.3 89.8 347.05 61.67 383.44 62c6.71.06 8.13 4.5 2.04 7.48zm-5.09-53.95h.18c63.75 0 115.91 52.15 115.91 115.9 0 63.75-52.23 115.91-115.91 115.91h-.18c-63.68 0-115.91-52.16-115.91-115.91s52.16-115.9 115.91-115.9z"/></svg>
+          </span>
+        </button>
+        <button class="toggle-button language-selector" type="button" title="Change Language">
+            <span class="visually-hidden">Change language</span>
+            <span class="🌐" id="language-selector-flag"></span>
+        </button>
+        <a class="github-link" href="https://github.com/dgtlmoon/changedetection.io"
+           target="_blank" 
+          rel="noopener" >
+            <svg class="octicon octicon-mark-github v-align-middle"  viewbox="0 0 16 16" version="1.1" aria-hidden="true">
+    <path
+     fill-rule="evenodd"
+     d="M 8,0 C 3.58,0 0,3.58 0,8 c 0,3.54 2.29,6.53 5.47,7.59 0.4,0.07 0.55,-0.17 0.55,-0.38 0,-0.19 -0.01,-0.82 -0.01,-1.49 C 4,14.09 3.48,13.23 3.32,12.78 3.23,12.55 2.84,11.84 2.5,11.65 2.22,11.5 1.82,11.13 2.49,11.12 3.12,11.11 3.57,11.7 3.72,11.94 4.44,13.15 5.59,12.81 6.05,12.6 6.12,12.08 6.33,11.73 6.56,11.53 4.78,11.33 2.92,10.64 2.92,7.58 2.92,6.71 3.23,5.99 3.74,5.43 3.66,5.23 3.38,4.41 3.82,3.31 c 0,0 0.67,-0.21 2.2,0.82 0.64,-0.18 1.32,-0.27 2,-0.27 0.68,0 1.36,0.09 2,0.27 1.53,-1.04 2.2,-0.82 2.2,-0.82 0.44,1.1 0.16,1.92 0.08,2.12 0.51,0.56 0.82,1.27 0.82,2.15 0,3.07 -1.87,3.75 -3.65,3.95 0.29,0.25 0.54,0.73 0.54,1.48 0,1.07 -0.01,1.93 -0.01,2.2 0,0.21 0.15,0.46 0.55,0.38 A 8.013,8.013 0 0 0 16,8 C 16,3.58 12.42,0 8,0 Z"
+     id="path2" />
+</svg>
+        </a>
+    </li>
+
+
+          
+            
+              <li class="pure-menu-item  menu-collapsible">
+                <button class="toggle-button" id="open-search-modal" type="button" title="Search, or Use Alt+S Key">
+                  <svg version="1.1" id="search" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 122.879 119.799" enable-background="new 0 0 122.879 119.799" xml:space="preserve"><g><path d="M49.988,0h0.016v0.007C63.803,0.011,76.298,5.608,85.34,14.652c9.027,9.031,14.619,21.515,14.628,35.303h0.007v0.033v0.04 h-0.007c-0.005,5.557-0.917,10.905-2.594,15.892c-0.281,0.837-0.575,1.641-0.877,2.409v0.007c-1.446,3.66-3.315,7.12-5.547,10.307 l29.082,26.139l0.018,0.016l0.157,0.146l0.011,0.011c1.642,1.563,2.536,3.656,2.649,5.78c0.11,2.1-0.543,4.248-1.979,5.971 l-0.011,0.016l-0.175,0.203l-0.035,0.035l-0.146,0.16l-0.016,0.021c-1.565,1.642-3.654,2.534-5.78,2.646 c-2.097,0.111-4.247-0.54-5.971-1.978l-0.015-0.011l-0.204-0.175l-0.029-0.024L78.761,90.865c-0.88,0.62-1.778,1.209-2.687,1.765 c-1.233,0.755-2.51,1.466-3.813,2.115c-6.699,3.342-14.269,5.222-22.272,5.222v0.007h-0.016v-0.007 c-13.799-0.004-26.296-5.601-35.338-14.645C5.605,76.291,0.016,63.805,0.007,50.021H0v-0.033v-0.016h0.007 c0.004-13.799,5.601-26.296,14.645-35.338C23.683,5.608,36.167,0.016,49.955,0.007V0H49.988L49.988,0z M50.004,11.21v0.007h-0.016 h-0.033V11.21c-10.686,0.007-20.372,4.35-27.384,11.359C15.56,29.578,11.213,39.274,11.21,49.973h0.007v0.016v0.033H11.21 c0.007,10.686,4.347,20.367,11.359,27.381c7.009,7.012,16.705,11.359,27.403,11.361v-0.007h0.016h0.033v0.007 c10.686-0.007,20.368-4.348,27.382-11.359c7.011-7.009,11.358-16.702,11.36-27.4h-0.006v-0.016v-0.033h0.006 c-0.006-10.686-4.35-20.372-11.358-27.384C70.396,15.56,60.703,11.213,50.004,11.21L50.004,11.21z"/></g></svg>
+                </button>
+              </li>
+
+            
+          
+
+          <li class="pure-menu-item" id="heart-us">
+                <svg
+                   fill="#ff0000"
+                   class="bi bi-heart"
+                   preserveAspectRatio="xMidYMid meet"
+                   viewBox="0 0 16.9 16.1"
+                   id="svg-heart"
+                   xmlns="http://www.w3.org/2000/svg"
+                   >
+                  <path id="heartpath" d="M 5.338316,0.50302766 C 0.71136983,0.50647126 -3.9576371,7.2707777 8.5004254,15.503028 23.833425,5.3700277 13.220206,-2.5384409 8.6762066,1.6475589 c -0.060791,0.054322 -0.11943,0.1110064 -0.1757812,0.1699219 -0.057,-0.059 -0.1157813,-0.116875 -0.1757812,-0.171875 C 7.4724566,0.86129334 6.4060729,0.50223298 5.338316,0.50302766 Z" style="fill:var(--color-background);fill-opacity:1;stroke:#ff0000;stroke-opacity:1" />
+                </svg>
+          </li>
+          <!-- Hamburger menu button (mobile only) -->
+          <li class="pure-menu-item">
+            <button class="hamburger-menu" id="hamburger-toggle" aria-label="Toggle menu">
+              <div class="hamburger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Mobile menu drawer -->
+      <div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
+      <div class="mobile-menu-drawer" id="mobile-menu-drawer">
+        <ul class="mobile-menu-items">
+          
+
+
+
+
+
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/tags/list" class="pure-menu-link">GROUPS</a>
+    </li>
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/settings" class="pure-menu-link">SETTINGS</a>
+    </li>
+    <li class="pure-menu-item menu-collapsible ">
+        <a href="/imports/import" class="pure-menu-link">IMPORT</a>
+    </li>
+    <li class="pure-menu-item" id="menu-pause">
+        <a href="/settings/toggle-all-paused" ><img src="/static/images/pause.svg" alt="Pause auto-queue scheduling of watches" title="Pause auto-queue scheduling of watches" class="icon icon-pause" style="opacity: 0.3"></a>
+    </li>
+    <li class="pure-menu-item " id="menu-mute">
+        <a href="/settings/toggle-all-muted" ><img src="/static/images/bell-off.svg" alt="Mute notifications" title="Mute notifications" class="icon icon-mute" style="opacity: 0.3"></a>
+    </li>
+
+    <li class="pure-menu-item menu-collapsible" id="inline-menu-extras-group">
+        
+        <button class="toggle-button toggle-ai-mode" type="button" title="Toggle AI Mode" data-llm-configured="false" data-llm-settings-url="/settings#ai">
+            <span class="visually-hidden">Toggle AI mode</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <path d="M12 2L13.8 9.2L21 11L13.8 12.8L12 22L10.2 12.8L3 11L10.2 9.2Z"/>
+  <circle cx="20" cy="3.5" r="1.4" opacity="0.75"/>
+  <circle cx="18" cy="18.5" r="0.9" opacity="0.5"/>
+</svg><span class="ai-mode-label">LLM</span>
+        </button>
+        
+        <button class="toggle-button toggle-light-mode " type="button" title="Toggle Light/Dark Mode">
+            <span class="visually-hidden">Toggle light/dark mode</span>
+            <span class="icon-light">
+            <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 256.04"><path d="M128.02 0h.18c22.03 0 42.83 5.66 61 15.6h210.38c30.89 0 59 12.65 79.38 33.04C499.35 68.99 512 97.1 512 128.02c0 30.92-12.66 59.03-33.02 79.4l-.42.38c-20.34 20.15-48.29 32.64-78.98 32.64H189.24c-18.17 9.93-38.98 15.6-61.04 15.6h-.18c-35.2 0-67.22-14.41-90.42-37.6C14.41 195.25 0 163.24 0 128.02s14.4-67.24 37.59-90.43l.91-.83C61.65 14.05 93.29 0 128.02 0zm-5.95 54.42c0-1.95.8-3.73 2.08-5 2.74-2.77 7.27-2.76 10.02-.01l.14.16a7.042 7.042 0 0 1 1.94 4.85v12.95c0 1.95-.8 3.73-2.08 5.01-2.75 2.75-7.27 2.75-10.02 0a7.084 7.084 0 0 1-2.08-5.01V54.42zm6.05 31.17c11.72 0 22.32 4.75 30 12.43 7.67 7.68 12.43 18.29 12.43 30 0 11.72-4.75 22.32-12.43 30s-18.28 12.43-30 12.43c-11.72 0-22.32-4.75-30.01-12.43-7.67-7.68-12.43-18.28-12.43-30 0-11.72 4.76-22.32 12.43-30 7.69-7.67 18.3-12.43 30.01-12.43zm-56.33-5.34a7.114 7.114 0 0 1-2.07-5.01c0-3.9 3.18-7.09 7.09-7.09 1.81 0 3.62.69 5 2.07l9.16 9.16a7.065 7.065 0 0 1 2.08 5.01c0 1.8-.7 3.62-2.08 5.01a7.057 7.057 0 0 1-5.01 2.08c-1.8 0-3.61-.7-5-2.07l-9.17-9.16zm-17.28 53.81c-1.95 0-3.73-.8-5-2.08-2.77-2.74-2.76-7.27-.01-10.01l.15-.14a7.04 7.04 0 0 1 4.86-1.94h12.94a7.082 7.082 0 0 1 7.09 7.09c0 1.95-.8 3.73-2.07 5.01a7.099 7.099 0 0 1-5.02 2.07H54.51zm25.82 50.28a7.049 7.049 0 0 1-5 2.07c-3.91 0-7.09-3.16-7.09-7.08 0-1.81.68-3.62 2.07-5.01l9.31-9.29a7.02 7.02 0 0 1 4.86-1.94 7.09 7.09 0 0 1 7.09 7.09c0 1.79-.69 3.6-2.08 4.99l-9.16 9.17zm53.82 17.29c0 1.94-.8 3.73-2.08 5-2.74 2.76-7.27 2.75-10.02 0l-.13-.15a7.033 7.033 0 0 1-1.94-4.85v-12.95c0-1.96.8-3.73 2.07-5.01 2.76-2.75 7.27-2.75 10.03 0a7.1 7.1 0 0 1 2.07 5.01v12.95zm50.28-25.83a7.055 7.055 0 0 1 2.07 5.01c0 3.89-3.18 7.09-7.08 7.09-1.81 0-3.63-.69-5.01-2.07l-9.16-9.16a7.095 7.095 0 0 1-2.07-5.02c0-3.9 3.18-7.09 7.08-7.09 1.8 0 3.61.7 5 2.08l9.17 9.16zm17.29-53.82c1.93 0 3.73.81 5 2.08 2.76 2.75 2.75 7.27 0 10.02l-.15.14a7.098 7.098 0 0 1-4.85 1.94h-12.95c-1.96 0-3.74-.8-5.01-2.08-2.76-2.75-2.76-7.27 0-10.02a7.049 7.049 0 0 1 5.01-2.08h12.95zM175.89 71.7a7.074 7.074 0 0 1 5-2.07c3.9 0 7.1 3.19 7.1 7.09 0 1.81-.69 3.62-2.07 5l-9.32 9.31a7.12 7.12 0 0 1-4.86 1.93c-3.91 0-7.09-3.18-7.09-7.09 0-1.8.7-3.61 2.08-5l9.16-9.17zm34.17-41.87c2.96 2.47 5.81 5.07 8.53 7.8 23.22 23.15 37.63 55.17 37.63 90.39s-14.42 67.23-37.6 90.42a130.2 130.2 0 0 1-8.5 7.77h189.46c26.83 0 51.24-10.91 69.02-28.5l.32-.35c17.79-17.79 28.85-42.35 28.85-69.34 0-26.99-11.06-51.55-28.85-69.35-17.77-17.8-42.33-28.84-69.34-28.84H210.06zm-82.04-14.71h.18c62.09 0 112.89 50.81 112.89 112.9 0 62.1-50.86 112.9-112.89 112.9h-.18c-62.03 0-112.9-50.8-112.9-112.9 0-62.09 50.81-112.9 112.9-112.9z"/></svg>
+          </span>
+            <span class="icon-dark">
+            <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 512 262.86"><path fill-rule="nonzero" d="M316.78 16.55h-205.9c-30.5 0-58.22 12.48-78.31 32.57C12.47 69.21 0 96.93 0 127.44c0 30.5 12.47 58.22 32.57 78.31 20.09 20.1 47.81 32.57 78.31 32.57h193.25c21.54 15.43 47.9 24.54 76.26 24.54h.18c36.14 0 69.02-14.79 92.83-38.6 23.8-23.81 38.6-56.67 38.6-92.83 0-36.15-14.78-69.03-38.63-92.8C449.53 14.8 416.67 0 380.57 0h-.18c-23.02 0-44.72 6.02-63.61 16.55zm70.62 97.17.43.09c.82-3.45 2.83-6.19 6.04-8.16 3.2-1.98 6.53-2.57 10.01-1.75l.1-.43c-3.47-.82-6.2-2.83-8.17-6.03-1.98-3.22-2.57-6.55-1.75-10.01l-.43-.1c-.82 3.47-2.83 6.2-6.03 8.18-3.21 1.98-6.55 2.56-10.02 1.74l-.1.43c3.47.82 6.2 2.84 8.18 6.04 1.99 3.19 2.56 6.52 1.74 10zm36.87 16.77.53.12c1.02-4.35 3.55-7.78 7.58-10.26 4.02-2.49 8.2-3.22 12.56-2.19l.13-.53c-4.35-1.03-7.78-3.55-10.26-7.59-2.49-4.03-3.22-8.22-2.2-12.56l-.53-.12c-1.02 4.35-3.55 7.77-7.58 10.26-4.02 2.49-8.21 3.22-12.56 2.19l-.13.53c4.36 1.03 7.78 3.55 10.26 7.58 2.49 4.02 3.22 8.22 2.2 12.57zm-38.79-61.01c-15.69 7.67-26.98 23.26-28.29 41.93-1.96 27.88 19.05 52.06 46.92 54.02 13.23.93 25.64-3.32 35.22-11.02 4.75-3.82 9.66-.45 7.59 4.36-11.33 26.42-38.45 44.04-68.74 41.91-38.29-2.69-67.14-35.91-64.45-74.19C316.3 89.8 347.05 61.67 383.44 62c6.71.06 8.13 4.5 2.04 7.48zm-5.09-53.95h.18c63.75 0 115.91 52.15 115.91 115.9 0 63.75-52.23 115.91-115.91 115.91h-.18c-63.68 0-115.91-52.16-115.91-115.91s52.16-115.9 115.91-115.9z"/></svg>
+          </span>
+        </button>
+        <button class="toggle-button language-selector" type="button" title="Change Language">
+            <span class="visually-hidden">Change language</span>
+            <span class="🌐" id="language-selector-flag"></span>
+        </button>
+        <a class="github-link" href="https://github.com/dgtlmoon/changedetection.io"
+           target="_blank" 
+          rel="noopener" >
+            <svg class="octicon octicon-mark-github v-align-middle"  viewbox="0 0 16 16" version="1.1" aria-hidden="true">
+    <path
+     fill-rule="evenodd"
+     d="M 8,0 C 3.58,0 0,3.58 0,8 c 0,3.54 2.29,6.53 5.47,7.59 0.4,0.07 0.55,-0.17 0.55,-0.38 0,-0.19 -0.01,-0.82 -0.01,-1.49 C 4,14.09 3.48,13.23 3.32,12.78 3.23,12.55 2.84,11.84 2.5,11.65 2.22,11.5 1.82,11.13 2.49,11.12 3.12,11.11 3.57,11.7 3.72,11.94 4.44,13.15 5.59,12.81 6.05,12.6 6.12,12.08 6.33,11.73 6.56,11.53 4.78,11.33 2.92,10.64 2.92,7.58 2.92,6.71 3.23,5.99 3.74,5.43 3.66,5.23 3.38,4.41 3.82,3.31 c 0,0 0.67,-0.21 2.2,0.82 0.64,-0.18 1.32,-0.27 2,-0.27 0.68,0 1.36,0.09 2,0.27 1.53,-1.04 2.2,-0.82 2.2,-0.82 0.44,1.1 0.16,1.92 0.08,2.12 0.51,0.56 0.82,1.27 0.82,2.15 0,3.07 -1.87,3.75 -3.65,3.95 0.29,0.25 0.54,0.73 0.54,1.48 0,1.07 -0.01,1.93 -0.01,2.2 0,0.21 0.15,0.46 0.55,0.38 A 8.013,8.013 0 0 0 16,8 C 16,3.58 12.42,0 8,0 Z"
+     id="path2" />
+</svg>
+        </a>
+    </li>
+
+            <li class="pure-menu-item menu-collapsible"><div>v0.55.8</div><a href="https://changedetection.io/?ref=">Let us host your instance!</a><br>
+            </li>
+        </ul>
+      </div>
+      <div id="pure-menu-horizontal-spinner"></div>
+      </div>
+
+    </div>
+    
+    
+    
+      <div class="sticky-tab" id="right-sticky">v0.55.8</div>
+    
+    <section class="content">
+        <div id="overlay">
+            <div class="content">
+                <h4>Try our Chrome extension</h4>
+                <p>
+                    <a id="chrome-extension-link"
+                       title="Chrome Extension - Web Page Change Detection with changedetection.io!"
+                       href="https://chromewebstore.google.com/detail/changedetectionio-website/kefcfmgmlhmankjmnbijimhofdjekbop">
+                        <img alt="Chrome store icon" src="/static/images/google-chrome-icon.png">
+                        Chrome Webstore
+                    </a>
+                </p>
+                Easily add the current web-page from your browser directly into your changedetection.io tool, more great features coming soon!
+                <h4>Changedetection.io needs your support!</h4>
+                <p>
+                    You can help us by supporting changedetection.io on these platforms;
+                </p>
+                <p>
+                <ul>
+                    <li>
+                        <a href="https://alternativeto.net/software/changedetection-io/about/" title="Web page change detection at alternativeto.net">Rate us at
+                        AlternativeTo.net</a>
+                    </li>
+                <li>
+                    <a href="https://github.com/dgtlmoon/changedetection.io" title="Web page change detection on GitHub">Star us on GitHub</a>
+                </li>
+                <li>
+                    <a rel="nofollow" href="https://twitter.com/change_det_io" title="Web page change detection on Twitter">Follow us at Twitter/X</a>
+                </li>
+                <li>
+                    <a rel="nofollow" href="https://www.g2.com/products/changedetection-io/reviews" title="Web page change detection reviews at G2">G2 Software reviews</a>
+                </li>
+                <li>
+                    <a rel="nofollow" href="https://www.linkedin.com/company/changedetection-io" title="Visit web page change detection at LinkedIn">Check us out on LinkedIn</a>
+                </li>
+                <li>
+                    And tell your friends and colleagues :)
+                </li>
+                </ul>
+                <p>
+                    The more popular changedetection.io is, the more time we can dedicate to adding amazing features!
+                </p>
+                <p>
+                    Many thanks :)<br>
+                </p>
+                <p>
+                    <i>changedetection.io team</i>
+                </p>
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+
+          <div class="content-main">
+            <header>
+              
+            </header>
+
+            
+            
+            
+            
+            
+
+
+<script src="/static/js/tabs.js" defer></script>
+<script src="/static/js/vis.js" defer></script>
+<script src="/static/js/global-settings.js" defer></script>
+<script src="/static/js/scheduler.js" defer></script>
+<script src="/static/js/conditions.js" defer></script>
+<script src="/static/js/modal.js"></script>
+
+
+<script>
+    const browser_steps_available_screenshots=JSON.parse('[]');
+    const browser_steps_config=JSON.parse('{"\u003cselect\u003e by option text": "1 1", "Check checkbox": "1 0", "Choose one": "0 0", "Click X,Y": "0 1", "Click element": "1 0", "Click element containing text": "0 1", "Click element containing text if exists": "0 1", "Click element if exists": "1 0", "Enter text in field": "1 1", "Execute JS": "0 1", "Goto URL": "0 1", "Goto site": "0 0", "Make all child elements visible": "1 0", "Press Enter": "0 0", "Remove elements": "1 0", "Scroll down": "0 0", "Select by label": "1 1", "Uncheck checkbox": "1 0", "Wait for seconds": "0 1", "Wait for text": "0 1", "Wait for text in element": "1 1"}');
+    <!-- Should be _external so that firefox and others load it more reliably -->
+    const browser_steps_fetch_screenshot_image_url="http://change-detection.nicolkrit.ch/browser-steps/browsersteps_image?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff";
+    const browser_steps_last_error_step=null;
+    const browser_steps_start_url="/browser-steps/browsersteps_start_session?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff";
+    const browser_steps_sync_url="/browser-steps/browsersteps_update?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff";
+
+    const notification_base_url="/notification/send-test/c53b03ed-62b1-4352-8d84-20f1d03409ff";
+    const playwright_enabled=true;
+    const recheck_proxy_start_url="/check_proxy/c53b03ed-62b1-4352-8d84-20f1d03409ff/start";
+    const proxy_recheck_status_url="/check_proxy/c53b03ed-62b1-4352-8d84-20f1d03409ff/status";
+    const screenshot_url="/static/screenshot/c53b03ed-62b1-4352-8d84-20f1d03409ff";
+    const watch_visual_selector_data_url="/static/visual_selector_data/c53b03ed-62b1-4352-8d84-20f1d03409ff";
+    const default_system_fetch_backend="html_webdriver";
+</script>
+<script src="/static/js/plugins.js" defer></script>
+<script src="/static/js/watch-settings.js" defer></script>
+<script src="/static/js/notifications.js" defer></script>
+<script src="/static/js/visual-selector.js" defer></script>
+
+<script src="/static/js/browser-steps.js" defer></script>
+
+
+
+<script src="/static/js/recheck-proxy.js" defer></script>
+
+<div class="edit-form monospaced-textarea">
+
+    <div class="tabs collapsable">
+        <ul>
+            <li class="tab"><a href="#general">General</a></li>
+            
+            <li class="tab"><a href="#request">Request</a></li>
+            
+            
+            
+            <li class="tab"><a id="browsersteps-tab" href="#browser-steps">Browser Steps</a></li>
+            
+            
+            <li class="tab"><a id="visualselector-tab" href="#visualselector">Visual Filter Selector</a></li>
+            
+            
+            <li class="tab"><a href="#ai-llm">AI / LLM</a></li>
+            
+            
+            <li class="tab" id="filters-and-triggers-tab"><a href="#filters-and-triggers">Filters &amp; Triggers</a></li>
+            <li class="tab" id="conditions-tab"><a href="#conditions">Conditions</a></li>
+            
+            <li class="tab"><a href="#notifications">Notifications</a></li>
+            <li class="tab"><a href="#stats">Stats</a></li>
+        </ul>
+    </div>
+
+    <div class="box-wrap inner">
+        <form class="pure-form pure-form-stacked"
+              action="/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" method="POST">
+             <input type="hidden" name="csrf_token" value="IjhkMWZjZGYzNmQzNmE2ZTExMDU1MTJjZTY1ZjUyNzJlZTM3MmU1ZDMi.apiTqw.lnknsOaYB5DGbbEg7A1QtiAzqHM">
+
+            <div class="tab-pane-inner" id="general">
+                <fieldset>
+                    <div class="pure-control-group">
+                        
+    <div ><label for="url">Web Page URL</label></div>
+    <div ><input class="m-d" id="url" name="url" placeholder="https://..." required type="text" value="https://www.init7.net/en/support/faq/status-info">
+        
+        
+    </div>
+
+                        <div class="pure-form-message">Some sites use JavaScript to create the content, for this you should <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Fetching-pages-with-WebDriver">use the Chrome/WebDriver Fetcher</a></div>
+                        <div class="pure-form-message">Variables are supported in the URL (<a href="https://github.com/dgtlmoon/changedetection.io/wiki/Handling-variables-in-the-watched-URL">help and examples here</a>).</div>
+                    </div>
+                    <div class="pure-control-group">
+                        
+    <div ><label for="tags">Group Tag</label></div>
+    <div ><input id="tags" name="tags" type="text" value="self-hosting">
+        
+        
+    </div>
+
+                        <span class="pure-form-message-inline">Organisational tag/group name used in the main listing page</span>
+                        
+                    </div>
+                    <div class="pure-control-group inline-radio">
+                        
+    <div ><label for="processor">Processor - What do you want to achieve?</label></div>
+    <div ><ul id="processor"><li><input checked id="processor-0" name="processor" type="radio" value="text_json_diff"> <label for="processor-0">Webpage Text/HTML, JSON and PDF changes</label></li><li><input id="processor-1" name="processor" type="radio" value="restock_diff"> <label for="processor-1">Re-stock &amp; Price detection for pages with a SINGLE product</label></li></ul>
+        
+        
+    </div>
+
+                    </div>
+                    <div class="pure-control-group">
+                        
+    <div ><label for="title">Title</label></div>
+    <div ><input class="m-d" id="title" name="title" placeholder="Current Status of Init7 Services | Init7" type="text" value="">
+        
+        
+    </div>
+
+                        <span class="pure-form-message-inline">Automatically uses the page title if found, you can also use your own title/description here</span>
+                    </div>
+                    <div class="pure-control-group time-between-check border-fieldset">
+
+                        
+  <div class="checkbox ">
+  <input checked class="use-default-timecheck" id="time_between_check_use_default" name="time_between_check_use_default" type="checkbox" value="y"> <label for="time_between_check_use_default">Use global settings for time between check and scheduler.</label>
+  
+  </div>
+
+                        <br>
+                        <div id="time-check-widget-wrapper">
+                            
+    <div ><label for="time_between_check">Time Between Check</label></div>
+    <div ><table class="time-check-widget" id="time_between_check"><tr><td><input id="time_between_check-weeks" min="0" name="time_between_check-weeks" type="number" value=""></td><th><label for="time_between_check-weeks">Weeks</label></th></tr><tr><td><input id="time_between_check-days" min="0" name="time_between_check-days" type="number" value=""></td><th><label for="time_between_check-days">Days</label></th></tr><tr><td><input id="time_between_check-hours" min="0" name="time_between_check-hours" type="number" value=""></td><th><label for="time_between_check-hours">Hours</label></th></tr><tr><td><input id="time_between_check-minutes" min="0" name="time_between_check-minutes" type="number" value=""></td><th><label for="time_between_check-minutes">Minutes</label></th></tr><tr><td><input id="time_between_check-seconds" min="0" name="time_between_check-seconds" type="number" value=""></td><th><label for="time_between_check-seconds">Seconds</label></th></tr></table>
+        
+        
+    </div>
+
+
+                            <span class="pure-form-message-inline">
+                             The interval/amount of time between each check.
+                            </span>
+                        </div>
+                        <div id="time-between-check-schedule">
+                            <!-- Start Time and End Time -->
+                            <div id="limit-between-time">
+                                
+    <style>
+    .day-schedule *, .day-schedule select {
+        display: inline-block;
+    }
+
+    .day-schedule label[for*="time_schedule_limit-"][for$="-enabled"] {
+        min-width: 6rem;
+        font-weight: bold;
+    }
+    .day-schedule label {
+        font-weight: normal;
+    }
+
+    .day-schedule table label {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    #timespan-warning, input[id*='time_schedule_limit-timezone'].error {
+        color: #ff0000;
+    }
+    .day-schedule.warning table {
+        background-color: #ffbbc2;
+    }
+    ul#day-wrapper {
+        list-style: none;
+    }
+    #timezone-info > * {
+        display: inline-block;
+    }
+
+    #scheduler-icon-label {
+        background-position: left center;
+        background-repeat: no-repeat;
+        background-size: contain;
+        display: inline-block;
+        vertical-align: middle;
+        padding-left: 50px;
+        background-image: url(/static/images/schedule.svg);
+    }
+    #timespan-warning {
+        display: none;
+    }
+    </style>
+    <br>
+
+    
+    <div>
+        <span id="scheduler-icon-label" style="">
+            
+  <div class="checkbox ">
+  <input id="time_schedule_limit-enabled" name="time_schedule_limit-enabled" type="checkbox" value="y"> <label for="time_schedule_limit-enabled">Use time scheduler</label>
+  
+  </div>
+
+            <div class="pure-form-message-inline">
+                Set a hourly/week day schedule
+            </div>
+        </span>
+
+    </div>
+    <br>
+    <div id="schedule-day-limits-wrapper">
+        <label>Schedule time limits</label><a data-template="business-hours"
+                                              class="set-schedule pure-button button-secondary button-xsmall">Business hours</a>
+        <a data-template="weekend" class="set-schedule pure-button button-secondary button-xsmall">Weekends</a>
+        <a data-template="reset" class="set-schedule pure-button button-xsmall">Reset</a><br>
+        <br>
+
+        <ul id="day-wrapper">
+            
+                <li class="day-schedule" id="schedule-monday">
+                    
+    <span>
+    <table id="time_schedule_limit-monday"><tr><th><label for="time_schedule_limit-monday-enabled">Monday</label></th><td><input checked id="time_schedule_limit-monday-enabled" name="time_schedule_limit-monday-enabled" type="checkbox" value="y"></td></tr><tr><th><label for="time_schedule_limit-monday-start_time">Start At</label></th><td><input id="time_schedule_limit-monday-start_time" name="time_schedule_limit-monday-start_time" type="time" value="00:00"></td></tr><tr><th><label for="time_schedule_limit-monday-duration">Run duration</label></th><td><table id="time_schedule_limit-monday-duration"><tr><th><label for="time_schedule_limit-monday-duration-hours">Hours</label></th><td><select id="time_schedule_limit-monday-duration-hours" name="time_schedule_limit-monday-duration-hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option selected value="24">24</option></select></td></tr><tr><th><label for="time_schedule_limit-monday-duration-minutes">Minutes</label></th><td><select id="time_schedule_limit-monday-duration-minutes" name="time_schedule_limit-monday-duration-minutes"><option selected value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select></td></tr></table></td></tr></table>
+        
+    </span>
+
+                </li>
+            
+                <li class="day-schedule" id="schedule-tuesday">
+                    
+    <span>
+    <table id="time_schedule_limit-tuesday"><tr><th><label for="time_schedule_limit-tuesday-enabled">Tuesday</label></th><td><input checked id="time_schedule_limit-tuesday-enabled" name="time_schedule_limit-tuesday-enabled" type="checkbox" value="y"></td></tr><tr><th><label for="time_schedule_limit-tuesday-start_time">Start At</label></th><td><input id="time_schedule_limit-tuesday-start_time" name="time_schedule_limit-tuesday-start_time" type="time" value="00:00"></td></tr><tr><th><label for="time_schedule_limit-tuesday-duration">Run duration</label></th><td><table id="time_schedule_limit-tuesday-duration"><tr><th><label for="time_schedule_limit-tuesday-duration-hours">Hours</label></th><td><select id="time_schedule_limit-tuesday-duration-hours" name="time_schedule_limit-tuesday-duration-hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option selected value="24">24</option></select></td></tr><tr><th><label for="time_schedule_limit-tuesday-duration-minutes">Minutes</label></th><td><select id="time_schedule_limit-tuesday-duration-minutes" name="time_schedule_limit-tuesday-duration-minutes"><option selected value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select></td></tr></table></td></tr></table>
+        
+    </span>
+
+                </li>
+            
+                <li class="day-schedule" id="schedule-wednesday">
+                    
+    <span>
+    <table id="time_schedule_limit-wednesday"><tr><th><label for="time_schedule_limit-wednesday-enabled">Wednesday</label></th><td><input checked id="time_schedule_limit-wednesday-enabled" name="time_schedule_limit-wednesday-enabled" type="checkbox" value="y"></td></tr><tr><th><label for="time_schedule_limit-wednesday-start_time">Start At</label></th><td><input id="time_schedule_limit-wednesday-start_time" name="time_schedule_limit-wednesday-start_time" type="time" value="00:00"></td></tr><tr><th><label for="time_schedule_limit-wednesday-duration">Run duration</label></th><td><table id="time_schedule_limit-wednesday-duration"><tr><th><label for="time_schedule_limit-wednesday-duration-hours">Hours</label></th><td><select id="time_schedule_limit-wednesday-duration-hours" name="time_schedule_limit-wednesday-duration-hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option selected value="24">24</option></select></td></tr><tr><th><label for="time_schedule_limit-wednesday-duration-minutes">Minutes</label></th><td><select id="time_schedule_limit-wednesday-duration-minutes" name="time_schedule_limit-wednesday-duration-minutes"><option selected value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select></td></tr></table></td></tr></table>
+        
+    </span>
+
+                </li>
+            
+                <li class="day-schedule" id="schedule-thursday">
+                    
+    <span>
+    <table id="time_schedule_limit-thursday"><tr><th><label for="time_schedule_limit-thursday-enabled">Thursday</label></th><td><input checked id="time_schedule_limit-thursday-enabled" name="time_schedule_limit-thursday-enabled" type="checkbox" value="y"></td></tr><tr><th><label for="time_schedule_limit-thursday-start_time">Start At</label></th><td><input id="time_schedule_limit-thursday-start_time" name="time_schedule_limit-thursday-start_time" type="time" value="00:00"></td></tr><tr><th><label for="time_schedule_limit-thursday-duration">Run duration</label></th><td><table id="time_schedule_limit-thursday-duration"><tr><th><label for="time_schedule_limit-thursday-duration-hours">Hours</label></th><td><select id="time_schedule_limit-thursday-duration-hours" name="time_schedule_limit-thursday-duration-hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option selected value="24">24</option></select></td></tr><tr><th><label for="time_schedule_limit-thursday-duration-minutes">Minutes</label></th><td><select id="time_schedule_limit-thursday-duration-minutes" name="time_schedule_limit-thursday-duration-minutes"><option selected value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select></td></tr></table></td></tr></table>
+        
+    </span>
+
+                </li>
+            
+                <li class="day-schedule" id="schedule-friday">
+                    
+    <span>
+    <table id="time_schedule_limit-friday"><tr><th><label for="time_schedule_limit-friday-enabled">Friday</label></th><td><input checked id="time_schedule_limit-friday-enabled" name="time_schedule_limit-friday-enabled" type="checkbox" value="y"></td></tr><tr><th><label for="time_schedule_limit-friday-start_time">Start At</label></th><td><input id="time_schedule_limit-friday-start_time" name="time_schedule_limit-friday-start_time" type="time" value="00:00"></td></tr><tr><th><label for="time_schedule_limit-friday-duration">Run duration</label></th><td><table id="time_schedule_limit-friday-duration"><tr><th><label for="time_schedule_limit-friday-duration-hours">Hours</label></th><td><select id="time_schedule_limit-friday-duration-hours" name="time_schedule_limit-friday-duration-hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option selected value="24">24</option></select></td></tr><tr><th><label for="time_schedule_limit-friday-duration-minutes">Minutes</label></th><td><select id="time_schedule_limit-friday-duration-minutes" name="time_schedule_limit-friday-duration-minutes"><option selected value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select></td></tr></table></td></tr></table>
+        
+    </span>
+
+                </li>
+            
+                <li class="day-schedule" id="schedule-saturday">
+                    
+    <span>
+    <table id="time_schedule_limit-saturday"><tr><th><label for="time_schedule_limit-saturday-enabled">Saturday</label></th><td><input checked id="time_schedule_limit-saturday-enabled" name="time_schedule_limit-saturday-enabled" type="checkbox" value="y"></td></tr><tr><th><label for="time_schedule_limit-saturday-start_time">Start At</label></th><td><input id="time_schedule_limit-saturday-start_time" name="time_schedule_limit-saturday-start_time" type="time" value="00:00"></td></tr><tr><th><label for="time_schedule_limit-saturday-duration">Run duration</label></th><td><table id="time_schedule_limit-saturday-duration"><tr><th><label for="time_schedule_limit-saturday-duration-hours">Hours</label></th><td><select id="time_schedule_limit-saturday-duration-hours" name="time_schedule_limit-saturday-duration-hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option selected value="24">24</option></select></td></tr><tr><th><label for="time_schedule_limit-saturday-duration-minutes">Minutes</label></th><td><select id="time_schedule_limit-saturday-duration-minutes" name="time_schedule_limit-saturday-duration-minutes"><option selected value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select></td></tr></table></td></tr></table>
+        
+    </span>
+
+                </li>
+            
+                <li class="day-schedule" id="schedule-sunday">
+                    
+    <span>
+    <table id="time_schedule_limit-sunday"><tr><th><label for="time_schedule_limit-sunday-enabled">Sunday</label></th><td><input checked id="time_schedule_limit-sunday-enabled" name="time_schedule_limit-sunday-enabled" type="checkbox" value="y"></td></tr><tr><th><label for="time_schedule_limit-sunday-start_time">Start At</label></th><td><input id="time_schedule_limit-sunday-start_time" name="time_schedule_limit-sunday-start_time" type="time" value="00:00"></td></tr><tr><th><label for="time_schedule_limit-sunday-duration">Run duration</label></th><td><table id="time_schedule_limit-sunday-duration"><tr><th><label for="time_schedule_limit-sunday-duration-hours">Hours</label></th><td><select id="time_schedule_limit-sunday-duration-hours" name="time_schedule_limit-sunday-duration-hours"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option selected value="24">24</option></select></td></tr><tr><th><label for="time_schedule_limit-sunday-duration-minutes">Minutes</label></th><td><select id="time_schedule_limit-sunday-duration-minutes" name="time_schedule_limit-sunday-duration-minutes"><option selected value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option><option value="37">37</option><option value="38">38</option><option value="39">39</option><option value="40">40</option><option value="41">41</option><option value="42">42</option><option value="43">43</option><option value="44">44</option><option value="45">45</option><option value="46">46</option><option value="47">47</option><option value="48">48</option><option value="49">49</option><option value="50">50</option><option value="51">51</option><option value="52">52</option><option value="53">53</option><option value="54">54</option><option value="55">55</option><option value="56">56</option><option value="57">57</option><option value="58">58</option><option value="59">59</option></select></td></tr></table></td></tr></table>
+        
+    </span>
+
+                </li>
+            
+            <li id="timespan-warning">Warning, one or more of your &#39;days&#39; has a duration that would extend into the next day.<br>
+            This could have unintended consequences.</li>
+            <li id="timezone-info">
+                
+    <div ><label for="time_schedule_limit-timezone">Optional timezone to run in</label></div>
+    <div ><input id="time_schedule_limit-timezone" list="timezones" name="time_schedule_limit-timezone" placeholder="Europe/Zurich" type="text" value="">
+        
+        
+    </div>
+ <span id="local-time-in-tz"></span>
+                <datalist id="timezones" style="display: none;"><option value="Africa/Abidjan">Africa/Abidjan</option><option value="Africa/Accra">Africa/Accra</option><option value="Africa/Addis_Ababa">Africa/Addis_Ababa</option><option value="Africa/Algiers">Africa/Algiers</option><option value="Africa/Asmara">Africa/Asmara</option><option value="Africa/Asmera">Africa/Asmera</option><option value="Africa/Bamako">Africa/Bamako</option><option value="Africa/Bangui">Africa/Bangui</option><option value="Africa/Banjul">Africa/Banjul</option><option value="Africa/Bissau">Africa/Bissau</option><option value="Africa/Blantyre">Africa/Blantyre</option><option value="Africa/Brazzaville">Africa/Brazzaville</option><option value="Africa/Bujumbura">Africa/Bujumbura</option><option value="Africa/Cairo">Africa/Cairo</option><option value="Africa/Casablanca">Africa/Casablanca</option><option value="Africa/Ceuta">Africa/Ceuta</option><option value="Africa/Conakry">Africa/Conakry</option><option value="Africa/Dakar">Africa/Dakar</option><option value="Africa/Dar_es_Salaam">Africa/Dar_es_Salaam</option><option value="Africa/Djibouti">Africa/Djibouti</option><option value="Africa/Douala">Africa/Douala</option><option value="Africa/El_Aaiun">Africa/El_Aaiun</option><option value="Africa/Freetown">Africa/Freetown</option><option value="Africa/Gaborone">Africa/Gaborone</option><option value="Africa/Harare">Africa/Harare</option><option value="Africa/Johannesburg">Africa/Johannesburg</option><option value="Africa/Juba">Africa/Juba</option><option value="Africa/Kampala">Africa/Kampala</option><option value="Africa/Khartoum">Africa/Khartoum</option><option value="Africa/Kigali">Africa/Kigali</option><option value="Africa/Kinshasa">Africa/Kinshasa</option><option value="Africa/Lagos">Africa/Lagos</option><option value="Africa/Libreville">Africa/Libreville</option><option value="Africa/Lome">Africa/Lome</option><option value="Africa/Luanda">Africa/Luanda</option><option value="Africa/Lubumbashi">Africa/Lubumbashi</option><option value="Africa/Lusaka">Africa/Lusaka</option><option value="Africa/Malabo">Africa/Malabo</option><option value="Africa/Maputo">Africa/Maputo</option><option value="Africa/Maseru">Africa/Maseru</option><option value="Africa/Mbabane">Africa/Mbabane</option><option value="Africa/Mogadishu">Africa/Mogadishu</option><option value="Africa/Monrovia">Africa/Monrovia</option><option value="Africa/Nairobi">Africa/Nairobi</option><option value="Africa/Ndjamena">Africa/Ndjamena</option><option value="Africa/Niamey">Africa/Niamey</option><option value="Africa/Nouakchott">Africa/Nouakchott</option><option value="Africa/Ouagadougou">Africa/Ouagadougou</option><option value="Africa/Porto-Novo">Africa/Porto-Novo</option><option value="Africa/Sao_Tome">Africa/Sao_Tome</option><option value="Africa/Timbuktu">Africa/Timbuktu</option><option value="Africa/Tripoli">Africa/Tripoli</option><option value="Africa/Tunis">Africa/Tunis</option><option value="Africa/Windhoek">Africa/Windhoek</option><option value="America/Adak">America/Adak</option><option value="America/Anchorage">America/Anchorage</option><option value="America/Anguilla">America/Anguilla</option><option value="America/Antigua">America/Antigua</option><option value="America/Araguaina">America/Araguaina</option><option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires</option><option value="America/Argentina/Catamarca">America/Argentina/Catamarca</option><option value="America/Argentina/ComodRivadavia">America/Argentina/ComodRivadavia</option><option value="America/Argentina/Cordoba">America/Argentina/Cordoba</option><option value="America/Argentina/Jujuy">America/Argentina/Jujuy</option><option value="America/Argentina/La_Rioja">America/Argentina/La_Rioja</option><option value="America/Argentina/Mendoza">America/Argentina/Mendoza</option><option value="America/Argentina/Rio_Gallegos">America/Argentina/Rio_Gallegos</option><option value="America/Argentina/Salta">America/Argentina/Salta</option><option value="America/Argentina/San_Juan">America/Argentina/San_Juan</option><option value="America/Argentina/San_Luis">America/Argentina/San_Luis</option><option value="America/Argentina/Tucuman">America/Argentina/Tucuman</option><option value="America/Argentina/Ushuaia">America/Argentina/Ushuaia</option><option value="America/Aruba">America/Aruba</option><option value="America/Asuncion">America/Asuncion</option><option value="America/Atikokan">America/Atikokan</option><option value="America/Atka">America/Atka</option><option value="America/Bahia">America/Bahia</option><option value="America/Bahia_Banderas">America/Bahia_Banderas</option><option value="America/Barbados">America/Barbados</option><option value="America/Belem">America/Belem</option><option value="America/Belize">America/Belize</option><option value="America/Blanc-Sablon">America/Blanc-Sablon</option><option value="America/Boa_Vista">America/Boa_Vista</option><option value="America/Bogota">America/Bogota</option><option value="America/Boise">America/Boise</option><option value="America/Buenos_Aires">America/Buenos_Aires</option><option value="America/Cambridge_Bay">America/Cambridge_Bay</option><option value="America/Campo_Grande">America/Campo_Grande</option><option value="America/Cancun">America/Cancun</option><option value="America/Caracas">America/Caracas</option><option value="America/Catamarca">America/Catamarca</option><option value="America/Cayenne">America/Cayenne</option><option value="America/Cayman">America/Cayman</option><option value="America/Chicago">America/Chicago</option><option value="America/Chihuahua">America/Chihuahua</option><option value="America/Ciudad_Juarez">America/Ciudad_Juarez</option><option value="America/Coral_Harbour">America/Coral_Harbour</option><option value="America/Cordoba">America/Cordoba</option><option value="America/Costa_Rica">America/Costa_Rica</option><option value="America/Coyhaique">America/Coyhaique</option><option value="America/Creston">America/Creston</option><option value="America/Cuiaba">America/Cuiaba</option><option value="America/Curacao">America/Curacao</option><option value="America/Danmarkshavn">America/Danmarkshavn</option><option value="America/Dawson">America/Dawson</option><option value="America/Dawson_Creek">America/Dawson_Creek</option><option value="America/Denver">America/Denver</option><option value="America/Detroit">America/Detroit</option><option value="America/Dominica">America/Dominica</option><option value="America/Edmonton">America/Edmonton</option><option value="America/Eirunepe">America/Eirunepe</option><option value="America/El_Salvador">America/El_Salvador</option><option value="America/Ensenada">America/Ensenada</option><option value="America/Fort_Nelson">America/Fort_Nelson</option><option value="America/Fort_Wayne">America/Fort_Wayne</option><option value="America/Fortaleza">America/Fortaleza</option><option value="America/Glace_Bay">America/Glace_Bay</option><option value="America/Godthab">America/Godthab</option><option value="America/Goose_Bay">America/Goose_Bay</option><option value="America/Grand_Turk">America/Grand_Turk</option><option value="America/Grenada">America/Grenada</option><option value="America/Guadeloupe">America/Guadeloupe</option><option value="America/Guatemala">America/Guatemala</option><option value="America/Guayaquil">America/Guayaquil</option><option value="America/Guyana">America/Guyana</option><option value="America/Halifax">America/Halifax</option><option value="America/Havana">America/Havana</option><option value="America/Hermosillo">America/Hermosillo</option><option value="America/Indiana/Indianapolis">America/Indiana/Indianapolis</option><option value="America/Indiana/Knox">America/Indiana/Knox</option><option value="America/Indiana/Marengo">America/Indiana/Marengo</option><option value="America/Indiana/Petersburg">America/Indiana/Petersburg</option><option value="America/Indiana/Tell_City">America/Indiana/Tell_City</option><option value="America/Indiana/Vevay">America/Indiana/Vevay</option><option value="America/Indiana/Vincennes">America/Indiana/Vincennes</option><option value="America/Indiana/Winamac">America/Indiana/Winamac</option><option value="America/Indianapolis">America/Indianapolis</option><option value="America/Inuvik">America/Inuvik</option><option value="America/Iqaluit">America/Iqaluit</option><option value="America/Jamaica">America/Jamaica</option><option value="America/Jujuy">America/Jujuy</option><option value="America/Juneau">America/Juneau</option><option value="America/Kentucky/Louisville">America/Kentucky/Louisville</option><option value="America/Kentucky/Monticello">America/Kentucky/Monticello</option><option value="America/Knox_IN">America/Knox_IN</option><option value="America/Kralendijk">America/Kralendijk</option><option value="America/La_Paz">America/La_Paz</option><option value="America/Lima">America/Lima</option><option value="America/Los_Angeles">America/Los_Angeles</option><option value="America/Louisville">America/Louisville</option><option value="America/Lower_Princes">America/Lower_Princes</option><option value="America/Maceio">America/Maceio</option><option value="America/Managua">America/Managua</option><option value="America/Manaus">America/Manaus</option><option value="America/Marigot">America/Marigot</option><option value="America/Martinique">America/Martinique</option><option value="America/Matamoros">America/Matamoros</option><option value="America/Mazatlan">America/Mazatlan</option><option value="America/Mendoza">America/Mendoza</option><option value="America/Menominee">America/Menominee</option><option value="America/Merida">America/Merida</option><option value="America/Metlakatla">America/Metlakatla</option><option value="America/Mexico_City">America/Mexico_City</option><option value="America/Miquelon">America/Miquelon</option><option value="America/Moncton">America/Moncton</option><option value="America/Monterrey">America/Monterrey</option><option value="America/Montevideo">America/Montevideo</option><option value="America/Montreal">America/Montreal</option><option value="America/Montserrat">America/Montserrat</option><option value="America/Nassau">America/Nassau</option><option value="America/New_York">America/New_York</option><option value="America/Nipigon">America/Nipigon</option><option value="America/Nome">America/Nome</option><option value="America/Noronha">America/Noronha</option><option value="America/North_Dakota/Beulah">America/North_Dakota/Beulah</option><option value="America/North_Dakota/Center">America/North_Dakota/Center</option><option value="America/North_Dakota/New_Salem">America/North_Dakota/New_Salem</option><option value="America/Nuuk">America/Nuuk</option><option value="America/Ojinaga">America/Ojinaga</option><option value="America/Panama">America/Panama</option><option value="America/Pangnirtung">America/Pangnirtung</option><option value="America/Paramaribo">America/Paramaribo</option><option value="America/Phoenix">America/Phoenix</option><option value="America/Port-au-Prince">America/Port-au-Prince</option><option value="America/Port_of_Spain">America/Port_of_Spain</option><option value="America/Porto_Acre">America/Porto_Acre</option><option value="America/Porto_Velho">America/Porto_Velho</option><option value="America/Puerto_Rico">America/Puerto_Rico</option><option value="America/Punta_Arenas">America/Punta_Arenas</option><option value="America/Rainy_River">America/Rainy_River</option><option value="America/Rankin_Inlet">America/Rankin_Inlet</option><option value="America/Recife">America/Recife</option><option value="America/Regina">America/Regina</option><option value="America/Resolute">America/Resolute</option><option value="America/Rio_Branco">America/Rio_Branco</option><option value="America/Rosario">America/Rosario</option><option value="America/Santa_Isabel">America/Santa_Isabel</option><option value="America/Santarem">America/Santarem</option><option value="America/Santiago">America/Santiago</option><option value="America/Santo_Domingo">America/Santo_Domingo</option><option value="America/Sao_Paulo">America/Sao_Paulo</option><option value="America/Scoresbysund">America/Scoresbysund</option><option value="America/Shiprock">America/Shiprock</option><option value="America/Sitka">America/Sitka</option><option value="America/St_Barthelemy">America/St_Barthelemy</option><option value="America/St_Johns">America/St_Johns</option><option value="America/St_Kitts">America/St_Kitts</option><option value="America/St_Lucia">America/St_Lucia</option><option value="America/St_Thomas">America/St_Thomas</option><option value="America/St_Vincent">America/St_Vincent</option><option value="America/Swift_Current">America/Swift_Current</option><option value="America/Tegucigalpa">America/Tegucigalpa</option><option value="America/Thule">America/Thule</option><option value="America/Thunder_Bay">America/Thunder_Bay</option><option value="America/Tijuana">America/Tijuana</option><option value="America/Toronto">America/Toronto</option><option value="America/Tortola">America/Tortola</option><option value="America/Vancouver">America/Vancouver</option><option value="America/Virgin">America/Virgin</option><option value="America/Whitehorse">America/Whitehorse</option><option value="America/Winnipeg">America/Winnipeg</option><option value="America/Yakutat">America/Yakutat</option><option value="America/Yellowknife">America/Yellowknife</option><option value="Antarctica/Casey">Antarctica/Casey</option><option value="Antarctica/Davis">Antarctica/Davis</option><option value="Antarctica/DumontDUrville">Antarctica/DumontDUrville</option><option value="Antarctica/Macquarie">Antarctica/Macquarie</option><option value="Antarctica/Mawson">Antarctica/Mawson</option><option value="Antarctica/McMurdo">Antarctica/McMurdo</option><option value="Antarctica/Palmer">Antarctica/Palmer</option><option value="Antarctica/Rothera">Antarctica/Rothera</option><option value="Antarctica/South_Pole">Antarctica/South_Pole</option><option value="Antarctica/Syowa">Antarctica/Syowa</option><option value="Antarctica/Troll">Antarctica/Troll</option><option value="Antarctica/Vostok">Antarctica/Vostok</option><option value="Arctic/Longyearbyen">Arctic/Longyearbyen</option><option value="Asia/Aden">Asia/Aden</option><option value="Asia/Almaty">Asia/Almaty</option><option value="Asia/Amman">Asia/Amman</option><option value="Asia/Anadyr">Asia/Anadyr</option><option value="Asia/Aqtau">Asia/Aqtau</option><option value="Asia/Aqtobe">Asia/Aqtobe</option><option value="Asia/Ashgabat">Asia/Ashgabat</option><option value="Asia/Ashkhabad">Asia/Ashkhabad</option><option value="Asia/Atyrau">Asia/Atyrau</option><option value="Asia/Baghdad">Asia/Baghdad</option><option value="Asia/Bahrain">Asia/Bahrain</option><option value="Asia/Baku">Asia/Baku</option><option value="Asia/Bangkok">Asia/Bangkok</option><option value="Asia/Barnaul">Asia/Barnaul</option><option value="Asia/Beirut">Asia/Beirut</option><option value="Asia/Bishkek">Asia/Bishkek</option><option value="Asia/Brunei">Asia/Brunei</option><option value="Asia/Calcutta">Asia/Calcutta</option><option value="Asia/Chita">Asia/Chita</option><option value="Asia/Choibalsan">Asia/Choibalsan</option><option value="Asia/Chongqing">Asia/Chongqing</option><option value="Asia/Chungking">Asia/Chungking</option><option value="Asia/Colombo">Asia/Colombo</option><option value="Asia/Dacca">Asia/Dacca</option><option value="Asia/Damascus">Asia/Damascus</option><option value="Asia/Dhaka">Asia/Dhaka</option><option value="Asia/Dili">Asia/Dili</option><option value="Asia/Dubai">Asia/Dubai</option><option value="Asia/Dushanbe">Asia/Dushanbe</option><option value="Asia/Famagusta">Asia/Famagusta</option><option value="Asia/Gaza">Asia/Gaza</option><option value="Asia/Harbin">Asia/Harbin</option><option value="Asia/Hebron">Asia/Hebron</option><option value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh</option><option value="Asia/Hong_Kong">Asia/Hong_Kong</option><option value="Asia/Hovd">Asia/Hovd</option><option value="Asia/Irkutsk">Asia/Irkutsk</option><option value="Asia/Istanbul">Asia/Istanbul</option><option value="Asia/Jakarta">Asia/Jakarta</option><option value="Asia/Jayapura">Asia/Jayapura</option><option value="Asia/Jerusalem">Asia/Jerusalem</option><option value="Asia/Kabul">Asia/Kabul</option><option value="Asia/Kamchatka">Asia/Kamchatka</option><option value="Asia/Karachi">Asia/Karachi</option><option value="Asia/Kashgar">Asia/Kashgar</option><option value="Asia/Kathmandu">Asia/Kathmandu</option><option value="Asia/Katmandu">Asia/Katmandu</option><option value="Asia/Khandyga">Asia/Khandyga</option><option value="Asia/Kolkata">Asia/Kolkata</option><option value="Asia/Krasnoyarsk">Asia/Krasnoyarsk</option><option value="Asia/Kuala_Lumpur">Asia/Kuala_Lumpur</option><option value="Asia/Kuching">Asia/Kuching</option><option value="Asia/Kuwait">Asia/Kuwait</option><option value="Asia/Macao">Asia/Macao</option><option value="Asia/Macau">Asia/Macau</option><option value="Asia/Magadan">Asia/Magadan</option><option value="Asia/Makassar">Asia/Makassar</option><option value="Asia/Manila">Asia/Manila</option><option value="Asia/Muscat">Asia/Muscat</option><option value="Asia/Nicosia">Asia/Nicosia</option><option value="Asia/Novokuznetsk">Asia/Novokuznetsk</option><option value="Asia/Novosibirsk">Asia/Novosibirsk</option><option value="Asia/Omsk">Asia/Omsk</option><option value="Asia/Oral">Asia/Oral</option><option value="Asia/Phnom_Penh">Asia/Phnom_Penh</option><option value="Asia/Pontianak">Asia/Pontianak</option><option value="Asia/Pyongyang">Asia/Pyongyang</option><option value="Asia/Qatar">Asia/Qatar</option><option value="Asia/Qostanay">Asia/Qostanay</option><option value="Asia/Qyzylorda">Asia/Qyzylorda</option><option value="Asia/Rangoon">Asia/Rangoon</option><option value="Asia/Riyadh">Asia/Riyadh</option><option value="Asia/Saigon">Asia/Saigon</option><option value="Asia/Sakhalin">Asia/Sakhalin</option><option value="Asia/Samarkand">Asia/Samarkand</option><option value="Asia/Seoul">Asia/Seoul</option><option value="Asia/Shanghai">Asia/Shanghai</option><option value="Asia/Singapore">Asia/Singapore</option><option value="Asia/Srednekolymsk">Asia/Srednekolymsk</option><option value="Asia/Taipei">Asia/Taipei</option><option value="Asia/Tashkent">Asia/Tashkent</option><option value="Asia/Tbilisi">Asia/Tbilisi</option><option value="Asia/Tehran">Asia/Tehran</option><option value="Asia/Tel_Aviv">Asia/Tel_Aviv</option><option value="Asia/Thimbu">Asia/Thimbu</option><option value="Asia/Thimphu">Asia/Thimphu</option><option value="Asia/Tokyo">Asia/Tokyo</option><option value="Asia/Tomsk">Asia/Tomsk</option><option value="Asia/Ujung_Pandang">Asia/Ujung_Pandang</option><option value="Asia/Ulaanbaatar">Asia/Ulaanbaatar</option><option value="Asia/Ulan_Bator">Asia/Ulan_Bator</option><option value="Asia/Urumqi">Asia/Urumqi</option><option value="Asia/Ust-Nera">Asia/Ust-Nera</option><option value="Asia/Vientiane">Asia/Vientiane</option><option value="Asia/Vladivostok">Asia/Vladivostok</option><option value="Asia/Yakutsk">Asia/Yakutsk</option><option value="Asia/Yangon">Asia/Yangon</option><option value="Asia/Yekaterinburg">Asia/Yekaterinburg</option><option value="Asia/Yerevan">Asia/Yerevan</option><option value="Atlantic/Azores">Atlantic/Azores</option><option value="Atlantic/Bermuda">Atlantic/Bermuda</option><option value="Atlantic/Canary">Atlantic/Canary</option><option value="Atlantic/Cape_Verde">Atlantic/Cape_Verde</option><option value="Atlantic/Faeroe">Atlantic/Faeroe</option><option value="Atlantic/Faroe">Atlantic/Faroe</option><option value="Atlantic/Jan_Mayen">Atlantic/Jan_Mayen</option><option value="Atlantic/Madeira">Atlantic/Madeira</option><option value="Atlantic/Reykjavik">Atlantic/Reykjavik</option><option value="Atlantic/South_Georgia">Atlantic/South_Georgia</option><option value="Atlantic/St_Helena">Atlantic/St_Helena</option><option value="Atlantic/Stanley">Atlantic/Stanley</option><option value="Australia/ACT">Australia/ACT</option><option value="Australia/Adelaide">Australia/Adelaide</option><option value="Australia/Brisbane">Australia/Brisbane</option><option value="Australia/Broken_Hill">Australia/Broken_Hill</option><option value="Australia/Canberra">Australia/Canberra</option><option value="Australia/Currie">Australia/Currie</option><option value="Australia/Darwin">Australia/Darwin</option><option value="Australia/Eucla">Australia/Eucla</option><option value="Australia/Hobart">Australia/Hobart</option><option value="Australia/LHI">Australia/LHI</option><option value="Australia/Lindeman">Australia/Lindeman</option><option value="Australia/Lord_Howe">Australia/Lord_Howe</option><option value="Australia/Melbourne">Australia/Melbourne</option><option value="Australia/NSW">Australia/NSW</option><option value="Australia/North">Australia/North</option><option value="Australia/Perth">Australia/Perth</option><option value="Australia/Queensland">Australia/Queensland</option><option value="Australia/South">Australia/South</option><option value="Australia/Sydney">Australia/Sydney</option><option value="Australia/Tasmania">Australia/Tasmania</option><option value="Australia/Victoria">Australia/Victoria</option><option value="Australia/West">Australia/West</option><option value="Australia/Yancowinna">Australia/Yancowinna</option><option value="Brazil/Acre">Brazil/Acre</option><option value="Brazil/DeNoronha">Brazil/DeNoronha</option><option value="Brazil/East">Brazil/East</option><option value="Brazil/West">Brazil/West</option><option value="CET">CET</option><option value="CST6CDT">CST6CDT</option><option value="Canada/Atlantic">Canada/Atlantic</option><option value="Canada/Central">Canada/Central</option><option value="Canada/Eastern">Canada/Eastern</option><option value="Canada/Mountain">Canada/Mountain</option><option value="Canada/Newfoundland">Canada/Newfoundland</option><option value="Canada/Pacific">Canada/Pacific</option><option value="Canada/Saskatchewan">Canada/Saskatchewan</option><option value="Canada/Yukon">Canada/Yukon</option><option value="Chile/Continental">Chile/Continental</option><option value="Chile/EasterIsland">Chile/EasterIsland</option><option value="Cuba">Cuba</option><option value="EET">EET</option><option value="EST">EST</option><option value="EST5EDT">EST5EDT</option><option value="Egypt">Egypt</option><option value="Eire">Eire</option><option value="Etc/GMT">Etc/GMT</option><option value="Etc/GMT+0">Etc/GMT+0</option><option value="Etc/GMT+1">Etc/GMT+1</option><option value="Etc/GMT+10">Etc/GMT+10</option><option value="Etc/GMT+11">Etc/GMT+11</option><option value="Etc/GMT+12">Etc/GMT+12</option><option value="Etc/GMT+2">Etc/GMT+2</option><option value="Etc/GMT+3">Etc/GMT+3</option><option value="Etc/GMT+4">Etc/GMT+4</option><option value="Etc/GMT+5">Etc/GMT+5</option><option value="Etc/GMT+6">Etc/GMT+6</option><option value="Etc/GMT+7">Etc/GMT+7</option><option value="Etc/GMT+8">Etc/GMT+8</option><option value="Etc/GMT+9">Etc/GMT+9</option><option value="Etc/GMT-0">Etc/GMT-0</option><option value="Etc/GMT-1">Etc/GMT-1</option><option value="Etc/GMT-10">Etc/GMT-10</option><option value="Etc/GMT-11">Etc/GMT-11</option><option value="Etc/GMT-12">Etc/GMT-12</option><option value="Etc/GMT-13">Etc/GMT-13</option><option value="Etc/GMT-14">Etc/GMT-14</option><option value="Etc/GMT-2">Etc/GMT-2</option><option value="Etc/GMT-3">Etc/GMT-3</option><option value="Etc/GMT-4">Etc/GMT-4</option><option value="Etc/GMT-5">Etc/GMT-5</option><option value="Etc/GMT-6">Etc/GMT-6</option><option value="Etc/GMT-7">Etc/GMT-7</option><option value="Etc/GMT-8">Etc/GMT-8</option><option value="Etc/GMT-9">Etc/GMT-9</option><option value="Etc/GMT0">Etc/GMT0</option><option value="Etc/Greenwich">Etc/Greenwich</option><option value="Etc/UCT">Etc/UCT</option><option value="Etc/UTC">Etc/UTC</option><option value="Etc/Universal">Etc/Universal</option><option value="Etc/Zulu">Etc/Zulu</option><option value="Europe/Amsterdam">Europe/Amsterdam</option><option value="Europe/Andorra">Europe/Andorra</option><option value="Europe/Astrakhan">Europe/Astrakhan</option><option value="Europe/Athens">Europe/Athens</option><option value="Europe/Belfast">Europe/Belfast</option><option value="Europe/Belgrade">Europe/Belgrade</option><option value="Europe/Berlin">Europe/Berlin</option><option value="Europe/Bratislava">Europe/Bratislava</option><option value="Europe/Brussels">Europe/Brussels</option><option value="Europe/Bucharest">Europe/Bucharest</option><option value="Europe/Budapest">Europe/Budapest</option><option value="Europe/Busingen">Europe/Busingen</option><option value="Europe/Chisinau">Europe/Chisinau</option><option value="Europe/Copenhagen">Europe/Copenhagen</option><option value="Europe/Dublin">Europe/Dublin</option><option value="Europe/Gibraltar">Europe/Gibraltar</option><option value="Europe/Guernsey">Europe/Guernsey</option><option value="Europe/Helsinki">Europe/Helsinki</option><option value="Europe/Isle_of_Man">Europe/Isle_of_Man</option><option value="Europe/Istanbul">Europe/Istanbul</option><option value="Europe/Jersey">Europe/Jersey</option><option value="Europe/Kaliningrad">Europe/Kaliningrad</option><option value="Europe/Kiev">Europe/Kiev</option><option value="Europe/Kirov">Europe/Kirov</option><option value="Europe/Kyiv">Europe/Kyiv</option><option value="Europe/Lisbon">Europe/Lisbon</option><option value="Europe/Ljubljana">Europe/Ljubljana</option><option value="Europe/London">Europe/London</option><option value="Europe/Luxembourg">Europe/Luxembourg</option><option value="Europe/Madrid">Europe/Madrid</option><option value="Europe/Malta">Europe/Malta</option><option value="Europe/Mariehamn">Europe/Mariehamn</option><option value="Europe/Minsk">Europe/Minsk</option><option value="Europe/Monaco">Europe/Monaco</option><option value="Europe/Moscow">Europe/Moscow</option><option value="Europe/Nicosia">Europe/Nicosia</option><option value="Europe/Oslo">Europe/Oslo</option><option value="Europe/Paris">Europe/Paris</option><option value="Europe/Podgorica">Europe/Podgorica</option><option value="Europe/Prague">Europe/Prague</option><option value="Europe/Riga">Europe/Riga</option><option value="Europe/Rome">Europe/Rome</option><option value="Europe/Samara">Europe/Samara</option><option value="Europe/San_Marino">Europe/San_Marino</option><option value="Europe/Sarajevo">Europe/Sarajevo</option><option value="Europe/Saratov">Europe/Saratov</option><option value="Europe/Simferopol">Europe/Simferopol</option><option value="Europe/Skopje">Europe/Skopje</option><option value="Europe/Sofia">Europe/Sofia</option><option value="Europe/Stockholm">Europe/Stockholm</option><option value="Europe/Tallinn">Europe/Tallinn</option><option value="Europe/Tirane">Europe/Tirane</option><option value="Europe/Tiraspol">Europe/Tiraspol</option><option value="Europe/Ulyanovsk">Europe/Ulyanovsk</option><option value="Europe/Uzhgorod">Europe/Uzhgorod</option><option value="Europe/Vaduz">Europe/Vaduz</option><option value="Europe/Vatican">Europe/Vatican</option><option value="Europe/Vienna">Europe/Vienna</option><option value="Europe/Vilnius">Europe/Vilnius</option><option value="Europe/Volgograd">Europe/Volgograd</option><option value="Europe/Warsaw">Europe/Warsaw</option><option value="Europe/Zagreb">Europe/Zagreb</option><option value="Europe/Zaporozhye">Europe/Zaporozhye</option><option value="Europe/Zurich">Europe/Zurich</option><option value="Factory">Factory</option><option value="GB">GB</option><option value="GB-Eire">GB-Eire</option><option value="GMT">GMT</option><option value="GMT+0">GMT+0</option><option value="GMT-0">GMT-0</option><option value="GMT0">GMT0</option><option value="Greenwich">Greenwich</option><option value="HST">HST</option><option value="Hongkong">Hongkong</option><option value="Iceland">Iceland</option><option value="Indian/Antananarivo">Indian/Antananarivo</option><option value="Indian/Chagos">Indian/Chagos</option><option value="Indian/Christmas">Indian/Christmas</option><option value="Indian/Cocos">Indian/Cocos</option><option value="Indian/Comoro">Indian/Comoro</option><option value="Indian/Kerguelen">Indian/Kerguelen</option><option value="Indian/Mahe">Indian/Mahe</option><option value="Indian/Maldives">Indian/Maldives</option><option value="Indian/Mauritius">Indian/Mauritius</option><option value="Indian/Mayotte">Indian/Mayotte</option><option value="Indian/Reunion">Indian/Reunion</option><option value="Iran">Iran</option><option value="Israel">Israel</option><option value="Jamaica">Jamaica</option><option value="Japan">Japan</option><option value="Kwajalein">Kwajalein</option><option value="Libya">Libya</option><option value="MET">MET</option><option value="MST">MST</option><option value="MST7MDT">MST7MDT</option><option value="Mexico/BajaNorte">Mexico/BajaNorte</option><option value="Mexico/BajaSur">Mexico/BajaSur</option><option value="Mexico/General">Mexico/General</option><option value="NZ">NZ</option><option value="NZ-CHAT">NZ-CHAT</option><option value="Navajo">Navajo</option><option value="PRC">PRC</option><option value="PST8PDT">PST8PDT</option><option value="Pacific/Apia">Pacific/Apia</option><option value="Pacific/Auckland">Pacific/Auckland</option><option value="Pacific/Bougainville">Pacific/Bougainville</option><option value="Pacific/Chatham">Pacific/Chatham</option><option value="Pacific/Chuuk">Pacific/Chuuk</option><option value="Pacific/Easter">Pacific/Easter</option><option value="Pacific/Efate">Pacific/Efate</option><option value="Pacific/Enderbury">Pacific/Enderbury</option><option value="Pacific/Fakaofo">Pacific/Fakaofo</option><option value="Pacific/Fiji">Pacific/Fiji</option><option value="Pacific/Funafuti">Pacific/Funafuti</option><option value="Pacific/Galapagos">Pacific/Galapagos</option><option value="Pacific/Gambier">Pacific/Gambier</option><option value="Pacific/Guadalcanal">Pacific/Guadalcanal</option><option value="Pacific/Guam">Pacific/Guam</option><option value="Pacific/Honolulu">Pacific/Honolulu</option><option value="Pacific/Johnston">Pacific/Johnston</option><option value="Pacific/Kanton">Pacific/Kanton</option><option value="Pacific/Kiritimati">Pacific/Kiritimati</option><option value="Pacific/Kosrae">Pacific/Kosrae</option><option value="Pacific/Kwajalein">Pacific/Kwajalein</option><option value="Pacific/Majuro">Pacific/Majuro</option><option value="Pacific/Marquesas">Pacific/Marquesas</option><option value="Pacific/Midway">Pacific/Midway</option><option value="Pacific/Nauru">Pacific/Nauru</option><option value="Pacific/Niue">Pacific/Niue</option><option value="Pacific/Norfolk">Pacific/Norfolk</option><option value="Pacific/Noumea">Pacific/Noumea</option><option value="Pacific/Pago_Pago">Pacific/Pago_Pago</option><option value="Pacific/Palau">Pacific/Palau</option><option value="Pacific/Pitcairn">Pacific/Pitcairn</option><option value="Pacific/Pohnpei">Pacific/Pohnpei</option><option value="Pacific/Ponape">Pacific/Ponape</option><option value="Pacific/Port_Moresby">Pacific/Port_Moresby</option><option value="Pacific/Rarotonga">Pacific/Rarotonga</option><option value="Pacific/Saipan">Pacific/Saipan</option><option value="Pacific/Samoa">Pacific/Samoa</option><option value="Pacific/Tahiti">Pacific/Tahiti</option><option value="Pacific/Tarawa">Pacific/Tarawa</option><option value="Pacific/Tongatapu">Pacific/Tongatapu</option><option value="Pacific/Truk">Pacific/Truk</option><option value="Pacific/Wake">Pacific/Wake</option><option value="Pacific/Wallis">Pacific/Wallis</option><option value="Pacific/Yap">Pacific/Yap</option><option value="Poland">Poland</option><option value="Portugal">Portugal</option><option value="ROC">ROC</option><option value="ROK">ROK</option><option value="Singapore">Singapore</option><option value="Turkey">Turkey</option><option value="UCT">UCT</option><option value="US/Alaska">US/Alaska</option><option value="US/Aleutian">US/Aleutian</option><option value="US/Arizona">US/Arizona</option><option value="US/Central">US/Central</option><option value="US/East-Indiana">US/East-Indiana</option><option value="US/Eastern">US/Eastern</option><option value="US/Hawaii">US/Hawaii</option><option value="US/Indiana-Starke">US/Indiana-Starke</option><option value="US/Michigan">US/Michigan</option><option value="US/Mountain">US/Mountain</option><option value="US/Pacific">US/Pacific</option><option value="US/Samoa">US/Samoa</option><option value="UTC">UTC</option><option value="Universal">Universal</option><option value="W-SU">W-SU</option><option value="WET">WET</option><option value="Zulu">Zulu</option><option value="localtime">localtime</option></datalist>
+            </li>
+        </ul>
+    <br>
+        <span class="pure-form-message-inline">
+         <a href="https://changedetection.io/tutorial/checking-web-pages-changes-according-schedule">More help and examples about using the scheduler</a>
+        </span>
+    </div>
+    
+
+
+                            </div>
+                        </div>
+<br>
+              </div>
+
+                    <div class="pure-control-group">
+                        
+  <div class="checkbox ">
+  <input checked id="filter_failure_notification_send" name="filter_failure_notification_send" type="checkbox" value="y"> <label for="filter_failure_notification_send">Send a notification when the filter can no longer be found on the page</label>
+  
+  </div>
+
+                        <span class="pure-form-message-inline">
+                         Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and your filter will not work anymore.
+                        </span>
+                    </div>
+                    <div class="pure-control-group">
+                        
+    <div ><label for="history_snapshot_max_length">Number of history items per watch to keep</label></div>
+    <div ><input class="history_snapshot_max_length" id="history_snapshot_max_length" min="2" name="history_snapshot_max_length" style="width: 5em;" type="number" value="">
+        
+        
+    </div>
+
+                        <span class="pure-form-message-inline">Limit collection of history snapshots for each watch to this number of history items.
+                        <br>
+                        Set to empty to use system settings default
+                        </span>
+                    </div>
+                    <div class="pure-control-group">
+                        
+  
+  <div class="ternary-field ">
+    <div class="ternary-field-label"><label for="use_page_title_in_list">Use page &lt;title&gt; in list</label></div>
+    <div class="ternary-field-widget"><div class="ternary-radio-group pure-form">
+            <label class="ternary-radio-option">
+                <input type="radio" name="use_page_title_in_list" value="true" id="use_page_title_in_list_true" class="pure-radio">
+                <span class="ternary-radio-label pure-button-primary">Yes</span>
+            </label>
+        
+            <label class="ternary-radio-option">
+                <input type="radio" name="use_page_title_in_list" value="false" id="use_page_title_in_list_false" class="pure-radio">
+                <span class="ternary-radio-label">No</span>
+            </label>
+        
+                <label class="ternary-radio-option">
+                    <input type="radio" name="use_page_title_in_list" value="none" id="use_page_title_in_list_none" checked class="pure-radio">
+                    <span class="ternary-radio-label ternary-default">Main settings</span>
+                </label>
+            </div></div>
+    
+  </div>
+
+                    </div>
+                </fieldset>
+            </div>
+
+            
+            <div class="tab-pane-inner" id="request">
+                    <div class="pure-control-group inline-radio">
+                        
+    <div ><label for="fetch_backend">Fetch Method</label></div>
+    <div ><ul class="fetch-backend" id="fetch_backend"><li><input id="fetch_backend-0" name="fetch_backend" type="radio" value="html_requests"> <label for="fetch_backend-0">Basic fast Plaintext/HTTP Client</label></li><li><input checked id="fetch_backend-1" name="fetch_backend" type="radio" value="html_webdriver"> <label for="fetch_backend-1">Playwright Chromium/Javascript via &#39;ws://sockpuppetbrowser:3000&#39;</label></li><li><input id="fetch_backend-2" name="fetch_backend" type="radio" value="system"> <label for="fetch_backend-2">System settings default</label></li></ul>
+        
+        
+    </div>
+
+                        <span class="pure-form-message-inline">
+                            <p>Use the <strong>Basic</strong> method (default) where your watched sites don't need Javascript to render.</p>
+                            <p>The <strong>Chrome/Javascript</strong> method requires a network connection to a running WebDriver+Chrome server, set by the ENV var 'WEBDRIVER_URL'.</p>
+                            Tip: <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Proxy-configuration#brightdata-proxy-support">Connect using Bright Data and Oxylabs Proxies, find out more here.</a>
+                        </span>
+                    </div>
+                
+
+                <!-- webdriver always -->
+                <fieldset data-visible-for="fetch_backend=html_webdriver"  style="display: none;">
+                    <div class="pure-control-group">
+                        
+    <div ><label for="webdriver_delay">Wait seconds before extracting text</label></div>
+    <div ><input id="webdriver_delay" min="1" name="webdriver_delay" type="number" value="">
+        
+        
+    </div>
+
+                        <div class="pure-form-message-inline">
+                            <strong>If you&#39;re having trouble waiting for the page to be fully rendered (text missing etc), try increasing the &#39;wait&#39; time here.</strong>
+                            <br>
+                            This will wait <i>n</i> seconds before extracting the text.
+                            
+                            <br><strong>Using the current global default settings</strong>
+                            
+                        </div>
+                    </div>
+                    <div class="pure-control-group">
+                        <a class="pure-button button-secondary button-xsmall show-advanced">Show advanced options</a>
+                    </div>
+                    <div class="advanced-options"  style="display: none;">
+                        
+    <div ><label for="webdriver_js_execute_code">Execute JavaScript before change detection</label></div>
+    <div ><textarea id="webdriver_js_execute_code" name="webdriver_js_execute_code" rows="5">
+</textarea>
+        
+        
+    </div>
+
+                        <div class="pure-form-message-inline">
+                            Run this code before performing change detection, handy for filling in fields and other actions <a
+                                href="https://github.com/dgtlmoon/changedetection.io/wiki/Run-JavaScript-before-change-detection">More help and examples here</a>
+                        </div>
+                    </div>
+                </fieldset>
+                <!-- html requests always -->
+                <fieldset data-visible-for="fetch_backend=html_requests">
+                    <div class="pure-control-group">
+                        <a class="pure-button button-secondary button-xsmall show-advanced">Show advanced options</a>
+                    </div>
+                    <div class="advanced-options"  style="display: none;">
+                        <div class="pure-control-group" id="request-method">
+                            
+    <div ><label for="method">Request method</label></div>
+    <div ><select id="method" name="method"><option value="POST">POST</option><option value="DELETE">DELETE</option><option value="OPTIONS">OPTIONS</option><option value="PATCH">PATCH</option><option value="PUT">PUT</option><option selected value="GET">GET</option></select>
+        
+        
+    </div>
+
+                        </div>
+                        <div id="request-body">
+                                            
+    <div ><label for="body">Request body</label></div>
+    <div ><textarea id="body" name="body" placeholder="Example
+{
+   &#34;name&#34;:&#34;John&#34;,
+   &#34;age&#34;:30,
+   &#34;car&#34;:null,
+   &#34;year&#34;:{% now &#39;Europe/Berlin&#39;, &#39;%Y&#39; %}
+}" rows="7">
+</textarea>
+        
+        
+    </div>
+
+                        </div>
+                        <div class="pure-form-message">Variables are supported in the request body (<a href="https://github.com/dgtlmoon/changedetection.io/wiki/Handling-variables-in-the-watched-URL">help and examples here</a>).</div>
+                    </div>
+                </fieldset>
+            <!-- hmm -->
+                <div class="pure-control-group advanced-options"  style="display: none;">
+                    
+    <div ><label for="headers">Request headers</label></div>
+    <div ><textarea id="headers" name="headers" placeholder="Example
+Cookie: foobar
+User-Agent: wonderbra 1.0
+Math: {{ 1 + 1 }}" rows="7">
+</textarea>
+        
+        
+    </div>
+
+                        <div class="pure-form-message">Variables are supported in the request header values (<a href="https://github.com/dgtlmoon/changedetection.io/wiki/Handling-variables-in-the-watched-URL">help and examples here</a>).</div>
+                        <div class="pure-form-message-inline">
+                            
+                                Headers can be also read from a file in your data-directory <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Adding-headers-from-an-external-file">Read more here</a>
+                            
+                            <br>
+                            (Not supported by Selenium browser)
+                        </div>
+                    </div>
+            <fieldset data-visible-for="fetch_backend=html_requests fetch_backend=html_webdriver" >
+                    <div class="pure-control-group inline-radio advanced-options"  style="display: none;">
+                    
+  <div class="checkbox ">
+  <input id="ignore_status_codes" name="ignore_status_codes" type="checkbox" value="y"> <label for="ignore_status_codes">Ignore status codes (process non-2xx status codes as normal)</label>
+  
+  </div>
+
+                    </div>
+            </fieldset>
+            </div>
+            
+
+            <div class="tab-pane-inner" id="browser-steps">
+            
+               
+                <img class="beta-logo" src="/static/images/beta-logo.png" alt="New beta functionality">
+                <fieldset>
+                    <div class="pure-control-group">
+                        <!--
+                        Too hard right now, better to just send the events to the fetcher for now and leave it in the final screenshot
+                        and/or report an error
+                        <a id="play-steps" class="pure-button button-secondary button-xsmall" style="font-size: 70%">Play steps  ▶</a>
+                        -->
+
+                        <!---  Do this later -->
+                        <div class="checkbox" style="display: none;">
+                            <input type=checkbox id="include_text_elements" > <label for="include_text_elements">Turn on text finder</label>
+                        </div>
+
+                        <div id="loading-status-text" style="display: none;">Please wait, first browser step can take a little time to load..<div class="spinner"></div></div>
+                        <div class="flex-wrapper" >
+
+                            <div id="browser-steps-ui" class="noselect">
+                                <div class="noselect"  id="browsersteps-selector-wrapper" style="width: 100%">
+                                    <span class="loader" >
+                                        <span id="browsersteps-click-start">
+                                            <h2 >Click here to Start</h2>
+                                            <svg style="height: 3.5rem;" version="1.1" viewBox="0 0 32 32"  xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="start"/><g id="play_x5F_alt"><path d="M16,0C7.164,0,0,7.164,0,16s7.164,16,16,16s16-7.164,16-16S24.836,0,16,0z M10,24V8l16.008,8L10,24z" style="fill: var(--color-grey-400);"/></g></svg><br>
+                                            Please allow 10-15 seconds for the browser to connect.<br>
+                                        </span>
+                                        <div class="spinner"  style="display: none;"></div>
+                                    </span>
+                                    <img class="noselect" id="browsersteps-img" src="" style="max-width: 100%; width: 100%;" >
+                                    <canvas  class="noselect" id="browsersteps-selector-canvas" style="max-width: 100%; width: 100%;"></canvas>
+                                </div>
+                            </div>
+                            <div id="browser-steps-fieldlist" >
+                                <span id="browser-seconds-remaining">Press &#34;Play&#34; to start.</span> <span style="font-size: 80%;"> (<a target="newwindow" href="https://github.com/dgtlmoon/changedetection.io/pull/478/files#diff-1a79d924d1840c485238e66772391268a89c95b781d69091384cf1ea1ac146c9R4">?</a>) </span>
+                                
+    <div ><label for="browser_steps">Browser Steps</label></div>
+    <div ><ul id="browser_steps"><li><label for="browser_steps-0">Browser Steps-0</label> <table id="browser_steps-0"><tr><th><label for="browser_steps-0-operation">Operation</label></th><td><select id="browser_steps-0-operation" name="browser_steps-0-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-0-selector">Selector</label></th><td><input id="browser_steps-0-selector" name="browser_steps-0-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-0-optional_value">value</label></th><td><input id="browser_steps-0-optional_value" name="browser_steps-0-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-1">Browser Steps-1</label> <table id="browser_steps-1"><tr><th><label for="browser_steps-1-operation">Operation</label></th><td><select id="browser_steps-1-operation" name="browser_steps-1-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-1-selector">Selector</label></th><td><input id="browser_steps-1-selector" name="browser_steps-1-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-1-optional_value">value</label></th><td><input id="browser_steps-1-optional_value" name="browser_steps-1-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-2">Browser Steps-2</label> <table id="browser_steps-2"><tr><th><label for="browser_steps-2-operation">Operation</label></th><td><select id="browser_steps-2-operation" name="browser_steps-2-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-2-selector">Selector</label></th><td><input id="browser_steps-2-selector" name="browser_steps-2-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-2-optional_value">value</label></th><td><input id="browser_steps-2-optional_value" name="browser_steps-2-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-3">Browser Steps-3</label> <table id="browser_steps-3"><tr><th><label for="browser_steps-3-operation">Operation</label></th><td><select id="browser_steps-3-operation" name="browser_steps-3-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-3-selector">Selector</label></th><td><input id="browser_steps-3-selector" name="browser_steps-3-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-3-optional_value">value</label></th><td><input id="browser_steps-3-optional_value" name="browser_steps-3-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-4">Browser Steps-4</label> <table id="browser_steps-4"><tr><th><label for="browser_steps-4-operation">Operation</label></th><td><select id="browser_steps-4-operation" name="browser_steps-4-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-4-selector">Selector</label></th><td><input id="browser_steps-4-selector" name="browser_steps-4-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-4-optional_value">value</label></th><td><input id="browser_steps-4-optional_value" name="browser_steps-4-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-5">Browser Steps-5</label> <table id="browser_steps-5"><tr><th><label for="browser_steps-5-operation">Operation</label></th><td><select id="browser_steps-5-operation" name="browser_steps-5-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-5-selector">Selector</label></th><td><input id="browser_steps-5-selector" name="browser_steps-5-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-5-optional_value">value</label></th><td><input id="browser_steps-5-optional_value" name="browser_steps-5-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-6">Browser Steps-6</label> <table id="browser_steps-6"><tr><th><label for="browser_steps-6-operation">Operation</label></th><td><select id="browser_steps-6-operation" name="browser_steps-6-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-6-selector">Selector</label></th><td><input id="browser_steps-6-selector" name="browser_steps-6-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-6-optional_value">value</label></th><td><input id="browser_steps-6-optional_value" name="browser_steps-6-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-7">Browser Steps-7</label> <table id="browser_steps-7"><tr><th><label for="browser_steps-7-operation">Operation</label></th><td><select id="browser_steps-7-operation" name="browser_steps-7-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-7-selector">Selector</label></th><td><input id="browser_steps-7-selector" name="browser_steps-7-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-7-optional_value">value</label></th><td><input id="browser_steps-7-optional_value" name="browser_steps-7-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-8">Browser Steps-8</label> <table id="browser_steps-8"><tr><th><label for="browser_steps-8-operation">Operation</label></th><td><select id="browser_steps-8-operation" name="browser_steps-8-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-8-selector">Selector</label></th><td><input id="browser_steps-8-selector" name="browser_steps-8-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-8-optional_value">value</label></th><td><input id="browser_steps-8-optional_value" name="browser_steps-8-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li><li><label for="browser_steps-9">Browser Steps-9</label> <table id="browser_steps-9"><tr><th><label for="browser_steps-9-operation">Operation</label></th><td><select id="browser_steps-9-operation" name="browser_steps-9-operation"><option value="Choose one">Choose one</option><option value="Check checkbox">Check checkbox</option><option value="Click X,Y">Click X,Y</option><option value="Click element if exists">Click element if exists</option><option value="Click element">Click element</option><option value="Click element containing text">Click element containing text</option><option value="Click element containing text if exists">Click element containing text if exists</option><option value="Enter text in field">Enter text in field</option><option value="Execute JS">Execute JS</option><option value="Goto site">Goto site</option><option value="Goto URL">Goto URL</option><option value="Make all child elements visible">Make all child elements visible</option><option value="Press Enter">Press Enter</option><option value="Select by label">Select by label</option><option value="&lt;select&gt; by option text">&lt;select&gt; by option text</option><option value="Scroll down">Scroll down</option><option value="Uncheck checkbox">Uncheck checkbox</option><option value="Wait for seconds">Wait for seconds</option><option value="Wait for text">Wait for text</option><option value="Wait for text in element">Wait for text in element</option><option value="Remove elements">Remove elements</option></select></td></tr><tr><th><label for="browser_steps-9-selector">Selector</label></th><td><input id="browser_steps-9-selector" name="browser_steps-9-selector" placeholder="CSS or xPath selector" type="text" value=""></td></tr><tr><th><label for="browser_steps-9-optional_value">value</label></th><td><input id="browser_steps-9-optional_value" name="browser_steps-9-optional_value" placeholder="Value" type="text" value=""></td></tr></table></li></ul>
+        
+        
+    </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+                
+            
+            </div>
+
+
+            <div class="tab-pane-inner" id="notifications">
+                <fieldset>
+                    <div  class="pure-control-group inline-radio">
+                      
+  
+    
+  
+  <div class="ternary-field ">
+    <div class="ternary-field-label"><label for="notification_muted">Notifications</label></div>
+    <div class="ternary-field-widget"><div class="ternary-radio-group pure-form">
+            <label class="ternary-radio-option">
+                <input type="radio" name="notification_muted" value="true" id="notification_muted_true" class="pure-radio">
+                <span class="ternary-radio-label pure-button-primary">Muted</span>
+            </label>
+        
+            <label class="ternary-radio-option">
+                <input type="radio" name="notification_muted" value="false" id="notification_muted_false" checked class="pure-radio">
+                <span class="ternary-radio-label">On</span>
+            </label>
+        </div></div>
+    
+  </div>
+
+                    </div>
+                    
+                    <div class="pure-control-group inline-radio">
+                      
+  <div class="checkbox ">
+  <input id="notification_screenshot" name="notification_screenshot" type="checkbox" value="y"> <label for="notification_screenshot">Attach screenshot to notification (where possible)</label>
+  
+  </div>
+
+                        <span class="pure-form-message-inline">
+                            <strong>Use with caution!</strong> This will easily fill up your email storage quota or flood other storages.
+                        </span>
+                    </div>
+                    
+                    <div class="field-group" id="notification-field-group">
+                        
+                        <div class="inline-warning">
+                            <img class="inline-warning-icon" src="/static/images/notice.svg" alt="Look out!" title="Lookout!" >
+                            There are <a href="/settings#notifications">system-wide notification URLs enabled</a>, this form will override notification settings for this watch only &dash; an empty Notification URL list here will still send notifications.
+                        </div>
+                        
+                        <a href="#notifications" id="notification-setting-reset-to-default" class="pure-button button-xsmall" style="right: 20px; top: 20px; position: absolute; background-color: #5f42dd; border-radius: 4px; font-size: 70%; color: #fff">Use system defaults</a>
+                        
+                        <div class="pure-control-group">
+                            
+    <div ><label for="notification_urls">Notification URL List</label></div>
+    <div ><textarea class="notification-urls" id="notification_urls" name="notification_urls" placeholder="Examples:
+    Gitter - gitter://token/room
+    Office365 - o365://TenantID:AccountEmail/ClientID/ClientSecret/TargetEmail
+    AWS SNS - sns://AccessKeyID/AccessSecretKey/RegionName/+PhoneNo
+    SMTPS - mailtos://user:pass@mail.domain.com?to=receivingAddress@example.com" rows="5">
+</textarea>
+        
+        
+    </div>
+
+                            <div class="pure-form-message-inline">
+                                <p>
+                                <strong>Tip:</strong> Use <a target="newwindow" href="https://github.com/caronc/apprise">AppRise Notification URLs</a> for notification to just about any service! <a target="newwindow" href="https://github.com/dgtlmoon/changedetection.io/wiki/Notification-configuration-notes"><i>Please read the notification services wiki here for important configuration notes</i></a>.<br>
+</p>
+                                <div data-target="#advanced-help-notifications" class="toggle-show pure-button button-tag button-xsmall">Show advanced help and tips</div>
+                                <ul style="display: none" id="advanced-help-notifications">
+                                <li><code><a target="newwindow" href="https://github.com/caronc/apprise/wiki/Notify_discord">discord://</a></code> (or <code>https://discord.com/api/webhooks...</code>)) only supports a maximum <strong>2,000 characters</strong> of notification text, including the title.</li>
+                                <li><code><a target="newwindow" href="https://github.com/caronc/apprise/wiki/Notify_telegram">tgram://</a></code> bots can&#39;t send messages to other bots, so you should specify chat ID of non-bot user.</li>
+                                <li><code><a target="newwindow" href="https://github.com/caronc/apprise/wiki/Notify_telegram">tgram://</a></code> only supports very limited HTML and can fail when extra tags are sent, <a href="https://core.telegram.org/bots/api#html-style">read more here</a> (or use plaintext/markdown format)</li>
+                                <li><code>gets://</code>, <code>posts://</code>, <code>puts://</code>, <code>deletes://</code> for direct API calls (or omit the "<code>s</code>" for non-SSL ie <code>get://</code>) <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Notification-configuration-notes#postposts">more help here</a></li>
+                                  <li>Accepts the <code>{{token}}</code> placeholders listed below</li>
+                              </ul>
+                            </div>
+                            <div class="notifications-wrapper">
+                              <a id="send-test-notification" class="pure-button button-secondary button-xsmall" >Send test notification</a> <div class="spinner"  style="display: none;"></div>
+                            
+                              <a href="/settings/notification-logs" class="pure-button button-secondary button-xsmall" >Notification debug logs</a>
+                              <br>
+                                <div id="notification-test-log" style="display: none;"><span class="pure-form-message-inline">Processing..</span></div>
+                            </div>
+                        </div>
+
+                        <div class="pure-control-group grey-form-border">
+                            <div class="pure-control-group">
+                                
+    <div ><label for="notification_title">Notification Title</label></div>
+    <div ><input class="m-d notification-title" id="notification_title" name="notification_title" placeholder="ChangeDetection.io Notification" type="text" value="Init7 Maintenance Alert - Agno/6982">
+        
+        
+    </div>
+
+                                <span class="pure-form-message-inline">Title for all notifications</span>
+                            </div>
+                            <div class="pure-control-group">
+                                
+    <div ><label for="notification_body">Notification Body</label></div>
+    <div ><textarea class="notification-body" id="notification_body" name="notification_body" placeholder="## [{{ watch_title }}]({{ watch_url }})
+
+A change was detected.
+
+&gt; [**&gt;&gt; View Change Diff &lt;&lt;**]({{ diff_url }})
+{{preview_url}}" rows="5">
+{{ triggered_text }}
+
+Ticket link: https://www.init7.net/en/support/faq/status-info?ticket={{ triggered_text | regex_replace(&#39;[\s\S]*?#&#39;, &#39;&#39;) | regex_replace(&#39;[^0-9][\s\S]*$&#39;, &#39;&#39;) }}</textarea>
+        
+        
+    </div>
+
+                                
+
+
+    <div class="pure-controls">
+            <span class="pure-form-message-inline">
+        Body for all notifications — You can use <a target="newwindow" href="https://jinja.palletsprojects.com/en/3.0.x/templates/">Jinja2</a> templating in the notification title, body and URL, and tokens from below.
+    </span><br>
+        <div data-target="#notification-tokens-info" class="toggle-show pure-button button-tag button-xsmall">Show token/placeholders
+        </div>
+    </div>
+    <div class="pure-controls" style="display: none;" id="notification-tokens-info">
+        <table class="pure-table" id="token-table">
+            <thead>
+            <tr>
+                <th>Token</th>
+                <th>Description</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>{{base_url}}</code></td>
+                <td>The URL of the changedetection.io instance you are running.</td>
+            </tr>
+            <tr>
+                <td><code>{{watch_url}}</code></td>
+                <td>The URL being watched.</td>
+            </tr>
+            <tr>
+                <td><code>{{watch_uuid}}</code></td>
+                <td>The UUID of the watch.</td>
+            </tr>
+            <tr>
+                <td><code>{{watch_title}}</code></td>
+                <td>The page title of the watch, uses &lt;title&gt; if not set, falls back to URL</td>
+            </tr>
+            <tr>
+                <td><code>{{watch_tag}}</code></td>
+                <td>The watch group / tag</td>
+            </tr>
+            <tr>
+                <td><code>{{preview_url}}</code></td>
+                <td>The URL of the preview page generated by changedetection.io.</td>
+            </tr>
+            <tr>
+                <td><code>{{change_datetime}}</code></td>
+                <td>Date/time of the change, accepts format=, change_datetime(format=&#39;%A&#39;), default is &#39;%Y-%m-%d %H:%M:%S %Z&#39;</td>
+            </tr>
+            <tr>
+                <td><code>{{diff_url}}</code></td>
+                <td>The URL of the diff output for the watch.</td>
+            </tr>
+            <tr>
+                <td><code>{{diff}}</code></td>
+                <td>The diff output - only changes, additions, and removals<br>
+                    <small>
+                        All diff variants accept <code>lines=</code>, <code>context=</code>, <code>word_diff=</code>, <code>ignore_junk=</code> args, e.g.
+                        <code>{{diff(lines=10)}}</code>, <code>{{diff_added(lines=5, context=2)}}</code>
+                    </small>
+                </td>
+            </tr>
+            <tr>
+                <td><code>{{diff_clean}}</code></td>
+                <td>The diff output - only changes, additions, and removals — <i>Without (added) prefix or colors</i>
+                </td>
+            </tr>
+            <tr>
+                <td><code>{{diff_added}}</code></td>
+                <td>The diff output - only changes and additions</td>
+            </tr>
+            <tr>
+                <td><code>{{diff_added_clean}}</code></td>
+                <td>The diff output - only changes and additions — <i>Without (added) prefix or colors</i></td>
+            </tr>
+            <tr>
+                <td><code>{{diff_removed}}</code></td>
+                <td>The diff output - only changes and removals</td>
+            </tr>
+            <tr>
+                <td><code>{{diff_removed_clean}}</code></td>
+                <td>The diff output - only changes and removals — <i>Without (added) prefix or colors</i></td>
+            </tr>
+            <tr>
+                <td><code>{{diff_full}}</code></td>
+                <td>The diff output - full difference output</td>
+            </tr>
+            <tr>
+                <td><code>{{diff_full_clean}}</code></td>
+                <td>The diff output - full difference output — <i>Without (added) prefix or colors</i></td>
+            </tr>
+            <tr>
+                <td><code>{{diff_patch}}</code></td>
+                <td>The diff output - patch in unified format</td>
+            </tr>
+            <tr>
+                <td><code>{{diff_changed_from}}</code></td>
+                <td>Only the changed words/values from the previous version — e.g. the old price. Best when a single value changes per line; multiple changed fragments are joined by newline.</td>
+            </tr>
+            <tr>
+                <td><code>{{diff_changed_to}}</code></td>
+                <td>Only the changed words/values from the new version — e.g. the new price. Best when a single value changes per line; multiple changed fragments are joined by newline.</td>
+            </tr>
+            <tr>
+                <td><code>{{current_snapshot}}</code></td>
+                <td>The current snapshot text contents value, useful when combined with JSON or CSS filters
+                </td>
+            </tr>
+            <tr>
+                <td><code>{{triggered_text}}</code></td>
+                <td>Text that tripped the trigger from filters</td>
+            </tr>
+            
+                
+            </tbody>
+        </table>
+
+        <span class="pure-form-message-inline">
+        Warning: Contents of <code>{{diff}}</code>, <code>{{diff_removed}}</code>, and <code>{{diff_added}}</code> depend on how the difference algorithm perceives the change. <br>
+        For example, an addition or removal could be perceived as a change in some cases. <a target="newwindow" href="https://github.com/dgtlmoon/changedetection.io/wiki/Using-the-%7B%7Bdiff%7D%7D,-%7B%7Bdiff_added%7D%7D,-and-%7B%7Bdiff_removed%7D%7D-notification-tokens">More Here</a> <br>
+        </span>
+    </div>
+
+                                <div class="pure-form-message-inline">
+                                    <ul>
+                                    <li><span class="pure-form-message-inline">
+                                        For JSON payloads, use <strong>|tojson</strong> without quotes for automatic escaping, for example - <code>{ "name": {{ watch_title|tojson }} }</code>
+                                    </span></li>
+                                    <li><span class="pure-form-message-inline">
+                                        URL encoding, use <strong>|urlencode</strong>, for example - <code>gets://hook-website.com/test.php?title={{ watch_title|urlencode }}</code>
+                                    </span></li>
+                                    <li><span class="pure-form-message-inline">
+                                        Regular-expression replace, use <strong>|regex_replace</strong>, for example -   <code>{{ &#34;hello world 123&#34; | regex_replace(&#39;[0-9]+&#39;, &#39;no-more-numbers&#39;) }}</code>
+                                    </span></li>
+                                    <li><span class="pure-form-message-inline">
+                                        For a complete reference of all Jinja2 built-in filters, users can refer to the <a href="https://jinja.palletsprojects.com/en/3.1.x/templates/#builtin-filters">https://jinja.palletsprojects.com/en/3.1.x/templates/#builtin-filters</a>
+                                    </span></li>
+                                    </ul>
+                                    <br>
+                                </div>
+                            </div>
+                            <div class="">
+                                
+    <div ><label for="notification_format">Notification format</label></div>
+    <div ><select class="notification-format" id="notification_format" name="notification_format"><option value="text">Plain Text</option><option value="html">HTML</option><option value="htmlcolor">HTML Color</option><option value="markdown">Markdown to HTML</option><option selected value="System default">System default</option></select>
+        
+        
+    </div>
+
+                                <span class="pure-form-message-inline">Format for all notifications</span>
+                                <div id="discord-html-format-warning" class="inline-warning" style="display: none; margin-top: 6px;">
+                                    <img class="inline-warning-icon" src="/static/images/notice.svg" alt="Note" title="Note">
+                                    Discord does not render HTML — switch to <strong>Plain Text</strong> format to avoid <code>&amp;nbsp;</code> and other HTML entities appearing literally in your notifications.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </fieldset>
+            </div>
+
+            
+            <div class="tab-pane-inner" id="conditions">
+                    <script>
+                        const verify_condition_rule_url="/conditions/c53b03ed-62b1-4352-8d84-20f1d03409ff/verify-condition-single-rule";
+                    </script>
+                <div class="pure-control-group">
+                    
+    <div ><label for="conditions_match_logic">Match</label></div>
+    <div ><ul id="conditions_match_logic"><li><input checked id="conditions_match_logic-0" name="conditions_match_logic" type="radio" value="ALL"> <label for="conditions_match_logic-0">Match all of the following</label></li><li><input id="conditions_match_logic-1" name="conditions_match_logic" type="radio" value="ANY"> <label for="conditions_match_logic-1">Match any of the following</label></li></ul>
+        
+        
+    </div>
+
+                    
+  <div class="fieldlist_formfields" id="rulesTable">
+    <div class="fieldlist-header">
+      
+        <div class="fieldlist-header-cell">Field</div>
+      
+        <div class="fieldlist-header-cell">Operator</div>
+      
+        <div class="fieldlist-header-cell">Value</div>
+      
+      <div class="fieldlist-header-cell">Actions</div>
+    </div>
+    <div class="fieldlist-body">
+      
+        <div class="fieldlist-row ">
+          
+            <div class="fieldlist-cell">
+
+              <select id="conditions-0-field" name="conditions-0-field"><option selected value="None">Choose one - Field</option><option value="extracted_number">Extracted number after 'Filters & Triggers'</option><option value="page_filtered_text">Page text after 'Filters & Triggers'</option><option value="word_count">Word count of content</option><option value="levenshtein_ratio">Levenshtein - Text similarity ratio</option><option value="levenshtein_distance">Levenshtein - Text change distance</option></select>
+              
+            </div>
+          
+            <div class="fieldlist-cell">
+
+              <select id="conditions-0-operator" name="conditions-0-operator"><option selected value="None">Choose one - Operator</option><option value="&gt;">Greater Than</option><option value="&lt;">Less Than</option><option value="&gt;=">Greater Than or Equal To</option><option value="&lt;=">Less Than or Equal To</option><option value="==">Equals</option><option value="!=">Not Equals</option><option value="in">Contains</option><option value="!in">Does NOT Contain</option><option value="starts_with">Text Starts With</option><option value="ends_with">Text Ends With</option><option value="length_min">Length minimum</option><option value="length_max">Length maximum</option><option value="contains_regex">Text Matches Regex</option><option value="!contains_regex">Text Does NOT Match Regex</option></select>
+              
+            </div>
+          
+            <div class="fieldlist-cell">
+
+              <input id="conditions-0-value" name="conditions-0-value" placeholder="A value" type="text" value="">
+              
+            </div>
+          
+          <div class="fieldlist-cell fieldlist-actions">
+            <button type="button" class="addRuleRow" title="Add a row/rule after">+</button>
+            <button type="button" class="removeRuleRow" title="Remove this row/rule">-</button>
+            <button type="button" class="verifyRuleRow" title="Verify this rule against current snapshot">✓</button>
+          </div>
+        </div>
+      
+    </div>
+  </div>
+
+                    <div class="pure-form-message-inline">
+
+                        <p id="verify-state-text">Use the verify (✓) button to test if a condition passes against the current snapshot.</p>
+                       Read a quick tutorial about <a href="https://changedetection.io/tutorial/conditional-actions-web-page-changes">using conditional web page changes here</a>.<br>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-pane-inner" id="ai-llm">
+                
+
+
+
+
+
+    
+
+
+
+
+
+
+<div class="border-fieldset" id="llm-intent-section-disabled" style="opacity: 0.5;">
+    <h3>&#x2728; AI</h3>
+    <p>
+       
+           Configure an AI / LLM provider in <a href="/settings#ai">Settings → AI / LLM</a> to enable AI Change Intent and AI Change Summary.
+       
+    </p>
+</div>
+
+
+
+            </div>
+            
+            <div class="tab-pane-inner" id="filters-and-triggers">
+
+                <span id="activate-text-preview" class="pure-button pure-button-primary button-xsmall">Activate preview</span>
+              <div>
+              <div id="edit-text-filter">
+
+
+                        <div class="pure-control-group" id="pro-tips">
+                            <strong>Pro-tips:</strong><br>
+                            <ul>
+                                <li>
+                                    Use the preview page to see your filters and triggers highlighted.
+                                </li>
+                                <li>
+                                    Some sites use JavaScript to create the content, for this you should <a href="https://github.com/dgtlmoon/changedetection.io/wiki/Fetching-pages-with-WebDriver">use the Chrome/WebDriver Fetcher</a>
+                                </li>
+                            </ul>
+                    </div>
+                    <div class="pure-control-group">
+                        
+                        
+    <div ><label for="include_filters">CSS/JSONPath/JQ/XPath Filters</label></div>
+    <div ><textarea class="m-d" id="include_filters" name="include_filters" placeholder="#example
+xpath://body/div/span[contains(@class, &#39;example-class&#39;)]" rows="5">
+ul.planned-item</textarea>
+        
+        
+    </div>
+
+                        
+                        
+                        <span class="pure-form-message-inline">One CSS, xPath 1 & 2, JSON Path/JQ selector per line, <i>any</i> rules that matches will be used.<br>
+                        <span data-target="#advanced-help-selectors" class="toggle-show pure-button button-tag button-xsmall">Show advanced help and tips</span><br>
+                    <ul id="advanced-help-selectors" style="display: none;">
+                        <li>CSS - Limit text to this CSS rule, only text matching this CSS rule is included.</li>
+                        <li>JSON - Limit text to this JSON rule, using either <a href="https://pypi.org/project/jsonpath-ng/" target="new">JSONPath</a> or <a href="https://stedolan.github.io/jq/" target="new">jq</a> (if installed).
+                            <ul>
+                                <li>JSONPath: Prefix with <code>json:</code>, use <code>json:$</code> to force re-formatting if required, <a href="https://jsonpath.com/" target="new">test your JSONPath here</a>.</li>
+                                
+                                <li>jq: Prefix with <code>jq:</code> and <a href="https://jqplay.org/" target="new">test your jq here</a>. Using <a href="https://stedolan.github.io/jq/" target="new">jq</a> allows for complex filtering and processing of JSON data with built-in functions, regex, filtering, and more. See examples and documentation <a href="https://stedolan.github.io/jq/manual/" target="new">here</a>. Prefix <code>jqraw:</code> outputs the results as text instead of a JSON list.</li>
+                                
+                            </ul>
+                        </li>
+                        <li>XPath - Limit text to this XPath rule, simply start with a forward-slash. To specify XPath to be used explicitly or the XPath rule starts with an XPath function: Prefix with <code>xpath:</code>
+                            <ul>
+                                <li>Example:  <code>//*[contains(@class, 'sametext')]</code> or <code>xpath:count(//*[contains(@class, 'sametext')])</code>, <a
+                                href="http://xpather.com/" target="new">test your XPath here</a></li>
+                                <li>Example: Get all titles from an RSS feed <code>//title/text()</code></li>
+                                <li>To use XPath1.0: Prefix with <code>xpath1:</code></li>
+                            </ul>
+                            </li>
+                    <li>
+                        Please be sure that you thoroughly understand how to write CSS, JSONPath, XPath, or jq selector rules before filing an issue on GitHub! <a
+                                href="https://github.com/dgtlmoon/changedetection.io/wiki/CSS-Selector-help">here for more CSS selector help</a>.<br>
+                    </li>
+                    </ul>
+
+                </span>
+                    </div>
+                <fieldset class="pure-control-group">
+                    
+    <div ><label for="subtractive_selectors">Remove elements</label></div>
+    <div ><textarea id="subtractive_selectors" name="subtractive_selectors" placeholder="header
+footer
+nav
+.stockticker
+//*[contains(text(), &#39;Advertisement&#39;)]" rows="5">
+</textarea>
+        
+        
+    </div>
+
+                    <span class="pure-form-message-inline">
+                        <ul>
+                          <li> Remove HTML element(s) by CSS and XPath selectors before text conversion. </li>
+                          <li> Don&#39;t paste HTML here, use only CSS and XPath selectors </li>
+                          <li> Add multiple elements, CSS or XPath selectors per line to ignore multiple parts of the HTML. </li>
+                        </ul>
+                      </span>
+                </fieldset>
+
+                <div class="text-filtering border-fieldset">
+                <fieldset class="pure-group" id="text-filtering-type-options">
+                    <h3>Text filtering</h3>
+                        Limit trigger/ignore/block/extract to;<br>
+                        
+  <div class="checkbox ">
+  <input checked id="filter_text_added" name="filter_text_added" type="checkbox" value="y"> <label for="filter_text_added">Added lines</label>
+  
+  </div>
+
+                        
+  <div class="checkbox ">
+  <input checked id="filter_text_replaced" name="filter_text_replaced" type="checkbox" value="y"> <label for="filter_text_replaced">Replaced/changed lines</label>
+  
+  </div>
+
+                        
+  <div class="checkbox ">
+  <input checked id="filter_text_removed" name="filter_text_removed" type="checkbox" value="y"> <label for="filter_text_removed">Removed lines</label>
+  
+  </div>
+
+                    <span class="pure-form-message-inline">Note: Depending on the length and similarity of the text on each line, the algorithm may consider an <strong>addition</strong> instead of <strong>replacement</strong> for example.</span><br>
+                    <span class="pure-form-message-inline">&nbsp;So it&#39;s always better to select <strong>Added</strong>+<strong>Replaced</strong> when you&#39;re interested in new content.</span><br>
+                    <span class="pure-form-message-inline">&nbsp;When content is merely moved in a list, it will also trigger an <strong>addition</strong>, consider enabling <code><strong>Only trigger when unique lines appear</strong></code></span>
+                </fieldset>
+                <fieldset class="pure-control-group">
+                    
+  <div class="checkbox ">
+  <input id="check_unique_lines" name="check_unique_lines" type="checkbox" value="y"> <label for="check_unique_lines">Only trigger when unique lines appear in all history</label>
+  
+  </div>
+
+                    <span class="pure-form-message-inline">Good for websites that just move the content around, and you want to know when NEW content is added, compares new lines against all history for this watch.</span>
+                </fieldset>
+                <fieldset class="pure-control-group">
+                    
+  <div class="checkbox ">
+  <input id="remove_duplicate_lines" name="remove_duplicate_lines" type="checkbox" value="y"> <label for="remove_duplicate_lines">Remove duplicate lines of text</label>
+  
+  </div>
+
+                    <span class="pure-form-message-inline">Remove duplicate lines of text</span>
+                </fieldset>
+                <fieldset class="pure-control-group">
+                    
+  <div class="checkbox ">
+  <input id="sort_text_alphabetically" name="sort_text_alphabetically" type="checkbox" value="y"> <label for="sort_text_alphabetically">Sort text alphabetically</label>
+  
+  </div>
+
+                    
+                    <span class="pure-form-message-inline">Helps reduce changes detected caused by sites shuffling lines around, combine with <i>check unique lines</i> below.</span>
+                </fieldset>
+                <fieldset class="pure-control-group">
+                    
+  <div class="checkbox ">
+  <input id="trim_text_whitespace" name="trim_text_whitespace" type="checkbox" value="y"> <label for="trim_text_whitespace">Trim whitespace before and after text</label>
+  
+  </div>
+
+                    <span class="pure-form-message-inline">Remove any whitespace before and after each line of text</span>
+                </fieldset>
+                
+                <fieldset>
+                    <div class="pure-control-group">
+                        
+    <div ><label for="trigger_text">Keyword triggers - Trigger/wait for text</label></div>
+    <div ><textarea id="trigger_text" name="trigger_text" placeholder="Some text to wait for in a line
+/some.regex\d{2}/ for case-INsensitive regex
+" rows="5">
+6982
+Agno</textarea>
+        
+        
+    </div>
+
+                        <span class="pure-form-message-inline">
+                    <ul>
+                        <li>Text to wait for before triggering a change/notification, all text and regex are tested case-insensitive.</li>
+                        <li>Trigger text is processed from the result-text that comes out of any CSS/JSON Filters for this monitor</li>
+                        <li>Each line is processed separately (think of each line as &#34;OR&#34;)</li>
+                        <li>Note: Wrap in forward slash / to use regex example: <code>/foo\d/</code></li>
+                        <li>You can also use <a href="#conditions">conditions</a> - &#34;Page text&#34; - with Contains, Starts With, Not Contains and many more <code>/foo\d/</code></li>
+                    </ul>
+                        </span>
+                    </div>
+                </fieldset>
+                <fieldset class="pure-group">
+                    
+    <div ><label for="ignore_text">Ignore lines containing</label></div>
+    <div ><textarea id="ignore_text" name="ignore_text" placeholder="Some text to ignore in a line
+/some.regex\d{2}/ for case-INsensitive regex
+" rows="5">
+</textarea>
+        
+        
+    </div>
+
+                    <span class="pure-form-message-inline">
+                        <ul>
+                            <li>Matching text will be ignored in the text snapshot (you can still see it but it wont trigger a change)</li>
+                            <li>Each line processed separately, any line matching will be ignored (removed before creating the checksum)</li>
+                            <li>Regular Expression support, wrap the entire line in forward slash <code>/regex/</code></li>
+                            <li>Changing this will affect the comparison checksum which may trigger an alert</li>
+                        </ul>
+                </span>
+                <br><br>
+                    <div class="pure-control-group">
+                      
+  
+  <div class="ternary-field ">
+    <div class="ternary-field-label"><label for="strip_ignored_lines">Strip ignored lines</label></div>
+    <div class="ternary-field-widget"><div class="ternary-radio-group pure-form">
+            <label class="ternary-radio-option">
+                <input type="radio" name="strip_ignored_lines" value="true" id="strip_ignored_lines_true" class="pure-radio">
+                <span class="ternary-radio-label pure-button-primary">Yes</span>
+            </label>
+        
+            <label class="ternary-radio-option">
+                <input type="radio" name="strip_ignored_lines" value="false" id="strip_ignored_lines_false" class="pure-radio">
+                <span class="ternary-radio-label">No</span>
+            </label>
+        
+                <label class="ternary-radio-option">
+                    <input type="radio" name="strip_ignored_lines" value="none" id="strip_ignored_lines_none" checked class="pure-radio">
+                    <span class="ternary-radio-label ternary-default">Main settings</span>
+                </label>
+            </div></div>
+    
+  </div>
+
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <div class="pure-control-group">
+                        
+    <div ><label for="text_should_not_be_present">Block change-detection while text matches</label></div>
+    <div ><textarea id="text_should_not_be_present" name="text_should_not_be_present" placeholder="For example: Out of stock
+Sold out
+Not in stock
+Unavailable" rows="5">
+</textarea>
+        
+        
+    </div>
+
+                        <span class="pure-form-message-inline">
+                            <ul>
+                                <li>Block change-detection while this text is on the page, all text and regex are tested case-insensitive, good for waiting for when a product is available again</li>
+                                <li>Block text is processed from the result-text that comes out of any CSS/JSON Filters for this monitor</li>
+                                <li>All lines here must not exist (think of each line as &#34;OR&#34;)</li>
+                                <li>Note: Wrap in forward slash / to use regex example: <code>/foo\d/</code></li>
+                            </ul>
+                        </span>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <div class="pure-control-group">
+                        
+    <div ><label for="extract_lines_containing">Extract lines containing</label></div>
+    <div ><textarea id="extract_lines_containing" name="extract_lines_containing" placeholder="celsius
+temperature
+price" rows="5">
+</textarea>
+        
+        
+    </div>
+
+                        <span class="pure-form-message-inline">
+                            <ul>
+                                <li>Keep only lines that contain any of these words or phrases (plain text, case-insensitive)</li>
+                                <li>One entry per line — any line in the page text that contains a match is kept</li>
+                                <li>Simpler alternative to regex — use this when you just want lines about a specific topic</li>
+                                <li>Example: enter <code>celsius</code> to keep only lines mentioning temperature readings</li>
+                            </ul>
+                        </span>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <div class="pure-control-group">
+                        
+    <div ><label for="extract_text">Extract text</label></div>
+    <div ><textarea id="extract_text" name="extract_text" placeholder="/.+?\d+ comments.+?/
+ or
+keyword" rows="5">
+</textarea>
+        
+        
+    </div>
+
+                        <span class="pure-form-message-inline">
+                    <ul>
+                        <li>Extracts text in the final output (line by line) after other filters using regular expressions or string match:
+                            <ul>
+                                <li>Regular expression - example <code>/reports.+?2022/i</code></li>
+                                <li>Don&#39;t forget to consider the white-space at the start of a line <code>/.+?reports.+?2022/i</code></li>
+                                <li>Use <code>//(?aiLmsux))</code> type flags (more <a href="https://docs.python.org/3/library/re.html#index-15">information here</a>)<br></li>
+                                <li>Keyword example - example: <code>Out of stock</code></li>
+                                <li>Use groups to extract just that text - example <code>/reports.+?(\d+)/i</code> returns a list of years only</li>
+                                <li>Example - match lines containing a keyword <code>/.*icecream.*/</code></li>
+                            </ul>
+                        </li>
+                        <li>One line per regular-expression/string match</li>
+                    </ul>
+                        </span>
+                    </div>
+                </fieldset>
+                </div>
+              </div>
+              <div id="text-preview" style="display: none;" >
+                <script>
+                    const preview_text_edit_filters_url="/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff/preview-rendered";
+                </script>
+                <br>
+                
+                <div class="minitabs-wrapper">
+                  <div class="minitabs-content">
+                      <div id="text-preview-inner" class="monospace-preview">
+                          <p>Loading...</p>
+                      </div>
+                      <div id="text-preview-before-inner" style="display: none;" class="monospace-preview">
+                          <p>Loading...</p>
+                      </div>
+                  </div>
+                </div>
+                
+                <p>
+                    <span title="Triggers a change if this text appears, AND something changed in the document." style="background-color: var(--highlight-trigger-text-bg-color); color: #fff; padding: 4px; border-radius: 2px; margin-right: 4px;">Triggered text</span>
+                    <span title="Ignored for calculating changes, but still shown." style="background-color: var(--highlight-ignored-text-bg-color); color: #fff; padding: 4px; border-radius: 2px; margin-right: 4px;">Ignored text</span>
+                    <span title="No change-detection will occur because this text exists." style="background-color: var(--highlight-blocked-text-bg-color); color: #fff; padding: 4px; border-radius: 2px; margin-right: 4px;">Blocked text</span>
+                </p>
+
+            </div>
+          </div>
+        </div>
+
+        
+        
+        
+            
+            <div class="tab-pane-inner visual-selector-ui" id="visualselector">
+                <img class="beta-logo" src="/static/images/beta-logo.png" alt="New beta functionality">
+
+                <fieldset>
+                    <div class="pure-control-group">
+                        
+                            
+                                <span class="pure-form-message-inline" id="visual-selector-heading">
+                                    The Visual Selector tool lets you select the <i>text</i> elements that will be used for the change detection. It automatically fills-in the filters in the &#34;CSS/JSONPath/JQ/XPath Filters&#34; box of the <a href="#filters-and-triggers">Filters &amp; Triggers</a> tab. Use <strong>Shift+Click</strong> to select multiple items.
+                                </span>
+
+                                
+
+                                <div id="selector-header">
+                                    <a id="clear-selector" class="pure-button button-secondary button-xsmall" style="font-size: 70%">Clear selection</a>
+                                    <!-- visual selector IMG will try to load, it will either replace this or on error replace it with some handy text -->
+                                    <i class="fetching-update-notice" style="font-size: 80%;">One moment, fetching screenshot and element information..</i>
+                                </div>
+                                <div id="selector-wrapper" style="display: none">
+                                    <!-- request the screenshot and get the element offset info ready -->
+                                    <!-- use img src ready load to know everything is ready to map out -->
+                                    <!-- @todo: maybe something interesting like a field to select 'elements that contain text... and their parents n' -->
+                                    <img id="selector-background" >
+                                    <canvas id="selector-canvas"></canvas>
+                                </div>
+                                <div id="selector-current-xpath" style="overflow-x: hidden"><strong>Currently:</strong>&nbsp;<span class="text">Loading...</span></div>
+                            
+                    
+                    </div>
+                </fieldset>
+            </div>
+            
+            <div class="tab-pane-inner" id="stats">
+                <div class="pure-control-group">
+                    <style>
+                    #stats-table tr > td:first-child {
+                        font-weight: bold;
+                    }
+                    </style>
+                    <table class="pure-table" id="stats-table">
+                        <tbody>
+                        <tr>
+                            <td>Check count</td>
+                            <td>3</td>
+                        </tr>
+                        <tr>
+                            <td>Consecutive filter failures</td>
+                            <td>0</td>
+                        </tr>
+                        <tr>
+                            <td>History length</td>
+                            <td>1</td>
+                        </tr>
+                        <tr>
+                            <td>Last fetch duration</td>
+                            <td>10.948s</td>
+                        </tr>
+                        <tr>
+                            <td>Notification alert count</td>
+                            <td>2</td>
+                        </tr>
+                        <tr>
+                            <td>Server type reply</td>
+                            <td>nginx/1.31.1</td>
+                        </tr>
+                        
+                        </tbody>
+                    </table>
+
+                    
+                    <div class="plugin-stats-extras"> <!-- from pluggy plugin -->
+                        
+    <div class="word-count-stats">
+        <h4>Content Analysis</h4>
+        <table class="pure-table">
+            <tbody>
+                <tr>
+                    <td>Word count (latest snapshot)</td>
+                    <td>31</td>
+                </tr>
+            </tbody>
+        </table>
+        <p style="font-size: 80%;">Word count is a simple measure of content length, calculated by splitting text on whitespace.</p>
+    </div>
+    
+<p>Not enough history to calculate Levenshtein metrics</p>
+                    </div>
+                    
+
+                    
+                        <p>
+                             <a href="/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff/get-html" class="pure-button button-small">Download latest HTML snapshot</a>
+                             <a href="/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff/get-data-package" class="pure-button button-small">Download watch data package</a>
+                        </p>
+                    
+
+                </div>
+            </div>
+            <div id="actions">
+                <div class="pure-control-group">
+                    
+  <input class="pure-button pure-button-primary" id="save_button" name="save_button" type="submit" value="Save">
+
+                    <a href="/delete?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff"
+                       class="pure-button button-error"
+                       data-requires-confirm
+                       data-confirm-type="danger"
+                       data-confirm-title="Delete Watch?"
+                       data-confirm-message="<p>Are you sure you want to delete the watch for:</p><p><strong>https://www.init7.net/en/support/faq/status-info</strong></p><p>This action cannot be undone.</p>"
+                       data-confirm-button="Delete">Delete</a>
+                    <a href="/clear_history/c53b03ed-62b1-4352-8d84-20f1d03409ff"
+                       class="pure-button button-error"
+                       data-requires-confirm
+                       data-confirm-type="warning"
+                       data-confirm-title="Clear History?"
+                       data-confirm-message="<p>Are you sure you want to clear all history for:</p><p><strong>https://www.init7.net/en/support/faq/status-info</strong></p><p>This will remove all snapshots and previous versions. This action cannot be undone.</p>"
+                       data-confirm-button="Clear History">Clear History</a>
+                    <a href="/clone?uuid=c53b03ed-62b1-4352-8d84-20f1d03409ff"
+                       class="pure-button">Clone &amp; Edit</a>
+                 <a href="/rss/watch/c53b03ed-62b1-4352-8d84-20f1d03409ff?token=63a1c33046708fbd5cf5d42f7b8008b7"><img alt="RSS Feed for this watch" style="padding: .5em 1em;" src="/static/images/generic_feed-icon.svg" height="15"></a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+          </div>
+        </div>
+    </section>
+    <script src="/static/js/toggle-theme.js" defer></script>
+    <script src="/static/js/hamburger-menu.js" defer></script>
+
+    <div id="checking-now-fixed-tab" style="display: none;"><span class="spinner"></span><span class="status-text">&nbsp;Checking now</span></div>
+    <div id="realtime-conn-error" style="display:none">Real-time updates offline</div>
+    
+
+    <!-- Language Selection Modal -->
+    <dialog id="language-modal" class="modal-dialog" aria-labelledby="language-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="language-modal-title">Select Language</h2>
+      </div>
+      <div class="modal-body">
+        <div class="language-list">
+          
+          <a href="/set-language/cs?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="cs">
+            <span class="lang-option fi fi-cz fis"></span> <span class="language-name">Čeština</span>
+          </a>
+          
+          <a href="/set-language/de?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="de">
+            <span class="lang-option fi fi-de fis"></span> <span class="language-name">Deutsch</span>
+          </a>
+          
+          <a href="/set-language/en_GB?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="en_GB">
+            <span class="lang-option fi fi-gb fis"></span> <span class="language-name">English (UK)</span>
+          </a>
+          
+          <a href="/set-language/en_US?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="en_US">
+            <span class="lang-option fi fi-us fis"></span> <span class="language-name">English (US)</span>
+          </a>
+          
+          <a href="/set-language/es?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="es">
+            <span class="lang-option fi fi-es fis"></span> <span class="language-name">Español</span>
+          </a>
+          
+          <a href="/set-language/fr?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="fr">
+            <span class="lang-option fi fi-fr fis"></span> <span class="language-name">Français</span>
+          </a>
+          
+          <a href="/set-language/it?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="it">
+            <span class="lang-option fi fi-it fis"></span> <span class="language-name">Italiano</span>
+          </a>
+          
+          <a href="/set-language/ja?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="ja">
+            <span class="lang-option fi fi-jp fis"></span> <span class="language-name">日本語</span>
+          </a>
+          
+          <a href="/set-language/ko?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="ko">
+            <span class="lang-option fi fi-kr fis"></span> <span class="language-name">한국어</span>
+          </a>
+          
+          <a href="/set-language/pt_BR?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="pt_BR">
+            <span class="lang-option fi fi-br fis"></span> <span class="language-name">Português (Brasil)</span>
+          </a>
+          
+          <a href="/set-language/ru?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="ru">
+            <span class="lang-option fi fi-ru fis"></span> <span class="language-name">Русский</span>
+          </a>
+          
+          <a href="/set-language/tr?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="tr">
+            <span class="lang-option fi fi-tr fis"></span> <span class="language-name">Türkçe</span>
+          </a>
+          
+          <a href="/set-language/uk?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="uk">
+            <span class="lang-option fi fi-ua fis"></span> <span class="language-name">Українська</span>
+          </a>
+          
+          <a href="/set-language/zh?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="zh">
+            <span class="lang-option fi fi-cn fis"></span> <span class="language-name">中文 (简体)</span>
+          </a>
+          
+          <a href="/set-language/zh_Hant_TW?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" class="language-option" data-locale="zh_Hant_TW">
+            <span class="lang-option fi fi-tw fis"></span> <span class="language-name">繁體中文</span>
+          </a>
+          
+        </div>
+        <div>
+            <a href="/language/auto-detect?redirect=/edit/c53b03ed-62b1-4352-8d84-20f1d03409ff" >Auto-detect from browser</a>
+        </div>
+        <div>
+            Language support is in beta, please help us improve by opening a PR on GitHub with any updates.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="pure-button" id="close-language-modal">Cancel</button>
+      </div>
+    </dialog>
+
+    
+    <!-- LLM Not Configured Modal -->
+    <dialog id="llm-not-configured-modal" class="modal-dialog" aria-labelledby="llm-not-configured-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="llm-not-configured-modal-title">AI / LLM not configured</h2>
+      </div>
+      <div class="modal-body">
+        <p>LLM-powered summaries are not yet enabled. Configure an AI provider in Settings to get started.</p>
+        <p><a href="/settings#ai" class="pure-button pure-button-primary">Go to AI / LLM Settings</a></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="pure-button" id="close-llm-not-configured-modal">Close</button>
+      </div>
+    </dialog>
+    
+
+    <!-- Search Modal -->
+    
+    <dialog id="search-modal" class="modal-dialog" aria-labelledby="search-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="search-modal-title">Search</h2>
+      </div>
+      <div class="modal-body">
+        <form id="search-form" method="GET">
+          <div class="pure-control-group">
+            <label for="search-modal-input">URL or Title</label>
+            <input id="search-modal-input" class="m-d" name="q" placeholder="Enter search term..." required type="text" value="" autofocus>
+            <input name="tags" type="hidden" value="">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="pure-button button-cancel" id="close-search-modal">Cancel</button>
+        <button type="submit" form="search-form" class="pure-button pure-button-primary">Search</button>
+      </div>
+    </dialog>
+    
+
+
+  <script>
+  (function() {
+      /* AUTOMATIC TAB COLUMN-IZER FOR WHEN TABS WRAP */
+    // Exit early if no tabs on page
+    if (!document.querySelector('.tab')) return;
+
+    const cache = new Map();
+
+    function checkWrapping(ul) {
+      const tabs = ul.querySelectorAll('.tab');
+      if (tabs.length < 2) return false;
+
+      // Init cache on first run
+      if (!cache.has(ul)) {
+        ul.style.setProperty('--tab-width', '');
+        void ul.offsetHeight;
+        let max = 0;
+        tabs.forEach(t => max = Math.max(max, t.offsetWidth));
+        cache.set(ul, max);
+      }
+
+      // Temporarily use flex wrap to check if wrapping occurs
+      ul.style.display = 'flex';
+      ul.style.flexWrap = 'wrap';
+      void ul.offsetHeight;
+
+      const top = tabs[0].offsetTop;
+      const wrapped = Array.from(tabs).some((t, i) => i > 0 && t.offsetTop !== top);
+
+      // Reset display to use CSS grid
+      ul.style.display = '';
+      ul.style.flexWrap = '';
+
+      // Set CSS variable for wrapped mode
+      if (wrapped) {
+        ul.style.setProperty('--tab-width', `${cache.get(ul) + 10}px`);
+      } else {
+        ul.style.setProperty('--tab-width', '');
+      }
+
+      return wrapped;
+    }
+
+    function check() {
+      let any = false;
+      document.querySelectorAll('ul').forEach(ul => {
+        if (ul.querySelector('.tab') && checkWrapping(ul)) any = true;
+      });
+      document.body.classList.toggle('wrapped-tabs', any);
+    }
+
+    check();
+    let timer;
+    window.addEventListener('resize', () => {
+      clearTimeout(timer);
+      timer = setTimeout(check, 100);
+    });
+
+    // Re-check wrapping when tabs are switched via anchors
+    window.addEventListener('hashchange', () => {
+      clearTimeout(timer);
+      // Use requestAnimationFrame + setTimeout to ensure DOM has settled
+      requestAnimationFrame(() => {
+        timer = setTimeout(check, 0);
+      });
+    });
+  })();
+  </script>
+
+
+    <script src="/static/js/language-selector.js" defer></script>
+    <script src="/static/js/search-modal.js" defer></script>
+    <script src="/static/js/toast.js"></script>
+    <script src="/static/js/flask-toast-bridge.js" defer></script>
+  </body>
+
+</html>
