@@ -153,6 +153,63 @@ deleting the old anchor, not after - never leave a group with zero routers
 carrying `tls.certresolver`, even briefly, unless you're intentionally
 letting that group's cert lapse.
 
+## Mandatory post-anchor-redeploy check: stale duplicate certs
+
+**Every time an anchor's `tls.domains[0].sans` list changes and the anchor
+stack redeploys, expect a stale duplicate certificate to appear in
+`acme.json` for the anchor's own hostname - check for it before considering
+the redeploy done.** This is not a rare edge case; it has recurred multiple
+times across every group in this repo's history. Traefik's ACME store never
+deletes an old cert when a new one supersedes it, and the old (smaller-SAN,
+sometimes solo) cert can keep winning the TLS SNI tie-break over the new,
+correct bundle - Traefik logging `Server responded with a certificate` for
+the full domain list is NOT proof the group is actually being served
+correctly; it only proves the new cert was obtained and stored, not that
+it's the one clients get.
+
+**Detect it:**
+1. `openssl s_client -connect <anchor-host>:443 -servername <anchor-host> -no_ticket 2>/dev/null | openssl x509 -noout -issuer -dates -ext subjectAltName` -
+   repeat 2-3 times a few seconds apart (rule out stale TLS session reuse).
+   If the SAN count is smaller than the group's real member count, proceed.
+2. Get a copy of the live `acme.json` (never edit the bind-mounted file in
+   place first - copy it out, e.g. via `docker exec`/`docker cp`, to a
+   local `.bak` path).
+3. For **every** entry in the relevant resolver's `Certificates` array,
+   decode its actual `certificate` field and read the real cert, not the
+   JSON metadata: `base64.b64decode(entry["certificate"])` yields **PEM
+   text** (`-----BEGIN CERTIFICATE-----...`), not raw DER - feed it to
+   `openssl x509` directly (no `-inform DER`) to get `-noout -subject
+   -enddate -ext subjectAltName`. **Never trust the JSON's own
+   `domain.main`/`domain.sans` fields to identify which entry is the real
+   bundle or what it covers** - Traefik labels a freshly-issued bundle
+   entry by whichever domain needed a *fresh* ACME authorization in that
+   specific request (which is often NOT the anchor, if most of the group
+   was already authorized before), and the `domain.sans` JSON array itself
+   can be missing real members even on a correctly-issued cert. Only the
+   decoded certificate's actual `subjectAltName` extension is ground truth.
+4. Identify: the real bundle entry (decoded SAN list matches the group's
+   full current member list) and every stale duplicate (decoded SAN list
+   is smaller/older and its `main` subject matches this group's anchor or
+   any member hostname).
+
+**Fix it** (destructive/live-infra - confirm with the user before applying,
+even if the analysis is solid):
+1. Build a cleaned copy of `acme.json` with exactly the stale duplicate
+   entries removed - verify it's still valid JSON, the removed-entry count
+   matches what you found, every other group's entries are untouched, and
+   the kept bundle entry re-decodes to the full correct SAN list.
+2. Stop `traefik`, replace the live `acme.json` (at its real bind-mounted
+   host path) with the cleaned copy, `chown root:root`, `chmod 600` (Traefik
+   refuses to start otherwise), restart `traefik`.
+3. **Verify EVERY hostname in the affected group, not just the anchor** -
+   a stale duplicate for a non-anchor member is just as real and just as
+   easy to miss as one for the anchor itself; anchor-only verification has
+   repeatedly missed this in this repo's history. For each member: decode
+   its live cert (same method as above), confirm issuer is Let's Encrypt,
+   SAN count matches the group's full size, and ideally that the
+   certificate *serial* is identical across every member (proves they're
+   genuinely served from the same cert, not coincidentally-equal counts).
+
 ## Adding a new service - mandatory step
 
 **Every new service with a Traefik router needs its hostname added to a

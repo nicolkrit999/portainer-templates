@@ -1,6 +1,6 @@
 ---
 name: adding-compose-services
-description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules - Cloudflare Tunnel AND Traefik ALWAYS added together (private tier by default plus its tailnet-admin sibling router, other tiers only if the user asks, no confirmation needed either way), HSTS on every router - adds the matching DNS overrides in `dnsmasq` (unconditional) and, only for the separate admin-gated tailnet-only set, `dnsmasq-tailnet` - assigns the service to a SAN-bundle certificate group (existing group if it fits, otherwise asks the user - never silently invented), runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off the Cloudflare Tunnel target plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
+description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules - Cloudflare Tunnel AND Traefik ALWAYS added together (private tier by default plus its tailnet-admin sibling router, other tiers only if the user asks, no confirmation needed either way), HSTS on every router - adds the matching DNS overrides in BOTH `dnsmasq` (LAN) and `dnsmasq-tailnet` (tailnet-admin path) - required together for almost every new service, not just a rare admin-gated subset - assigns the service to a SAN-bundle certificate group (existing group if it fits, otherwise asks the user - never silently invented) and, after the anchor redeploys, checks for and cleans up the stale-duplicate-cert issue that reliably follows an anchor SAN-list change, runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off + VERIFIES the Cloudflare Tunnel public-hostname route plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
 ---
 
 # Adding a Compose Service
@@ -78,10 +78,9 @@ order and loop the review step - agents cannot call each other.
 
 3. **DNS** - dispatch `docker-compose-architect` again to add the new
    service's hostname to **both** `dnsmasq/docker-compose.yml` (LAN) and
-   `dnsmasq-tailnet/docker-compose.yml` (Tailscale), unless the new
-   service is itself part of the admin-gated tailnet-only set (rare -
-   check `.claude/rules/core-infra-topology.md` if unsure which applies).
-   Standard LAN line: `--address=/<service-subdomain>.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}`,
+   `dnsmasq-tailnet/docker-compose.yml` (Tailscale) - both files, virtually
+   every time (see below for why "admin-gated tailnet-only set" is not a
+   rare special case in practice). Standard LAN line: `--address=/<service-subdomain>.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}`,
    inserted alphabetically among the existing per-hostname override lines.
    **Every new service needs the LAN entry, unconditionally** - not just
    services without family/guest/friends access. Since every service now
@@ -95,11 +94,33 @@ order and loop the review step - agents cannot call each other.
    stopgap, so this step is not optional. Skip it only if the user
    explicitly says this specific service must stay unreachable outside
    Cloudflare/family/guest/friends tiers (rare - confirm before skipping).
-   `dnsmasq-tailnet` usually needs no per-service change at all (it answers
-   the whole domain with one wildcard IP already) - only add a specific
-   override there if this service is being added to the admin-gated
-   tailnet-only set, which is a distinct, separate effort, not part of
-   ordinary new-service onboarding.
+   **`dnsmasq-tailnet` needs the SAME per-service addition almost every
+   time too - this is not a rare/separate case.** `dnsmasq-tailnet` has TWO
+   tiers: a catch-all wildcard for the whole domain, PLUS a separate,
+   explicit `--address=` directive listing every hostname that should
+   route through the real tailnet-admin forwarder path instead of falling
+   through to the catch-all. Since step 2 gives every new service a
+   `tailnet-admin` router by default, every new service IS an admin-gated
+   hostname in the sense that list cares about - add the hostname there
+   too, inserted alphabetically among the existing entries in that same
+   directive (see `.claude/rules/core-infra-topology.md`'s `dnsmasq-tailnet`
+   description for the underlying mechanism). Confirmed real bug,
+   2026-09-02: a service left out of this list resolves, over Tailscale, to
+   the catch-all IP instead of the tailnet-admin path - which does NOT
+   reach Traefik's `tailnet-admin` router correctly, producing a bare 404
+   for every tailnet-connected client, even though DNS "worked" and the
+   service itself was healthy. Skip this list only for a service that
+   genuinely has no `tailnet-admin` router at all (rare - matches skipping
+   the tailnet-admin router block in step 2, not a separate decision).
+
+   **Both files need a container recreate, not a restart, to pick up a
+   `command:` list change - and this applies even for a live git-tracked
+   Portainer stack.** A `git pull` landing in Portainer's stack view does
+   NOT itself recreate the container; `command:` args only take effect on
+   next container creation. Don't assume the change is live just because
+   the compose file (or `StackFileInspect`) shows it - check the actual
+   running container's args (e.g. `docker_proxy` `/containers/<name>/json`,
+   `.Args`) if verifying, not just the file.
 
    This is routine, expected maintenance of these files (see
    `.claude/rules/core-infra-topology.md`'s note on the difference between
@@ -135,6 +156,20 @@ order and loop the review step - agents cannot call each other.
    truth (the sibling's own compose file's `Host()` rule, or its live
    Portainer env if you can check it).
 
+   ⚠️ **Mandatory after redeploying ANY SAN-group anchor (not just for a
+   new service - every time an anchor's SAN list changes at all): expect a
+   stale duplicate certificate and check for it.** Traefik's ACME store
+   keeps the anchor hostname's OLD, smaller-SAN cert around after issuing
+   the new bundled one, and the stale cert can still win the TLS SNI
+   tie-break - "Traefik logs said success" is not proof the group is
+   actually serving the right cert. Full detect/fix procedure (decode
+   `acme.json`'s real certificate bytes, never trust its `domain.main`/
+   `.sans` JSON metadata, build a cleaned copy, apply it live, verify every
+   member) is in `.claude/rules/san-cert-groups.md` under "Mandatory
+   post-anchor-redeploy check" - **treat this as a required step of adding
+   a SAN-group member, not optional cleanup**, and do not report step 4
+   done until it's been run.
+
 5. **REVIEW** - dispatch `compose-security-auditor` and
    `compose-consistency-linter` in parallel on the new file only. Both are
    read-only and never edit.
@@ -149,9 +184,32 @@ order and loop the review step - agents cannot call each other.
    continuing to iterate.
 
 8. **HANDOFF** - close by stating:
-   - the Cloudflare Tunnel connector target, `http://<container_name>:<internal_port>`,
-     if the compose touches `cloudflare_web_network` (docker-compose-architect
-     states this after any such change - surface it here);
+   - ⚠️ **The Cloudflare Tunnel public-hostname route is a required MANUAL
+     step on Cloudflare's side that this repo cannot make for you - treat it
+     as a checklist item to walk the user through and verify, not a
+     one-line FYI.** State the connector target,
+     `http://<container_name>:<internal_port>` (if the compose touches
+     `cloudflare_web_network` - docker-compose-architect states this after
+     any such change, surface it here), then tell the user exactly how to
+     add it: Cloudflare Zero Trust dashboard → Networks → Tunnels → select
+     the tunnel this repo's `cloudflared` container connects to → Public
+     Hostname tab → Add a public hostname → Subdomain/Domain matching
+     `${<SERVICE>_SUBDOMAIN}.${DOMAIN}`, Type `HTTP`, URL = the connector
+     target above (same `container:port` pattern every other entry in that
+     tunnel's ingress list already uses). **Confirmed real bug, 2026-09-02:
+     skipping this leaves a service fully live and reachable via Traefik
+     while still 404ing through Cloudflare for any client whose DNS
+     resolves normally** (not through internal split-DNS) - easy to miss
+     because Traefik-side testing alone won't catch it. If you have
+     `docker_proxy` access, verify the route actually landed by checking
+     `cloudflared`'s own container logs for `Updated to new configuration`
+     with the new hostname present in its `ingress` list, or by testing the
+     hostname directly against Cloudflare's real edge IP with
+     `curl --resolve <host>:443:<a-real-cloudflare-ip> https://<host>/` -
+     don't trust an unforced DNS lookup for this check, since a local or
+     tailnet split-DNS override can silently return a different answer than
+     what real public DNS/Cloudflare would give a client without that
+     override, producing a false read either way.
    - the full list of `${VAR}`s to configure in Portainer for this stack,
      including the new per-service `${<SERVICE>_SUBDOMAIN}` var and its
      chosen value (default: the service's directory name, unless a legacy
@@ -172,23 +230,35 @@ order and loop the review step - agents cannot call each other.
      | `TRAEFIK_ENTRYPOINT_5` / `TRAEFIK_PORT_5` | internal, `cloudflared`-facing only | 9080 |
      | `TRAEFIK_ENTRYPOINT_6` / `TRAEFIK_PORT_6` | internal, ping/dashboard-API only | 8080 |
      | `TRAEFIK_ENTRYPOINT_7` | tailnet-admin, no host port (default alongside private, step 2) | n/a |
-   - a reminder that **`dnsmasq` (and `dnsmasq-tailnet`, if touched) needs
-     to be redeployed** (recreated, not just restarted - it runs
-     `restart: always` but a compose-file edit only applies on recreate)
-     before the new service's hostname will actually resolve correctly;
+   - a reminder that **both `dnsmasq` and `dnsmasq-tailnet` need to be
+     redeployed** (recreated, not just restarted - see step 3's note on why
+     a live git-tracked stack doesn't auto-recreate) before the new
+     service's hostname will actually resolve correctly on either LAN or
+     Tailscale;
    - a reminder that the **SAN group anchor's stack also needs redeploying**
      to pick up its updated `tls.domains[0].sans` and new env var - and per
      `.claude/rules/portainer-instance.md`, always re-fetch and re-supply
-     that stack's full `Env` on that redeploy, never omit it.
+     that stack's full `Env` on that redeploy, never omit it - **followed
+     immediately by the mandatory stale-duplicate-cert check from step 4**,
+     not as a separate later task;
+   - one line reminding the user to sanity-check that the shared
+     `tailnet-admin-only` IP-allowlist middleware's `TAILNET_ADMIN_IPS`
+     value (defined once on the `traefik` service, see
+     `.claude/rules/networking.md`) still covers whichever admin device(s)
+     need to reach this new service over Tailscale - not something to
+     silently re-verify from scratch every time, just flag it as a
+     checklist line so it's never silently assumed correct.
 
 ## Exit condition
 
 Both reviewers report clean, or the user has explicitly accepted residual
-findings after 3 fix cycles - AND the handoff (tunnel target + `${VAR}` list)
-has been delivered to the user - AND the service has a SAN group (step 4,
-with `.claude/rules/san-cert-groups.md` updated) and its DNS entries (step
-3) in place. Do not consider the task done without all of this, even if
-the compose file itself is clean.
+findings after 3 fix cycles - AND the handoff has been delivered to the
+user, including the **verified** (not just stated) Cloudflare public
+hostname route - AND the service has a SAN group (step 4, with
+`.claude/rules/san-cert-groups.md` updated AND the mandatory
+post-anchor-redeploy stale-cert check completed) and its DNS entries in
+both `dnsmasq` and `dnsmasq-tailnet` (step 3) in place. Do not consider the
+task done without all of this, even if the compose file itself is clean.
 
 ## Out of scope
 
