@@ -1,0 +1,89 @@
+apiVersion: 1
+
+# ============================================================================
+# TODO (household request, deliberately NOT implemented yet):
+#   - "WAN/internet down" alert
+#   - "AP going offline" alert
+# unpoller v5.2.2's Prometheus exporter does not appear to publish a
+# documented, explicit up/down boolean metric for either the WAN link or
+# individual access points - only the per-port counters below have been
+# verified against real usage. Do not guess a metric name for these two
+# rules. Once unpoller is deployed and actively polling a real UniFi
+# controller, confirm the correct metric(s) with:
+#     curl http://unpoller:9130/metrics | grep unpoller_device
+# then add the two rules to this file as their own alert group.
+# ============================================================================
+#
+# NOTE on datasourceUid below: grafana/provisioning/datasources/prometheus.yml
+# does not currently pin an explicit `uid:` on the Prometheus datasource, so
+# Grafana auto-assigns one - and that auto-assigned value is not guaranteed
+# stable across container restarts (confirmed Grafana behavior when `uid` is
+# omitted from a provisioned datasource). This rule assumes the datasource
+# will be pinned to `uid: prometheus` in that file. That one-line addition
+# to prometheus.yml was intentionally NOT made here per the instruction to
+# leave the datasource file untouched - it needs to be applied (with the
+# user's confirmation) before this rule will reliably resolve to the right
+# datasource across restarts.
+
+groups:
+  - orgId: 1
+    name: unifi-network-health
+    folder: "UniFi / unpoller"
+    interval: 1m
+    rules:
+      - uid: unpoller-high-port-error-rate
+        title: High port error rate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: "rate(unpoller_device_port_receive_errors_total[5m]) + rate(unpoller_device_port_transmit_errors_total[5m])"
+              instant: true
+              range: false
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0.02
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        orgId: 1
+        labels:
+          severity: warning
+        annotations:
+          summary: "Combined rx+tx error rate exceeded 0.02/s on a UniFi switch/AP port for 5m or more."
+          description: "A port's combined receive+transmit error rate (unpoller_device_port_receive_errors_total + unpoller_device_port_transmit_errors_total) has stayed above 0.02/s for at least 5 minutes. Check the Grafana alert instance labels for which device/port, and investigate for a bad cable, SFP, or duplex mismatch."

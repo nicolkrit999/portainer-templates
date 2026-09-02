@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+scrape_configs:
+  - job_name: 'unpoller'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['unpoller:9130']
+    metrics_path: '/metrics'

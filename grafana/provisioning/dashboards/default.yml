@@ -1,0 +1,18 @@
+apiVersion: 1
+
+providers:
+  - name: unpoller
+    orgId: 1
+    folder: "UniFi / unpoller"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      # Local JSON files only - vanilla Grafana file-provisioning cannot
+      # fetch a dashboard by grafana.com ID directly. The three unpoller
+      # community dashboards (11311, 11313, 11315) must be downloaded and
+      # placed here manually before this provider will pick them up. See
+      # the deployment README note / chat handoff for exact steps.
+      path: /etc/grafana/provisioning/dashboards/json
+      foldersFromFilesStructure: false

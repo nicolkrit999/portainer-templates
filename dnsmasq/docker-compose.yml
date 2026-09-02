@@ -69,6 +69,7 @@ services:
       - "--address=/glance.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/glances.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/gocron.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
+      - "--address=/grafana.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/grocy.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/gotify.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/harborguard.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"

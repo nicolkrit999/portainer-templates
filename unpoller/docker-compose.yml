@@ -1,0 +1,34 @@
+services:
+  unpoller:
+    image: ghcr.io/unpoller/unpoller:v5.2.2
+    container_name: unpoller
+    restart: unless-stopped
+    # Internal-only backing service: no Cloudflare/Traefik network, no
+    # public hostname, no labels. Reached only by prometheus over
+    # monitoring_network. See .claude/rules/networking.md's internal-only
+    # exception to Rule 2.
+    environment:
+      UP_UNIFI_CONTROLLER_0_URL: "${UNIFI_CONTROLLER_URL}"
+      UP_UNIFI_CONTROLLER_0_USER: "${UNIFI_POLLER_USER}"
+      UP_UNIFI_CONTROLLER_0_PASS: "${UNIFI_POLLER_PASSWORD}"
+      UP_UNIFI_CONTROLLER_0_VERIFY_SSL: "false"
+      UP_PROMETHEUS_HTTP_LISTEN: "0.0.0.0:9130"
+      UP_PROMETHEUS_NAMESPACE: "unpoller"
+      TZ: "${TZ}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9130/metrics || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - monitoring_network
+
+networks:
+  monitoring_network:
+    name: monitoring-net
+    external: true
