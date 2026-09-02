@@ -5,7 +5,7 @@ services:
     restart: "no"
     user: "0"
     volumes:
-      - ${VOLUME_DATA}/prometheus:/prometheus
+      - ${VOLUME_CONFIG}/prometheus:/prometheus
     command: chown -R 65534:65534 /prometheus
 
   prometheus:
@@ -15,7 +15,7 @@ services:
     # No PUID/PGID: this image hardcodes UID/GID 65534 (nobody) internally
     # and ignores those vars entirely (same known pattern as Grafana's UID
     # 472 - see .claude/agent-memory/docker-compose-architect/grafana_service.md).
-    # prometheus-init (above) chowns ${VOLUME_DATA}/prometheus to
+    # prometheus-init (above) chowns ${VOLUME_CONFIG}/prometheus to
     # 65534:65534 on every deploy, so no manual chown is needed before
     # first deploy.
     depends_on:
@@ -26,7 +26,7 @@ services:
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=30d"
     volumes:
-      - ${VOLUME_DATA}/prometheus:/prometheus
+      - ${VOLUME_CONFIG}/prometheus:/prometheus
       - ${VOLUME_CONFIG}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
