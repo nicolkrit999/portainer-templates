@@ -2,7 +2,7 @@ services:
   unpoller:
     image: ghcr.io/unpoller/unpoller:v5.2.2
     container_name: unpoller
-    restart: unless-stopped
+    restart: always
     # Internal-only backing service: no Cloudflare/Traefik network, no
     # public hostname, no labels. Reached only by prometheus over
     # monitoring_network. See .claude/rules/networking.md's internal-only
