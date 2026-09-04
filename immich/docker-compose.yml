@@ -75,6 +75,7 @@ services:
       - DB_DATABASE_NAME=immich
       - REDIS_HOSTNAME=immich_redis
       - MPLCONFIGDIR=/cache/matplotlib
+      - HF_HOME=/cache
     volumes:
       - ${DOCKER_DATA_DIR}/immich/model-cache:/cache
       - "${UPLOAD_LOCATION}:/data"
