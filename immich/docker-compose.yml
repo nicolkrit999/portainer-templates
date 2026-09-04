@@ -5,6 +5,9 @@ services:
     container_name: immich_server
     image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
     user: "${PUID}:${PGID}"
+    devices:
+      - /dev/dri:/dev/dri
+    group_add: ["105"]
     environment:
       - IMMICH_HOST=0.0.0.0
       - HOST=0.0.0.0
@@ -64,10 +67,11 @@ services:
 
   immich-machine-learning:
     container_name: immich_machine_learning
-    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}-openvino
     user: "${PUID}:${PGID}"
     devices:
       - /dev/dri:/dev/dri
+    group_add: ["105"]
     environment:
       - DB_HOSTNAME=database
       - DB_USERNAME=immich
