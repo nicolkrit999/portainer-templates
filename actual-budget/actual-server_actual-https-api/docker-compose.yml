@@ -46,7 +46,7 @@ services:
       traefik.docker.network: "traefik-proxy"
 
   actual_api:
-    image: jhonderson/actual-http-api:26.8.1
+    image: jhonderson/actual-http-api:26.9.0
     container_name: ActualAPI
     restart: always
     ports:
