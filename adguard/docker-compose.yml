@@ -1,15 +1,11 @@
 services:
   adguard:
-    image: adguard/adguardhome
+    image: adguard/adguardhome:latest
     container_name: adguard
-    cap_add:
-      - NET_ADMIN
     networks:
       adguard_net:
         ipv4_address: ${ADGUARD_STATIC_IP}
         priority: 100
-      cloudflare-web:
-        priority: 1000
       traefik_proxy_network:
 
     labels:
@@ -28,15 +24,24 @@ services:
       traefik.docker.network: "traefik-proxy"
 
     volumes:
-      - ${DOCKER_CONFIG_DIR}/adguard/work:/opt/adguardhome/work
-      - ${DOCKER_CONFIG_DIR}/adguard/conf:/opt/adguardhome/conf
-    restart: unless-stopped
+      - ${VOLUME_DATA}/adguard/work:/opt/adguardhome/work
+      - ${VOLUME_CONFIG}/adguard/conf:/opt/adguardhome/conf
+    restart: always
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/health"]
+      # Port 3000 only exists during the one-time first-run setup wizard;
+      # once setup completes (config persists in the conf volume) the web
+      # UI moves permanently to port 80 and 3000 goes away. This check
+      # tolerates both states so it doesn't start failing forever after
+      # first boot.
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:80/ || wget -q -O - http://localhost:3000/"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   adguard_net:
@@ -48,8 +53,6 @@ networks:
         - subnet: ${LAN_SUBNET}
           gateway: ${LAN_GATEWAY}
           ip_range: ${ADGUARD_STATIC_IP}/32
-  cloudflare-web:
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true
