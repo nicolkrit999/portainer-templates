@@ -44,15 +44,18 @@ services:
         max-file: "3"
 
 networks:
+  # Docker cannot create two separate macvlan networks bound to the same
+  # parent interface/subnet - `traefik-private-forwarder` already owns a
+  # live macvlan network on this exact LAN subnet/gateway
+  # (parent bridge0, 192.168.1.0/24 / .1), so adguard must join that
+  # existing network as external instead of defining its own (which fails
+  # at deploy time with "failed to allocate gateway: Address already in
+  # use"). Same external-network-reuse pattern already used below for
+  # `traefik_proxy_network`. Any future service needing its own static
+  # macvlan LAN IP must join this same network the same way.
   adguard_net:
-    driver: macvlan
-    driver_opts:
-      parent: ${LAN_INTERFACE}
-    ipam:
-      config:
-        - subnet: ${LAN_SUBNET}
-          gateway: ${LAN_GATEWAY}
-          ip_range: ${ADGUARD_STATIC_IP}/32
+    external: true
+    name: traefik-private-forwarder_traefik_forwarder_net
   traefik_proxy_network:
     name: traefik-proxy
     external: true

@@ -172,6 +172,50 @@ variables, with the real values in `.env` / Portainer stack env:
 - `${DOCKER_GATEWAY_IP}` - Docker bridge gateway IP (this instance:
   `192.168.48.1`)
 
+## Giving a new service its own static LAN IP (macvlan)
+
+A service that needs to be reachable directly on the LAN at its own IP
+(not through Traefik) - e.g. a DNS resolver needing port 53, or any
+service that can't share a container's usual bridge networking - needs a
+macvlan network. **Docker only allows ONE macvlan network per parent
+interface per subnet** - attempting to define a second macvlan network on
+the same `parent`/`subnet`/`gateway` (even in a different service's own
+compose file) fails at deploy time with `failed to allocate gateway
+(<gateway-ip>): Address already in use`. Confirmed real deploy failure,
+2026-09-06, when `adguard/docker-compose.yml` first tried to define its
+own `adguard_net` macvlan network on the same `${LAN_SUBNET}`/`${LAN_GATEWAY}`
+already claimed by `traefik-private-forwarder`'s macvlan network.
+
+**The fix - join the existing macvlan network, don't define a new one.**
+This repo's one live macvlan network (created by `traefik-private-forwarder`,
+see `.claude/rules/core-infra-topology.md`) is named
+`traefik-private-forwarder_traefik_forwarder_net` (Compose's default
+`<project>_<network-key>` naming - it was never given an explicit `name:`
+override). Any new service needing its own static LAN IP should reference
+it as `external: true` and give the service its own `ipv4_address`,
+exactly like this repo already does for `traefik_proxy_network`:
+
+```yaml
+services:
+  <service>:
+    networks:
+      <service>_net:
+        ipv4_address: "${<SERVICE>_STATIC_IP}"
+
+networks:
+  <service>_net:
+    external: true
+    name: traefik-private-forwarder_traefik_forwarder_net
+```
+
+Do **not** copy the `driver: macvlan` / `driver_opts` / `ipam` block from
+`adguard`'s original stale draft or any other pre-2026-09-06 example - that
+pattern only works for the very first macvlan service on a given subnet;
+every one after that must attach to the already-existing network instead.
+This does not require touching `traefik-private-forwarder`'s own compose
+file at all - referencing an already-running network by name is a safe,
+additive read from a different stack.
+
 ## Tailscale access - via the tailnet-admin router, not a direct IP bind
 
 **Superseded 2026-08-22**: the old `tailscale serve` port-forwarding
