@@ -117,12 +117,14 @@ restarting Traefik once more - full detail in
 fix: correct issuer, correct full 22-host SAN list, stable across repeated
 checks.
 
-Also note: 4 of `infra-ops`'s listed members (`adguard`, `dockpeek`,
-`gocron`, `upsnap`) have compose files in this repo but are **not actually
+Also note: 3 of `infra-ops`'s listed members (`dockpeek`, `gocron`,
+`upsnap`) have compose files in this repo but are **not actually
 deployed** anywhere (no running container, no Portainer stack) - harmless
 for the SAN-bundle mechanism (a router with no live container just never
 matches any traffic), but worth knowing if their absence from `StackList`
-or `docker ps` output is ever confusing.
+or `docker ps` output is ever confusing. (`adguard` was in this same
+"not deployed" state until 2026-09-06/07, when it was deployed for the
+first time - see `.claude/rules/service-directory.md`.)
 
 ## ⚠️ Removing or decommissioning an anchor service - mandatory step
 

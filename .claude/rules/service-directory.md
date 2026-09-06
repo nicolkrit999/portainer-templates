@@ -33,7 +33,7 @@ specific service.
 | `actual-budget` | budget, budget-api | family, private | yes |
 | `actual-budget-ical` | budget-ical | family, private | yes |
 | `actual-budget-tap` | budget-tap | family, private | yes |
-| `adguard` | adguard | private, tailnet-admin | no |
+| `adguard` | adguard | private, tailnet-admin | yes |
 | `affine` | affine | private, tailnet-admin | yes |
 | `apprise-api` | apprise-api | private, tailnet-admin | yes |
 | `attic` | *(no Traefik router - LAN-only)* | *(none)* | yes |
