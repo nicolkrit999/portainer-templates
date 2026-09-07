@@ -116,7 +116,21 @@ services:
     # both) bound only to ${MACVLAN_SHIM_IP}:53, forwarding to the real
     # dnsmasq at ${NAS_IP}:53, then blocks on `wait` so the container
     # stays up as long as both relays are alive.
-    command: "sh -c 'apk add --no-cache iproute2 socat netcat-openbsd >/dev/null 2>&1; ip link show ${MACVLAN_SHIM_IFACE} >/dev/null 2>&1 || ip link add ${MACVLAN_SHIM_IFACE} link ${LAN_INTERFACE} type macvlan mode bridge; ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" || ip addr add ${MACVLAN_SHIM_IP}/32 dev ${MACVLAN_SHIM_IFACE}; ip link set ${MACVLAN_SHIM_IFACE} up; for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || ip route add \"$ip/32\" dev ${MACVLAN_SHIM_IFACE}; done; socat UDP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr UDP:${NAS_IP}:53 & socat TCP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr TCP:${NAS_IP}:53 & wait'"
+    #
+    # ⚠️ `-T5` on both socat invocations is NOT optional - see the
+    # identical, more heavily-loaded relay in
+    # ../tailscale-adguard/docker-compose.yml for the full incident
+    # writeup (2026-09-07): without an inactivity timeout, socat's `fork`
+    # mode never terminates a forked child that handled a UDP query, since
+    # UDP has no "connection closed" signal - children just accumulate
+    # indefinitely under real traffic until the container runs out of
+    # resources and starts refusing new connections. This relay carries
+    # much less traffic (only internal ${DOMAIN} conditional-forward
+    # lookups, not general household internet DNS) so it hadn't hit the
+    # failure point when found (21 processes at the time, vs 2000+ on the
+    # other relay) - applying the same fix here preemptively rather than
+    # waiting for it to eventually accumulate the same way.
+    command: "sh -c 'apk add --no-cache iproute2 socat netcat-openbsd >/dev/null 2>&1; ip link show ${MACVLAN_SHIM_IFACE} >/dev/null 2>&1 || ip link add ${MACVLAN_SHIM_IFACE} link ${LAN_INTERFACE} type macvlan mode bridge; ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" || ip addr add ${MACVLAN_SHIM_IP}/32 dev ${MACVLAN_SHIM_IFACE}; ip link set ${MACVLAN_SHIM_IFACE} up; for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || ip route add \"$ip/32\" dev ${MACVLAN_SHIM_IFACE}; done; socat -T5 UDP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr UDP:${NAS_IP}:53 & socat -T5 TCP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr TCP:${NAS_IP}:53 & wait'"
     # Load-bearing for AdGuard's DNS forwarding - must come back after a
     # host reboot unconditionally, same criticality tier as tailscale/
     # traefik-private-forwarder.

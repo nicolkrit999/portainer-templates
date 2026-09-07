@@ -135,7 +135,26 @@ services:
     # tailscale-adguard's tailnet IP - forwarding every query to the real
     # `adguard` container's DNS port over traefik-proxy, then block on
     # `wait` so the container stays up as long as both relays are alive.
-    command: "sh -c 'apk add --no-cache socat netcat-openbsd >/dev/null 2>&1; socat UDP-LISTEN:53,fork,reuseaddr UDP:adguard:53 & socat TCP-LISTEN:53,fork,reuseaddr TCP:adguard:53 & wait'"
+    #
+    # ⚠️ `-T5` on both socat invocations is NOT optional - confirmed live
+    # incident, 2026-09-07: without an inactivity timeout, socat's `fork`
+    # mode never terminates a forked child that handled a UDP query, since
+    # UDP has no notion of "connection closed" the way TCP does - each
+    # child just sits there indefinitely waiting for more traffic from
+    # that same peer. Under this repo's real household DNS query volume,
+    # this reliably grew to 2000+ leaked processes within about an hour of
+    # normal use, which eventually exhausted the container and made NEW
+    # connections (including legitimate ones) get refused - the exact
+    # symptom the household hit ("internet stops working a few minutes
+    # after enabling Tailscale, only clears by disabling it"). `-T5`
+    # forces each forked child to exit after 5s of inactivity - verified
+    # directly against the real `adguard` target over the real
+    # traefik-proxy network (a throwaway test container, not this one):
+    # 13 processes present immediately after a burst of queries, down to
+    # 3 (just the listener) 7 seconds later. 5s is comfortably longer than
+    # any real single DNS exchange takes, so this never disrupts a
+    # legitimate in-flight query.
+    command: "sh -c 'apk add --no-cache socat netcat-openbsd >/dev/null 2>&1; socat -T5 UDP-LISTEN:53,fork,reuseaddr UDP:adguard:53 & socat -T5 TCP-LISTEN:53,fork,reuseaddr TCP:adguard:53 & wait'"
     # Same criticality tier as tailscale-adguard itself - the relay is what
     # actually makes the tailnet IP useful as a nameserver.
     restart: always
