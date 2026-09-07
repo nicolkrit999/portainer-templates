@@ -3,6 +3,7 @@ services:
     image: ghcr.io/mealie-recipes/mealie:latest
     container_name: mealie
     restart: unless-stopped
+    cpu_shares: 2048
     deploy:
       resources:
         limits:

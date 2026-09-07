@@ -2,8 +2,6 @@ services:
   upsnap:
     image: ghcr.io/seriousm4x/upsnap:5
     container_name: UpSnap
-    mem_limit: 512m
-    cpu_shares: 768
     healthcheck:
       test: curl -f http://localhost:8090/ || exit 1
     network_mode: host

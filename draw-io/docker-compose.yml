@@ -2,8 +2,6 @@ services:
   drawio:
     container_name: draw-io
     image: jgraph/drawio
-    mem_limit: 16g
-    cpu_shares: 768
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped

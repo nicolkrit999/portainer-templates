@@ -4,6 +4,7 @@ services:
   immich-server:
     container_name: immich_server
     image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    cpu_shares: 2048
     user: "${PUID}:${PGID}"
     devices:
       - /dev/dri:/dev/dri
@@ -68,6 +69,7 @@ services:
   immich-machine-learning:
     container_name: immich_machine_learning
     image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}-openvino
+    cpus: 4.0
     user: "${PUID}:${PGID}"
     devices:
       - /dev/dri:/dev/dri

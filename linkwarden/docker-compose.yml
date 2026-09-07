@@ -23,6 +23,7 @@ services:
   linkwarden:
     image: ghcr.io/linkwarden/linkwarden:latest
     container_name: Linkwarden
+    cpu_shares: 2048
     healthcheck:
       test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/3000' || exit 1
       interval: 10s

@@ -3,6 +3,7 @@ services:
     image: ghcr.io/flohoss/gocron:latest
     container_name: gocron
     hostname: gocron
+    cpus: 2.0
     restart: unless-stopped
     environment:
       TZ: "${TZ}"

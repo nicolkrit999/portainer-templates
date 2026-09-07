@@ -4,6 +4,7 @@ services:
   uptime-kuma:
     image: louislam/uptime-kuma:latest
     container_name: uptime-kuma
+    cpu_shares: 2048
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

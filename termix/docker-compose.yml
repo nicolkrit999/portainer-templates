@@ -2,6 +2,7 @@ services:
   termix:
     image: ghcr.io/lukegus/termix:latest
     container_name: termix
+    cpu_shares: 2048
     restart: unless-stopped
     user: "0:0"
     privileged: true

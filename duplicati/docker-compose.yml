@@ -2,6 +2,7 @@ services:
   duplicati:
     image: duplicati/duplicati:canary
     container_name: duplicati
+    cpus: 4.0
     restart: always
     ports:
       - "${DUPLICATI_HOST_PORT}:8200"

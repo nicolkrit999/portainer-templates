@@ -2,8 +2,6 @@ services:
   glances:
     container_name: Glances
     image: nicolargo/glances:latest-full
-    mem_limit: 4g
-    cpu_shares: 768
     security_opt:
       - no-new-privileges:true
     pid: host

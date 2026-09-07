@@ -2,6 +2,8 @@ services:
   plex:
     image: lscr.io/linuxserver/plex:latest
     container_name: plex
+    cpu_shares: 2048
+    cpus: 4.0
     environment:
       - PUID=${PUID}
       - PGID=${PGID}

@@ -2,6 +2,7 @@ services:
     server:
         image: docker.gitea.com/gitea:latest
         container_name: gitea
+        cpu_shares: 2048
         environment:
             - USER_UID=${PUID}
             - USER_GID=${PGID}

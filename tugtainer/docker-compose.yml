@@ -2,6 +2,7 @@ services:
   app:
     container_name: tugtainer
     image: quenary/tugtainer:latest
+    cpus: 4.0
     environment:
       - PGID=121 # docker id, needed to allow update
       - PUID=10

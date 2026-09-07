@@ -3,7 +3,7 @@ services:
     container_name: homebox
     image: ghcr.io/sysadminsmedia/homebox:latest
     mem_limit: 3g
-    cpu_shares: 1024
+    cpu_shares: 2048
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped

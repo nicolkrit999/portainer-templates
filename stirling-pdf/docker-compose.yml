@@ -3,7 +3,7 @@ services:
     container_name: stirling-pdf
     image: ghcr.io/stirling-tools/stirling-pdf
     mem_limit: 4g
-    cpu_shares: 1024
+    cpus: 4.0
     security_opt:
       - no-new-privileges:true
     volumes:

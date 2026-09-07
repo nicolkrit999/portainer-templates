@@ -39,6 +39,7 @@ services:
   tailscale-admin:
     image: tailscale/tailscale:latest
     container_name: tailscale-admin
+    cpu_shares: 4096
     # NOT network_mode: host - see comment block above. Ordinary bridge
     # networking (via traefik_proxy_network below) is what makes this a
     # genuinely separate, non-conflicting namespace.
