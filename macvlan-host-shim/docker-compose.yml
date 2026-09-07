@@ -117,6 +117,18 @@ services:
     # dnsmasq at ${NAS_IP}:53, then blocks on `wait` so the container
     # stays up as long as both relays are alive.
     #
+    # ⚠️ `$$ip` (in the route-loop, both here and in the healthcheck
+    # below) MUST stay double-dollar-escaped - confirmed live incident,
+    # 2026-09-07: Docker Compose interpolates any bare `$IDENTIFIER` in
+    # the raw compose file text, not just `${VAR}`, including shell-local
+    # loop variables never meant to be Compose stack env vars. A single
+    # `$` here silently collapsed every `$ip/32` to a bare `/32`,
+    # producing `ip route add "/32" ...` - always failing with "any valid
+    # prefix is expected rather than /32" and leaving this container
+    # permanently unhealthy, though the pre-existing host route from an
+    # earlier manual fix masked the practical impact (a NAS reboot would
+    # have exposed it for real, since host routes don't survive that).
+    #
     # ⚠️ `-T5` on both socat invocations is NOT optional - see the
     # identical, more heavily-loaded relay in
     # ../tailscale-adguard/docker-compose.yml for the full incident
@@ -130,7 +142,7 @@ services:
     # failure point when found (21 processes at the time, vs 2000+ on the
     # other relay) - applying the same fix here preemptively rather than
     # waiting for it to eventually accumulate the same way.
-    command: "sh -c 'apk add --no-cache iproute2 socat netcat-openbsd >/dev/null 2>&1; ip link show ${MACVLAN_SHIM_IFACE} >/dev/null 2>&1 || ip link add ${MACVLAN_SHIM_IFACE} link ${LAN_INTERFACE} type macvlan mode bridge; ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" || ip addr add ${MACVLAN_SHIM_IP}/32 dev ${MACVLAN_SHIM_IFACE}; ip link set ${MACVLAN_SHIM_IFACE} up; for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || ip route add \"$ip/32\" dev ${MACVLAN_SHIM_IFACE}; done; socat -T5 UDP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr UDP:${NAS_IP}:53 & socat -T5 TCP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr TCP:${NAS_IP}:53 & wait'"
+    command: "sh -c 'apk add --no-cache iproute2 socat netcat-openbsd >/dev/null 2>&1; ip link show ${MACVLAN_SHIM_IFACE} >/dev/null 2>&1 || ip link add ${MACVLAN_SHIM_IFACE} link ${LAN_INTERFACE} type macvlan mode bridge; ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" || ip addr add ${MACVLAN_SHIM_IP}/32 dev ${MACVLAN_SHIM_IFACE}; ip link set ${MACVLAN_SHIM_IFACE} up; for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || ip route add \"$$ip/32\" dev ${MACVLAN_SHIM_IFACE}; done; socat -T5 UDP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr UDP:${NAS_IP}:53 & socat -T5 TCP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr TCP:${NAS_IP}:53 & wait'"
     # Load-bearing for AdGuard's DNS forwarding - must come back after a
     # host reboot unconditionally, same criticality tier as tailscale/
     # traefik-private-forwarder.
@@ -144,7 +156,7 @@ services:
       # started, or even if the routes above were never added/were lost,
       # both of which silently break reachability without the container
       # itself looking unhealthy.
-      test: ["CMD-SHELL", "ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" && nc -z ${MACVLAN_SHIM_IP} 53 && for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || exit 1; done"]
+      test: ["CMD-SHELL", "ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" && nc -z ${MACVLAN_SHIM_IP} 53 && for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || exit 1; done"]
       interval: 30s
       timeout: 5s
       retries: 3
