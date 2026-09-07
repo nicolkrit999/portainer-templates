@@ -102,11 +102,75 @@ being two INDEPENDENT Portainer git stacks meant their separate 5-minute
 auto-poll timers could recreate one without the other, leaving the
 forwarder bound inside a stale, orphaned network namespace - real
 tailnet-admin traffic then got an instant "Connection refused" while
-everything looked locally "healthy". Merging into one stack removes the
-independent-timer hazard; the stack's Portainer `AutoUpdate.ForceUpdate`
-must ALSO be `true` (a Portainer setting, not expressible in the compose
-file) so a redeploy always force-recreates both services together -
-without it, this bug can still recur, just less often.
+everything looked locally "healthy". Merging into one stack, plus setting
+this stack's Portainer `AutoUpdate.ForceUpdate` to `true`, fully closed
+*that specific trigger* (a change touching both services' config in one
+commit). It did **not** close the underlying gap completely - see the
+dedicated section below, read it before making any future change to
+either service.
+
+### ⚠️ This pair's residual risk - not fully closed by the 2026-09-08 merge
+
+**Verified via Portainer's own docs and Docker Compose's documented
+behavior (2026-09-08), not assumed:**
+- Portainer's `AutoUpdate.ForceUpdate` only means "redeploy on schedule
+  even if the git commit hasn't changed" - it does NOT force recreation of
+  a container whose own config is unchanged. ([Portainer docs](https://docs.portainer.io/faqs/troubleshooting/stacks-deployments-and-updates/how-do-automatic-updates-for-stacks-applications-work):
+  "we do not force a redeployment if the image has not updated... if
+  Docker determines the image hasn't changed for a container it will not
+  redeploy that container.")
+- Native Docker Compose has no mechanism to cascade-recreate a
+  `network_mode: service:X`/`container:X` dependent when X itself gets
+  recreated - a long-standing, documented Compose gap (third-party tools
+  like "ContainerNetwork AutoFix" and "whalewatcher" exist specifically
+  because vanilla Compose doesn't handle this).
+
+**What this means in practice:** the merge prevents the *exact* trigger
+that caused the 2026-09-08 incident (one commit changing both services'
+config, previously split across two independently-timed stacks - now one
+`docker compose up` invocation recreates both together, since both
+actually changed). It does **not** prevent a *narrower* future trigger:
+any change that touches `tailscale-admin`'s own config **without** also
+touching something in `traefik-tailnet-forwarder`'s block in that same
+commit/deploy - e.g. rotating `TS_AUTHKEY_ADMIN` alone, bumping
+`tailscale-admin`'s image tag alone, or any Portainer-UI-only env edit to
+just that service. In that case Compose will recreate only
+`tailscale-admin`, and the forwarder will be left pointing at the old,
+now-stale container ID - reproducing the identical bug.
+
+**How to check if this has already happened** (suspect this whenever
+tailnet-admin access is failing but `traefik` itself and its cert/router
+config look fine): compare `tailscale-admin`'s current container start
+time against how long ago `traefik-tailnet-forwarder` was last (re)created
+- `docker_proxy` `GET /containers/tailscale-admin/json` and
+`GET /containers/traefik-tailnet-forwarder/json`, both projected to
+`State.StartedAt`. If `tailscale-admin`'s `StartedAt` is NEWER than the
+forwarder's, the forwarder is stale. Confirm by checking the forwarder's
+actual `HostConfig.NetworkMode` value (a raw `container:<id>` string) against
+`tailscale-admin`'s CURRENT container `Id` - if they don't match, this is
+happening right now, not just a suspicion.
+
+**How to tackle it - two real options, not yet decided as of 2026-09-08:**
+1. **Documented discipline (no new moving parts, relies on remembering):**
+   any future edit to `tailscale-admin`'s own block must also touch
+   something in `traefik-tailnet-forwarder`'s block in the same
+   commit/deploy (even a harmless comment bump) so Compose sees a diff on
+   both and recreates them together. Cheap, but the exact same category of
+   human-discipline failure already caused this incident once.
+2. **Add a small watcher sidecar** (e.g. a container-recreation-watcher
+   image such as "whalewatcher" or "ContainerNetwork AutoFix") to this same
+   merged stack, whose only job is to detect when `tailscale-admin` gets a
+   new container ID and automatically force-recreate
+   `traefik-tailnet-forwarder` in response. Still an off-the-shelf image
+   (no custom build - consistent with this repo's "no build steps"
+   convention), genuinely closes the gap automatically, at the cost of one
+   more moving part in an already infra-dense area.
+3. **Immediate manual fix if the check above confirms staleness right
+   now:** just restart/recreate `traefik-tailnet-forwarder` (its
+   `network_mode: container:tailscale-admin` reference re-resolves fresh
+   against whatever `tailscale-admin` container is currently running at
+   that moment) - this is the same one-line fix that resolved the live
+   2026-09-08 incident before the structural merge was even in place.
 
 `tailscale-admin` - a SECOND, independent Tailscale node/identity,
 deliberately not the same node as `tailscale` above, and deliberately NOT

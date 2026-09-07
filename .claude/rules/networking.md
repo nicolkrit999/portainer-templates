@@ -160,9 +160,10 @@ chains short-circuit, and HSTS should still apply even on a rejected
 request). Full mechanism (why this needs a dedicated entrypoint + a second
 Tailscale identity + PROXY protocol, not just a plain Tailscale IP bind) is
 in `.claude/rules/core-infra-topology.md` - read it before touching any of
-the stacks that implement this path (`traefik-tailnet-forwarder`,
-`tailscale-admin`, `dnsmasq-tailnet`'s admin override list), though adding
-this router block to an ordinary new service needs none of that caution.
+the stacks that implement this path (`tailscale-admin_traefik-tailnet-forwarder`
+- one merged stack since 2026-09-08, was two separate ones before -
+and `dnsmasq-tailnet`'s admin override list), though adding this router
+block to an ordinary new service needs none of that caution.
 
 ## Host references (NAS)
 Never hardcode host IPs in a committed compose file - reference them as

@@ -114,9 +114,10 @@ original's long per-hostname list.
 ### Updated 2026-08-22: admin-gated hostname override added
 
 "No per-hostname overrides needed" above is now partially superseded. A
-second Tailscale identity (`tailscale-admin`, `../tailscale-admin/`) fronts
-admin-gated services via its own forwarder + Traefik entrypoint
-(`../traefik-tailnet-forwarder/`, `TRAEFIK_ENTRYPOINT_7`). Added a SECOND,
+second Tailscale identity (`tailscale-admin`, merged 2026-09-08 into
+`../tailscale-admin_traefik-tailnet-forwarder/` alongside its forwarder)
+fronts admin-gated services via its own forwarder + Traefik entrypoint
+(same merged directory, `TRAEFIK_ENTRYPOINT_7`). Added a SECOND,
 more-specific `--address=` rule alongside the existing wildcard one (not
 replacing it):
 ```
