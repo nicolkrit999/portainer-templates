@@ -67,6 +67,7 @@ services:
   dnsmasq-tailnet:
     image: 4km3/dnsmasq:2.90-r3
     container_name: dnsmasq-tailnet
+    cpu_shares: 4096
     network_mode: host
     restart: always
     cap_add:

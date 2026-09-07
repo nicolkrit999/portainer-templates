@@ -45,6 +45,7 @@ services:
   sparkyfitness-server:
     image: codewithcj/sparkyfitness_server:latest
     container_name: sparkyfitness-server
+    cpu_shares: 2048
     restart: unless-stopped
     depends_on:
       sparkyfitness-db:

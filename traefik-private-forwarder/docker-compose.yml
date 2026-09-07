@@ -25,6 +25,7 @@ services:
   traefik-private-forwarder:
     image: alpine/socat:1.8.0.3
     container_name: traefik-private-forwarder
+    cpu_shares: 4096
     command: "TCP-LISTEN:443,fork,reuseaddr TCP:traefik:${TRAEFIK_PORT_3}"
     networks:
       traefik_forwarder_net:

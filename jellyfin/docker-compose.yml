@@ -2,6 +2,8 @@ services:
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
+    cpu_shares: 2048
+    cpus: 4.0
     user: "${PUID}:${PGID}"
     volumes:
       - ${DOCKER_CONFIG_DIR}/jellyfin/config:/config

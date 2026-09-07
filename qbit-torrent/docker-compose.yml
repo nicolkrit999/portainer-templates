@@ -9,7 +9,7 @@ services:
       timeout: 10s
       retries: 3
     mem_limit: 16g
-    cpu_shares: 768
+    cpus: 4.0
     security_opt:
       - no-new-privileges:true
     network_mode: host

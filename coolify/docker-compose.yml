@@ -10,6 +10,7 @@ services:
   coolify:
     image: "ghcr.io/coollabsio/coolify:${COOLIFY_VERSION:-latest}"
     container_name: coolify
+    cpus: 3.0
     restart: unless-stopped
     working_dir: /var/www/html
     extra_hosts:

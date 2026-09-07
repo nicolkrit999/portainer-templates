@@ -2,6 +2,7 @@ services:
   grocy:
     image: lscr.io/linuxserver/grocy:latest
     container_name: grocy
+    cpu_shares: 2048
     environment:
       - PUID=${PUID}
       - PGID=${PGID}

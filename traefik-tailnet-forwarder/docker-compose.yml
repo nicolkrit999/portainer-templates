@@ -146,6 +146,7 @@ services:
   traefik-tailnet-forwarder:
     image: haproxy:alpine
     container_name: traefik-tailnet-forwarder
+    cpu_shares: 4096
     # Joins tailscale-admin's network namespace (see the top-of-file comment
     # block for the full rationale) instead of binding to the host's own
     # namespace directly - tailscale0 is a TUN device, not a

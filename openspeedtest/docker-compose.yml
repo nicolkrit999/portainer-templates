@@ -5,8 +5,6 @@ services:
     restart: on-failure:5
     security_opt:
       - no-new-privileges:true
-    mem_limit: 256m
-    cpu_shares: 512
     networks:
       - cloudflare_web_network
       - traefik_proxy_network

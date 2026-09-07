@@ -7,8 +7,6 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    mem_limit: 512m
-    cpus: 1.0
     environment:
       # NOTE: every value is quoted on purpose - Portainer's stack deployer rejects
       # unquoted YAML booleans/numbers with an opaque "[object Object]" UI error.

@@ -2,6 +2,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
+    cpu_shares: 4096
     environment:
       - TZ=${TZ}
       - TUNNEL_TOKEN=${TOKEN}

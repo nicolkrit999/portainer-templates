@@ -2,6 +2,7 @@ services:
   harborguard:
     image: ghcr.io/harborguard/harborguard:latest
     container_name: harborguard
+    cpus: 4.0
     restart: unless-stopped
     environment:
       - NODE_ENV=production

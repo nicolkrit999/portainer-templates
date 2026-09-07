@@ -26,6 +26,7 @@ services:
   atticd:
     image: ghcr.io/zhaofengli/attic:latest
     container_name: atticd
+    cpus: 2.0
     restart: unless-stopped
     command: ["-f", "/etc/atticd/server.toml"]
     user: "${PUID}:${PGID}"

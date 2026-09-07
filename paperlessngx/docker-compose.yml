@@ -86,6 +86,7 @@ services:
   paperless:
     image: ghcr.io/paperless-ngx/paperless-ngx:latest
     container_name: paperlessngx
+    cpu_shares: 2048
     hostname: "${PAPERLESS_APP_HOSTNAME}"
     security_opt:
       - no-new-privileges:true

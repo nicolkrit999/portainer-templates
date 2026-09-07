@@ -11,6 +11,7 @@ services:
   grafana:
     image: grafana/grafana-enterprise:13.2.1
     container_name: grafana
+    cpu_shares: 2048
     restart: always
     security_opt:
       - no-new-privileges:true

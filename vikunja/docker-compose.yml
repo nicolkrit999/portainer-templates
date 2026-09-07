@@ -33,6 +33,7 @@ services:
   vikunja:
     image: vikunja/vikunja:latest
     container_name: Vikunja
+    cpu_shares: 2048
     hostname: vikunja
     security_opt:
       - no-new-privileges:true

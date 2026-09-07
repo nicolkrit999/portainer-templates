@@ -24,6 +24,7 @@ services:
     sosse:
         image: biolds/sosse:pip-compose
         container_name: sosse
+        cpus: 2.0
         labels:
             traefik.enable: "true"
             traefik.http.routers.sosse.rule: "Host(`${SOSSE_SUBDOMAIN}.${DOMAIN}`)"

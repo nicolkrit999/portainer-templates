@@ -2,8 +2,6 @@ services:
   audiobookshelf:
     container_name: audiobookshelf
     image: advplyr/audiobookshelf
-    mem_limit: 2g
-    cpu_shares: 768
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
