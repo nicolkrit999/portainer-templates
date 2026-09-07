@@ -35,6 +35,11 @@ services:
     volumes:
       - ${VOLUME_DATA}/adguard/work:/opt/adguardhome/work
       - ${VOLUME_CONFIG}/adguard/conf:/opt/adguardhome/conf
+    # Relative CPU scheduling priority (cgroup v2 cpu.weight, no hard cap)
+    # so DNS resolution stays fast under contention from bursty workloads
+    # like immich_machine_learning/jellyfin transcodes - 4x Docker's
+    # default of 1024, not a reservation.
+    cpu_shares: 4096
     restart: always
     healthcheck:
       # Port 3000 only exists during the one-time first-run setup wizard;

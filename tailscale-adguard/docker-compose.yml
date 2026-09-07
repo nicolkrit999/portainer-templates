@@ -28,6 +28,11 @@ services:
     # Lets dns-relay (sharing this namespace) bind port 53 without root.
     sysctls:
       net.ipv4.ip_unprivileged_port_start: "0"
+    # Relative CPU scheduling priority (cgroup v2 cpu.weight, no hard cap)
+    # - part of AdGuard's DNS resolution chain, must not starve under
+    # contention from bursty workloads like immich_machine_learning/
+    # jellyfin transcodes. 4x Docker's default of 1024, not a reservation.
+    cpu_shares: 4096
     restart: always
     healthcheck:
       test: ["CMD", "tailscale", "status", "--json"]
@@ -56,6 +61,12 @@ services:
     # adguard/README.md "Making AdGuard survive an active Tailscale exit
     # node" for the incident and verification.
     command: "sh -c 'apk add --no-cache socat netcat-openbsd >/dev/null 2>&1; socat -T5 UDP-LISTEN:53,fork,reuseaddr UDP:adguard:53 & socat -T5 TCP-LISTEN:53,fork,reuseaddr TCP:adguard:53 & wait'"
+    # Relative CPU scheduling priority (cgroup v2 cpu.weight, no hard cap)
+    # - part of AdGuard's DNS resolution chain, must not starve under
+    # contention. 4x Docker's default of 1024, not a reservation. Note:
+    # network_mode: service: does not share cgroups, so this needs its
+    # own weight independent of tailscale-adguard's.
+    cpu_shares: 4096
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "nc -z -w2 127.0.0.1 53 || exit 1"]
