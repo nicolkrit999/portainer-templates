@@ -2,6 +2,35 @@ services:
   adguard:
     image: adguard/adguardhome:latest
     container_name: adguard
+    # WHY THIS ENTRYPOINT OVERRIDE EXISTS: AdGuard Home's DNS listener bind
+    # address (`dns.bind_hosts` in the persisted AdGuardHome.yaml) is
+    # config-file-only - there is no environment variable or post-setup UI
+    # toggle for it, it's normally set once by the first-run setup wizard
+    # and then never revisited. This repo's `tailscale-adguard` stack runs
+    # a socat DNS relay (`tailscale-adguard-dns-relay`) that targets
+    # `adguard:53` over the `traefik-proxy` Docker network (this
+    # container's dynamically-assigned IP there, e.g. 172.27.0.63) so a
+    # Tailscale identity can reach AdGuard's DNS server - but the wizard only ever
+    # bound `dns.bind_hosts` to this container's macvlan LAN IP
+    # (${ADGUARD_STATIC_IP}), so AdGuard refuses the relay's connection
+    # (confirmed live: `socat[...] W connect(5, AF=2 172.27.0.63:53, 16):
+    # Connection refused`). Since this repo's convention is git-tracked,
+    # declarative fixes rather than one-off manual container edits (which
+    # a future stack redeploy or container recreate would silently lose),
+    # this entrypoint wraps the real binary with an idempotent patch that
+    # adds `0.0.0.0` as the first entry under the top-level `dns:` section's
+    # `bind_hosts:` key on every container start - a no-op once already
+    # patched, and a no-op if AdGuardHome.yaml doesn't exist yet
+    # (pre-first-run-wizard). The awk logic tracks whether it's currently
+    # inside the top-level `dns:` block so it only matches THAT section's
+    # `bind_hosts:` key, not any other `bind_hosts:`-like line elsewhere in
+    # the file. If the line's format ever drifts (inline comment, flow-style
+    # `bind_hosts: []`, etc.) so the pattern stops matching, a final check
+    # prints a WARN to stderr (visible via `docker logs adguard`) but never
+    # blocks startup. The image's default CMD (`--no-check-update -c ... -w
+    # ...`) is left untouched and keeps flowing through via "$@" - only the
+    # entrypoint is overridden.
+    entrypoint: ["sh", "-c", "CONF=/opt/adguardhome/conf/AdGuardHome.yaml; CHECK='/^[^[:space:]]/{in_dns=($0 ~ /^dns:[[:space:]]*$/)} in_dns && /^[[:space:]]*bind_hosts:[[:space:]]*$/{getline nx; print nx; exit}'; if [ -f \"$CONF\" ] && ! awk \"$CHECK\" \"$CONF\" | grep -q '0\\.0\\.0\\.0'; then awk '/^[^[:space:]]/{in_dns=($0 ~ /^dns:[[:space:]]*$/)} {print} in_dns && /^[[:space:]]*bind_hosts:[[:space:]]*$/{print \"  - 0.0.0.0\"}' \"$CONF\" > \"$CONF.tmp\" && mv \"$CONF.tmp\" \"$CONF\"; fi; if [ -f \"$CONF\" ] && ! awk \"$CHECK\" \"$CONF\" | grep -q '0\\.0\\.0\\.0'; then echo \"WARN: dns.bind_hosts in $CONF does not contain 0.0.0.0 after patch attempt - AdGuard may only be reachable on 127.0.0.1, check AdGuardHome.yaml format\" >&2; fi; exec /opt/adguardhome/AdGuardHome \"$@\"", "sh"]
     networks:
       adguard_net:
         ipv4_address: ${ADGUARD_STATIC_IP}
