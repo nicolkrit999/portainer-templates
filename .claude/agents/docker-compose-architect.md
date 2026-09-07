@@ -243,9 +243,9 @@ one designated "anchor" router per group.
 
 ## RULE 9: CORE INFRASTRUCTURE - EXTRA CAUTION ON STRUCTURAL CHANGES
 
-`traefik/`, `traefik-private-forwarder/`, `traefik-tailnet-forwarder/`,
-`tailscale/`, `tailscale-admin/`, `dnsmasq/`, `dnsmasq-tailnet/`, and
-`cloudflared/` are not ordinary application services - they are the shared
+`traefik/`, `traefik-private-forwarder/`,
+`tailscale-admin_traefik-tailnet-forwarder/`, `tailscale/`, `dnsmasq/`,
+`dnsmasq-tailnet/`, and `cloudflared/` are not ordinary application services - they are the shared
 plumbing every other service in this repo depends on. **Read
 `.claude/rules/core-infra-topology.md` fully before making any structural
 change** to one of these (network mode, image, core command/CLI flags,
