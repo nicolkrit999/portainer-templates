@@ -17,20 +17,41 @@ services:
     # Connection refused`). Since this repo's convention is git-tracked,
     # declarative fixes rather than one-off manual container edits (which
     # a future stack redeploy or container recreate would silently lose),
-    # this entrypoint wraps the real binary with an idempotent patch that
-    # adds `0.0.0.0` as the first entry under the top-level `dns:` section's
-    # `bind_hosts:` key on every container start - a no-op once already
-    # patched, and a no-op if AdGuardHome.yaml doesn't exist yet
-    # (pre-first-run-wizard). The awk logic tracks whether it's currently
-    # inside the top-level `dns:` block so it only matches THAT section's
-    # `bind_hosts:` key, not any other `bind_hosts:`-like line elsewhere in
-    # the file. If the line's format ever drifts (inline comment, flow-style
-    # `bind_hosts: []`, etc.) so the pattern stops matching, a final check
-    # prints a WARN to stderr (visible via `docker logs adguard`) but never
-    # blocks startup. The image's default CMD (`--no-check-update -c ... -w
-    # ...`) is left untouched and keeps flowing through via "$@" - only the
-    # entrypoint is overridden.
-    entrypoint: ["sh", "-c", "CONF=/opt/adguardhome/conf/AdGuardHome.yaml; CHECK='/^[^[:space:]]/{in_dns=($0 ~ /^dns:[[:space:]]*$/)} in_dns && /^[[:space:]]*bind_hosts:[[:space:]]*$/{getline nx; print nx; exit}'; if [ -f \"$$CONF\" ] && ! awk \"$$CHECK\" \"$$CONF\" | grep -q '0\\.0\\.0\\.0'; then awk '/^[^[:space:]]/{in_dns=($0 ~ /^dns:[[:space:]]*$/)} {print} in_dns && /^[[:space:]]*bind_hosts:[[:space:]]*$/{print \"  - 0.0.0.0\"}' \"$$CONF\" > \"$$CONF.tmp\" && mv \"$$CONF.tmp\" \"$$CONF\"; fi; if [ -f \"$$CONF\" ] && ! awk \"$$CHECK\" \"$$CONF\" | grep -q '0\\.0\\.0\\.0'; then echo \"WARN: dns.bind_hosts in $$CONF does not contain 0.0.0.0 after patch attempt - AdGuard may only be reachable on 127.0.0.1, check AdGuardHome.yaml format\" >&2; fi; exec /opt/adguardhome/AdGuardHome \"$@\"", "sh"]
+    # this entrypoint wraps the real binary with a patch that adds
+    # `0.0.0.0` as a new first entry under the top-level `dns:` section's
+    # `bind_hosts:` key.
+    #
+    # Two hard-won design points, both confirmed live on 2026-09-07 after
+    # an earlier version of this script actually corrupted the live config
+    # and put AdGuard into a crash loop - do not simplify either away:
+    #
+    # 1. The new list item's indentation is taken from the EXISTING first
+    #    `bind_hosts` item's own leading whitespace (captured via `IND=`),
+    #    never hardcoded. A hardcoded indent that doesn't exactly match the
+    #    sibling item's column causes YAML to treat the two lines as one
+    #    continued scalar (`0.0.0.0 - 192.168.1.96` as a single malformed
+    #    string) instead of two list entries - this is exactly what
+    #    happened and crashed AdGuard with a config parse error.
+    # 2. The whole patch is gated behind a persistent marker file
+    #    (`.bind_hosts_patched`, in the same bind-mounted conf volume) that
+    #    is only ever written AFTER a patch attempt completes - so the
+    #    mutation can run AT MOST ONCE per volume lifetime, not on every
+    #    container start/restart. `restart: always` plus a patch that reran
+    #    every restart meant any latent bug would compound with each crash
+    #    cycle, which is exactly what happened before this was added.
+    #
+    # The awk logic still tracks whether it's inside the top-level `dns:`
+    # block so it only matches THAT section's `bind_hosts:` key, never any
+    # other `bind_hosts:`-like line elsewhere in the file. If `bind_hosts:`
+    # isn't found at all under `dns:` (format drift, e.g. flow-style
+    # `bind_hosts: []`), a WARN is printed to stderr (visible via
+    # `docker logs adguard`) but startup is never blocked, and the marker
+    # is still written so a permanently-unmatched pattern doesn't retry
+    # every single restart. The image's default CMD is NOT preserved
+    # automatically by overriding `entrypoint:` (a separate confirmed
+    # Docker/Compose gotcha - see the `command:` comment below) - "$@"
+    # only carries the args explicitly restored via `command:`.
+    entrypoint: ["sh", "-c", "CONF=/opt/adguardhome/conf/AdGuardHome.yaml; MARKER=/opt/adguardhome/conf/.bind_hosts_patched; if [ -f \"$$CONF\" ] && [ ! -f \"$$MARKER\" ]; then IND=`awk '/^[^[:space:]]/{in_dns=($0 ~ /^dns:[[:space:]]*$/)} in_dns && /^[[:space:]]*bind_hosts:[[:space:]]*$/{getline nx; match(nx, /^[[:space:]]*/); print substr(nx, RSTART, RLENGTH); exit}' \"$$CONF\"`; ALREADY=`awk '/^[^[:space:]]/{in_dns=($0 ~ /^dns:[[:space:]]*$/)} in_dns && /^[[:space:]]*bind_hosts:[[:space:]]*$/{getline nx; print nx; exit}' \"$$CONF\" | grep -c '0\\.0\\.0\\.0' || true`; if [ -n \"$$IND\" ] && [ \"$$ALREADY\" = \"0\" ]; then awk -v ind=\"$$IND\" '/^[^[:space:]]/{in_dns=($0 ~ /^dns:[[:space:]]*$/)} {print} in_dns && !done && /^[[:space:]]*bind_hosts:[[:space:]]*$/{print ind \"- 0.0.0.0\"; done=1}' \"$$CONF\" > \"$$CONF.tmp\" && mv \"$$CONF.tmp\" \"$$CONF\"; fi; if [ -z \"$$IND\" ]; then echo \"WARN: dns.bind_hosts not found in $$CONF - AdGuard may only be reachable on 127.0.0.1, check AdGuardHome.yaml format\" >&2; fi; touch \"$$MARKER\"; fi; exec /opt/adguardhome/AdGuardHome \"$@\"", "sh"]
     # Docker/Compose gotcha (confirmed live, 2026-09-07): overriding
     # `entrypoint:` WITHOUT also setting `command:` silently clears the
     # image's default CMD to null - it is NOT preserved and passed through
