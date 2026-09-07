@@ -150,27 +150,42 @@ actual `HostConfig.NetworkMode` value (a raw `container:<id>` string) against
 `tailscale-admin`'s CURRENT container `Id` - if they don't match, this is
 happening right now, not just a suspicion.
 
-**How to tackle it - two real options, not yet decided as of 2026-09-08:**
-1. **Documented discipline (no new moving parts, relies on remembering):**
-   any future edit to `tailscale-admin`'s own block must also touch
-   something in `traefik-tailnet-forwarder`'s block in the same
-   commit/deploy (even a harmless comment bump) so Compose sees a diff on
-   both and recreates them together. Cheap, but the exact same category of
-   human-discipline failure already caused this incident once.
-2. **Add a small watcher sidecar** (e.g. a container-recreation-watcher
-   image such as "whalewatcher" or "ContainerNetwork AutoFix") to this same
-   merged stack, whose only job is to detect when `tailscale-admin` gets a
-   new container ID and automatically force-recreate
-   `traefik-tailnet-forwarder` in response. Still an off-the-shelf image
-   (no custom build - consistent with this repo's "no build steps"
-   convention), genuinely closes the gap automatically, at the cost of one
-   more moving part in an already infra-dense area.
-3. **Immediate manual fix if the check above confirms staleness right
-   now:** just restart/recreate `traefik-tailnet-forwarder` (its
-   `network_mode: container:tailscale-admin` reference re-resolves fresh
-   against whatever `tailscale-admin` container is currently running at
-   that moment) - this is the same one-line fix that resolved the live
-   2026-09-08 incident before the structural merge was even in place.
+**RESOLVED 2026-09-08 (same day): a watcher sidecar was implemented as the
+permanent fix**, not left as an open decision. `tailscale-admin-watcher`
+was added to this same merged stack (see the compose file itself) - a
+custom `command:` on the official `docker:27-cli` image (no custom build,
+same off-the-shelf-image pattern as `haproxy-config-init` above), not
+either of the two third-party images that were evaluated and rejected:
+`buxxdev/containernetwork-autofix` (hard-requires Unraid plugin host paths
+absent on this NAS) and `treyturner/whalewatcher` (no verifiable public
+source repo - a supply-chain concern for an image needing read-write
+docker.sock access). It pipes `docker events --filter event=start --filter
+container=tailscale-admin` into an infinite `while read` loop, waits
+`${WATCHER_RESTART_WAIT_TIME}` seconds after each restart it detects (lets
+the new Tailscale identity establish its tailnet connection first), then
+runs `docker compose -f /stack/docker-compose.yml -p
+tailscale-admin_traefik-tailnet-forwarder up -d --force-recreate
+traefik-tailnet-forwarder` against a read-only mount of this exact stack's
+own compose file at its real Portainer-on-disk path
+(`${VOLUME_CONFIG}/portainer/compose/${PORTAINER_STACK_ID}/tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml`).
+This closes the narrower trigger structurally - staleness can no longer
+depend on remembering to touch both services' config in the same
+commit/deploy.
+
+The manual-fix and documented-discipline paths below remain useful as
+fallbacks (e.g. if the watcher container itself is ever down), but are no
+longer the primary mitigation:
+1. **Documented discipline (fallback only):** any edit to `tailscale-admin`'s
+   own block that also touches something in `traefik-tailnet-forwarder`'s
+   block in the same commit/deploy still forces Compose to recreate both
+   together - still true, just no longer load-bearing now that the watcher
+   exists.
+2. **Immediate manual fix if staleness is ever found regardless:** just
+   restart/recreate `traefik-tailnet-forwarder` (its `network_mode:
+   container:tailscale-admin` reference re-resolves fresh against whatever
+   `tailscale-admin` container is currently running) - the same one-line
+   fix that resolved the live 2026-09-08 incident before either the
+   structural merge or the watcher existed.
 
 `tailscale-admin` - a SECOND, independent Tailscale node/identity,
 deliberately not the same node as `tailscale` above, and deliberately NOT
