@@ -1,161 +1,25 @@
 services:
-  # Host-side macvlan "shim" interface AND active DNS relay.
-  #
-  # This is NOT a passive idle interface - it also runs the UDP/TCP DNS
-  # relay described below that makes the interface actually useful. See
-  # the "THE SHIM INTERFACE ALONE IS NOT SUFFICIENT" and "OPERATIONAL"
-  # notes further down for the two things that matter most operationally.
-  #
-  # WHY THIS EXISTS: Docker macvlan has a well-known kernel-level limitation -
-  # the host's own network namespace (this includes the host OS itself, and
-  # any container using network_mode: host, such as this repo's `dnsmasq`)
-  # can NEVER exchange traffic with anything attached to a macvlan network,
-  # in either direction. This was confirmed live on this NAS: `dnsmasq`
-  # (host-mode, ${NAS_IP}) could not reach `adguard`'s macvlan IP, and
-  # `adguard` (macvlan) could not reach `dnsmasq` on ${NAS_IP}:53 either -
-  # AdGuard's own upstream-DNS test reported the host target as unreachable.
-  # This silently breaks AdGuard's conditional forwarding of internal
-  # ${DOMAIN} lookups to `dnsmasq`.
-  #
-  # THE FIX: give the host's own network namespace a second presence on the
-  # same macvlan L2 segment (a macvlan-mode-bridge shim interface, plus a
-  # dedicated static IP, created directly in the host namespace). Traffic
-  # between the host namespace and any macvlan-attached container then
-  # flows over this shim's L2 identity instead of trying (and failing) to
-  # cross the macvlan boundary directly. This is the standard, documented
-  # workaround for this exact Docker macvlan limitation.
-  #
-  # ⚠️ THE SHIM INTERFACE ALONE IS NOT SUFFICIENT - IT MUST ALSO RELAY DNS.
-  # Docker's macvlan bridge-mode restriction specifically blocks traffic
-  # to/from the PARENT interface's own bound address (${NAS_IP}, since
-  # that's the parent NIC's own address) - a macvlan child can NEVER reach
-  # that specific address, no matter how many sibling shim interfaces
-  # exist on the same segment, because the kernel-level packet switching
-  # categorically excludes the parent's own MAC/RX path. A new macvlan
-  # sibling (this shim, at ${MACVLAN_SHIM_IP}) only fixes reachability TO
-  # THE SHIM'S OWN NEW ADDRESS - `adguard` (macvlan) can reach
-  # ${MACVLAN_SHIM_IP}, but still can never reach ${NAS_IP} directly.
-  # So this container also runs a UDP+TCP DNS relay, bound only to
-  # ${MACVLAN_SHIM_IP}:53 (never 0.0.0.0 - `dnsmasq` already holds
-  # ${NAS_IP}:53 specifically, and other host-networked services in this
-  # repo may bind other specific addresses too), forwarding to the real
-  # `dnsmasq` at ${NAS_IP}:53. Since this container is network_mode: host
-  # (same netns as `dnsmasq`), it has completely unrestricted access to
-  # ${NAS_IP}:53 - the macvlan restriction only applies to macvlan-child-
-  # to-parent traffic, not to ordinary same-netns routing between two
-  # host-networked things.
-  #
-  # ⚠️ OPERATIONAL: AdGuard's conditional-forward upstream for ${DOMAIN}
-  # must be configured to point at ${MACVLAN_SHIM_IP} (.95), NEVER at
-  # ${NAS_IP} (.98) - .98 remains permanently unreachable from any
-  # macvlan-attached container regardless of this fix; only .95 (this
-  # relay) is reachable. A past design had this pointed at .98 - do not
-  # repeat that mistake.
-  #
-  # ⚠️ THE INTERFACE + RELAY ABOVE ARE STILL NOT SUFFICIENT ON THEIR OWN -
-  # A HOST ROUTE IS ALSO REQUIRED FOR EACH MACVLAN-ATTACHED IP. Confirmed
-  # live 2026-09-07: even with the shim interface up and the relay
-  # listening, `adguard` (macvlan, .96) still could not reach
-  # the relay at ${MACVLAN_SHIM_IP} (.95) - `nslookup ... ${MACVLAN_SHIM_IP}`
-  # timed out from inside `adguard`, even though ARP/L2 switching between
-  # the shim and `adguard` DOES work (L2 reachability alone is not enough).
-  # Root cause: the HOST already has a broader pre-existing route for the
-  # whole LAN subnet (bridge0's own normal subnet route, e.g.
-  # `192.168.1.0/24 dev bridge0`, which predates this shim and is not
-  # created by this container). When the shim's relay sends its reply back
-  # to a macvlan-attached IP, the kernel's routing table picks that
-  # broader/pre-existing `bridge0` route as egress - NOT `${MACVLAN_SHIM_IFACE}`,
-  # since a routing table always prefers the more specific match it has,
-  # and absent a host-scope route for the specific macvlan IP, the subnet
-  # route is the most specific match it has. `bridge0` is the actual
-  # macvlan PARENT interface, and macvlan bridge-mode categorically
-  # excludes the parent interface from talking to its own macvlan
-  # children - so the reply silently falls into the exact same
-  # parent-exclusion restriction on its way back out, even though the
-  # request arrived at the relay just fine. The fix is a more-specific
-  # host-scope route per macvlan-attached IP (see ${MACVLAN_ATTACHED_IPS}
-  # below) that forces return traffic out via ${MACVLAN_SHIM_IFACE}
-  # instead of `bridge0` - confirmed live via a manual
-  # `ip route add <ip>/32 dev ${MACVLAN_SHIM_IFACE}` test, after which
-  # `nslookup` from inside `adguard` succeeded and returned the correct
-  # answer.
-  #
-  # WHY A COMPOSE SERVICE INSTEAD OF AN /etc/rc.local EDIT: this repo's
-  # convention is that all host-state-affecting configuration is
-  # git-tracked and reviewable through compose files, not raw vendor boot
-  # scripts, and every opinionated value must be an ${VAR}, not hardcoded.
-  # This follows the exact same precedent already used by `tailscale` /
-  # `tailscale-admin` in this repo - a `network_mode: host` container with
-  # elevated capabilities that manages real host-level network state (a TUN
-  # device, in their case; a macvlan shim interface, in this one) from
-  # inside a container, persisted via `restart: always` (Docker Engine
-  # re-applies `restart: always` containers on every daemon start, which
-  # happens on every host boot).
-  #
-  # This is load-bearing infrastructure for AdGuard's DNS forwarding to
-  # `dnsmasq` to work correctly - do not remove without re-verifying that
-  # limitation no longer applies.
+  # Host-side macvlan shim interface + active DNS relay, working around
+  # Docker macvlan's host<->macvlan-child unreachability. Load-bearing for
+  # AdGuard's conditional-forward to dnsmasq - see adguard/README.md
+  # "Why macvlan instead of a normal Docker network" for the full design,
+  # the host-route requirement, and the operational .95-not-.98 rule.
   macvlan-host-shim:
     image: alpine:latest
     container_name: macvlan-host-shim
     network_mode: host
     cap_add:
       - NET_ADMIN
-    # Single-line, idempotent (check-then-create) so re-running this exact
-    # command on every container restart/reboot never errors out on an
-    # already-existing interface or address. iproute2 (the `ip` binary),
-    # socat (the DNS relay - see the WHY THIS EXISTS comment above), and
-    # netcat-openbsd (the healthcheck's `nc` binary, base alpine's busybox
-    # doesn't ship one) are not bundled in base alpine, so they're
-    # installed on first run - harmless to repeat on every start. After the
-    # interface/address setup, this adds a host-scope /32 route for each
-    # macvlan-attached IP in ${MACVLAN_ATTACHED_IPS} (idempotent - only
-    # added if not already present pointing at this interface; see the
-    # "A HOST ROUTE IS ALSO REQUIRED" comment above for why this loop
-    # exists), then backgrounds two socat relays (UDP and TCP - DNS needs
-    # both) bound only to ${MACVLAN_SHIM_IP}:53, forwarding to the real
-    # dnsmasq at ${NAS_IP}:53, then blocks on `wait` so the container
-    # stays up as long as both relays are alive.
-    #
-    # ⚠️ `$$ip` (in the route-loop, both here and in the healthcheck
-    # below) MUST stay double-dollar-escaped - confirmed live incident,
-    # 2026-09-07: Docker Compose interpolates any bare `$IDENTIFIER` in
-    # the raw compose file text, not just `${VAR}`, including shell-local
-    # loop variables never meant to be Compose stack env vars. A single
-    # `$` here silently collapsed every `$ip/32` to a bare `/32`,
-    # producing `ip route add "/32" ...` - always failing with "any valid
-    # prefix is expected rather than /32" and leaving this container
-    # permanently unhealthy, though the pre-existing host route from an
-    # earlier manual fix masked the practical impact (a NAS reboot would
-    # have exposed it for real, since host routes don't survive that).
-    #
-    # ⚠️ `-T5` on both socat invocations is NOT optional - see the
-    # identical, more heavily-loaded relay in
-    # ../tailscale-adguard/docker-compose.yml for the full incident
-    # writeup (2026-09-07): without an inactivity timeout, socat's `fork`
-    # mode never terminates a forked child that handled a UDP query, since
-    # UDP has no "connection closed" signal - children just accumulate
-    # indefinitely under real traffic until the container runs out of
-    # resources and starts refusing new connections. This relay carries
-    # much less traffic (only internal ${DOMAIN} conditional-forward
-    # lookups, not general household internet DNS) so it hadn't hit the
-    # failure point when found (21 processes at the time, vs 2000+ on the
-    # other relay) - applying the same fix here preemptively rather than
-    # waiting for it to eventually accumulate the same way.
+    # Idempotent: safe to re-run on every restart/reboot. `$ip` (the loop
+    # variable) must stay $$-escaped - Compose interpolates bare $words
+    # too, not just ${VAR} - and -T5 on both socat relays is required to
+    # avoid a process leak. See README for both incidents.
     command: "sh -c 'apk add --no-cache iproute2 socat netcat-openbsd >/dev/null 2>&1; ip link show ${MACVLAN_SHIM_IFACE} >/dev/null 2>&1 || ip link add ${MACVLAN_SHIM_IFACE} link ${LAN_INTERFACE} type macvlan mode bridge; ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" || ip addr add ${MACVLAN_SHIM_IP}/32 dev ${MACVLAN_SHIM_IFACE}; ip link set ${MACVLAN_SHIM_IFACE} up; for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || ip route add \"$$ip/32\" dev ${MACVLAN_SHIM_IFACE}; done; socat -T5 UDP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr UDP:${NAS_IP}:53 & socat -T5 TCP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr TCP:${NAS_IP}:53 & wait'"
-    # Load-bearing for AdGuard's DNS forwarding - must come back after a
-    # host reboot unconditionally, same criticality tier as tailscale/
-    # traefik-private-forwarder.
     restart: always
     healthcheck:
-      # Confirms the interface has its address, the TCP relay is actually
-      # accepting connections on ${MACVLAN_SHIM_IP}:53, AND every IP in
-      # ${MACVLAN_ATTACHED_IPS} has its host-scope route pointing at
-      # ${MACVLAN_SHIM_IFACE} - the interface check alone (the old
-      # healthcheck) would pass even if the socat relays crashed or never
-      # started, or even if the routes above were never added/were lost,
-      # both of which silently break reachability without the container
-      # itself looking unhealthy.
+      # Checks the interface, the relay, AND every route in
+      # ${MACVLAN_ATTACHED_IPS} - not just the interface, which could pass
+      # even with a crashed relay or a lost route.
       test: ["CMD-SHELL", "ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" && nc -z ${MACVLAN_SHIM_IP} 53 && for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || exit 1; done"]
       interval: 30s
       timeout: 5s
@@ -166,7 +30,5 @@ services:
         max-size: "10m"
         max-file: "3"
 
-# No Cloudflare Tunnel / Traefik networks - this is pure host-networking
-# infrastructure with no HTTP surface at all (same category as `tailscale`),
-# and network_mode: host is incompatible with attaching additional Docker
-# networks in the first place.
+# network_mode: host is incompatible with attaching Docker networks - no
+# Cloudflare/Traefik here, same as `tailscale`.
