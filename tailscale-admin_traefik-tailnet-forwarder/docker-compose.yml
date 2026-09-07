@@ -28,6 +28,21 @@ services:
   # Without it, this exact stale-namespace bug can still recur even from a
   # single merged stack, just less often (only when something touches BOTH
   # services' config at once, instead of either one's independently).
+  #
+  # ADDED 2026-09-08 (SAME DAY, permanent fix for the residual gap): neither
+  # the merge nor AutoUpdate.ForceUpdate protects against a NARROWER trigger
+  # - any change that touches only tailscale-admin's own config (a
+  # TS_AUTHKEY_ADMIN rotation, an image bump, a Portainer-UI-only env edit)
+  # without also touching traefik-tailnet-forwarder's block in that same
+  # deploy. Compose only recreates a service whose own config changed, and
+  # there's no vanilla-Compose mechanism to cascade-recreate a
+  # `network_mode: container:X` dependent when X gets recreated (see
+  # `.claude/rules/core-infra-topology.md`'s "This pair's residual risk"
+  # section for the full verified writeup). `tailscale-admin-watcher` below
+  # closes this gap structurally: it watches `docker events` for tailscale-
+  # admin restarts and force-recreates traefik-tailnet-forwarder in response
+  # every time, so staleness can no longer depend on remembering to touch
+  # both services' config by hand.
   # ============================================================================
 
   # --- from ../tailscale-admin/docker-compose.yml -----------------------------
@@ -351,6 +366,119 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PERMANENT FIX for this pair's residual staleness risk (added 2026-09-08,
+  # same day as the merge - see the top-of-file comment block and
+  # `.claude/rules/core-infra-topology.md`'s "This pair's residual risk"
+  # section). Two off-the-shelf watcher images were evaluated and rejected:
+  # `buxxdev/containernetwork-autofix` (hard-requires Unraid plugin host
+  # paths this NAS doesn't have) and `treyturner/whalewatcher` (no
+  # verifiable public source repo - a supply-chain concern for an image that
+  # needs read-write docker.sock access). Built instead as a custom
+  # `command:` on an OFFICIAL Docker image, no Dockerfile/custom image - the
+  # exact same pattern this file already uses for haproxy-config-init above
+  # (official alpine:latest + a shell command, no custom build), consistent
+  # with this repo's "no build steps" convention.
+  #
+  # Deliberately NOT added to any other service's depends_on and does not
+  # depend on any service itself - it's an independent, parallel watcher
+  # reacting to Docker events over time, not part of the startup ordering
+  # chain.
+  tailscale-admin-watcher:
+    # Official Docker CLI image bundling the Compose v2 plugin (`docker
+    # compose`, not the standalone `docker-compose` v1 binary) - needed
+    # because this container issues `docker compose up --force-recreate`,
+    # not just `docker` commands. NOTE: bundling of the compose plugin in
+    # this exact tag should be confirmed with `docker compose version` on
+    # first deploy - it cannot be 100% verified without a live check.
+    image: docker:27-cli
+    container_name: tailscale-admin-watcher
+    restart: unless-stopped
+    environment:
+      # Seconds to wait after tailscale-admin reports a `start` event before
+      # force-recreating traefik-tailnet-forwarder - gives the new Tailscale
+      # identity time to actually establish its tailnet connection before
+      # the forwarder tries to bind against its namespace.
+      WATCHER_RESTART_WAIT_TIME: "${WATCHER_RESTART_WAIT_TIME}"
+      # This exact stack's own Portainer-assigned numeric stack ID - see the
+      # long comment on the compose-file volume mount below for why this is
+      # required and why it is NOT a fixed constant.
+      PORTAINER_STACK_ID: "${PORTAINER_STACK_ID}"
+      # SECURITY-AUDIT FIX (2026-09-08): every one of this stack's own
+      # ${VAR}s must ALSO be set here, on the watcher's own container. The
+      # mounted docker-compose.yml below (read-only) has NO accompanying
+      # .env file next to it - without these, `docker compose up` invoked
+      # from inside this container would substitute every ${VAR} in the
+      # mounted file as blank, silently deploying traefik-tailnet-forwarder
+      # (and its haproxy-config-init dependency) with empty env on every
+      # single recreate - i.e. this repo's own previously-documented
+      # StackGitRedeploy env-wipe failure mode, except self-inflicted by the
+      # very automation meant to fix staleness. The command below dumps
+      # this container's own environment to a file and passes it back to
+      # `docker compose` via --env-file, so the recreate always carries the
+      # real, current values - the same ones Portainer already has set on
+      # this stack.
+      TAILSCALE_IP: "${TAILSCALE_IP}"
+      TRAEFIK_INTERNAL_IP: "${TRAEFIK_INTERNAL_IP}"
+      TRAEFIK_PORT_7: "${TRAEFIK_PORT_7}"
+      TS_AUTHKEY_ADMIN: "${TS_AUTHKEY_ADMIN}"
+      TS_HOSTNAME_ADMIN: "${TS_HOSTNAME_ADMIN}"
+      TAILSCALE_ADMIN_INTERNAL_IP: "${TAILSCALE_ADMIN_INTERNAL_IP}"
+      VOLUME_CONFIG: "${VOLUME_CONFIG}"
+    volumes:
+      # Read-write: this container issues `docker compose up`, not just
+      # `docker events` reads. This repo already has an established,
+      # accepted precedent for docker.sock-mounted services that actively
+      # mutate containers, not just observe them (tugtainer, watchtower -
+      # both can recreate/update any container on the host; this one is
+      # narrower, ever only targeting one specific named service).
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Read-only mount of THIS stack's own compose file, at the exact host
+      # path Portainer stores git-stack files at:
+      # <portainer-data-dir>/compose/<stack-id>/<stack-directory-name>/docker-compose.yml
+      # - confirmed today (2026-09-08) via live container inspection that
+      # Portainer's own /data maps to ${VOLUME_CONFIG}/portainer on this
+      # host. Mounting the real file (rather than reconstructing the
+      # `docker compose up` command by hand) means the recreate always
+      # carries full fidelity - every env var, volume, and the
+      # network_mode: container:tailscale-admin reference itself - with
+      # zero risk of drifting from what's actually deployed. This mount
+      # source is coupled to Portainer's current internal storage layout
+      # (unversioned, could change in a future Portainer release) - if the
+      # watcher container ever fails to start with a "no such file" error
+      # on this path, check whether that layout has changed.
+      - ${VOLUME_CONFIG}/portainer/compose/${PORTAINER_STACK_ID}/tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml:/stack/docker-compose.yml:ro
+    # Infinite reactive loop, not a one-shot check: `docker events` streams
+    # and blocks by design, so piping it into `while read` means this loop
+    # reacts to EVERY future tailscale-admin restart for the life of the
+    # container, not just the first one. Filtered to `event=start` +
+    # `container=tailscale-admin` server-side (via --filter) so the loop
+    # only wakes up for the exact event it cares about, rather than parsing
+    # every Docker event on the host.
+    #
+    # SECURITY-AUDIT FIX (2026-09-08), escaping: every `$name`/`${name}`
+    # below that must be resolved by THIS CONTAINER's shell at runtime
+    # (the `$line` loop variable, and both uses of
+    # `$WATCHER_RESTART_WAIT_TIME`) is written as `$$name`/`$${name}` -
+    # Compose's own variable-interpolation pass matches bare `$VAR` just as
+    # much as `${VAR}` and runs BEFORE this container ever starts, so an
+    # unescaped `$line` (a value Compose has never heard of) was silently
+    # replaced with an empty string at deploy time, permanently breaking
+    # the log line's content - confirmed by security audit, not
+    # theoretical. `$$` is Compose's documented escape for "leave this
+    # literal `$` alone, a shell at runtime should resolve it instead."
+    command:
+      - "sh"
+      - "-c"
+      - "echo \"[tailscale-admin-watcher] watching for tailscale-admin restarts...\"; printenv > /tmp/stack.env; docker events --filter 'event=start' --filter 'container=tailscale-admin' --format '{{.Time}} {{.Status}} {{.Actor.Attributes.name}}' | while read -r line; do echo \"[tailscale-admin-watcher] detected: $$line\"; echo \"[tailscale-admin-watcher] waiting $${WATCHER_RESTART_WAIT_TIME}s for tailscale-admin to establish its tailnet connection...\"; sleep \"$$WATCHER_RESTART_WAIT_TIME\"; echo \"[tailscale-admin-watcher] force-recreating traefik-tailnet-forwarder...\"; docker compose --env-file /tmp/stack.env -f /stack/docker-compose.yml -p tailscale-admin_traefik-tailnet-forwarder up -d --force-recreate traefik-tailnet-forwarder; echo \"[tailscale-admin-watcher] done, resuming watch\"; done"
+    # No healthcheck: a background docker-events watcher loop has no
+    # meaningful endpoint/command to probe beyond "is the process alive",
+    # which restart:unless-stopped + `docker ps` already cover - a forced
+    # healthcheck here would add ceremony without real actionable signal.
     logging:
       options:
         max-size: "10m"

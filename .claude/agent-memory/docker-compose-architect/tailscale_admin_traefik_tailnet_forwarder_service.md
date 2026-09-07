@@ -1,6 +1,6 @@
 ---
 name: tailscale-admin-traefik-tailnet-forwarder-service
-description: MERGED 2026-09-08 (was two separate files/stacks - tailscale_admin_service.md and traefik_tailnet_forwarder_service.md, now retired). Second independent Tailscale identity + the HAProxy sidecar that shares its namespace via network_mode:container:X, fixing the Tailscale-source-IP-rewrite bug. Merged into one stack after a real incident where their independent redeploy timers desynced.
+description: MERGED 2026-09-08 (was two separate files/stacks - tailscale_admin_service.md and traefik_tailnet_forwarder_service.md, now retired). Second independent Tailscale identity + the HAProxy sidecar that shares its namespace via network_mode:container:X, fixing the Tailscale-source-IP-rewrite bug. Merged into one stack after a real incident where their independent redeploy timers desynced. Same day, a third service (tailscale-admin-watcher) was added as the permanent fix for the pair's residual staleness risk.
 metadata:
   type: project
 ---
@@ -183,6 +183,63 @@ Changes made at the time:
   process bind port 443 cleanly instead.
 - Added `depends_on: haproxy-config-init: condition: service_completed_successfully`
   (the init container that writes `haproxy.cfg` on first deploy).
+
+## Third service added same day: tailscale-admin-watcher (2026-09-08)
+
+Implemented as the PERMANENT FIX for the "residual risk" gap documented in
+`.claude/rules/core-infra-topology.md` (the merge + `AutoUpdate.ForceUpdate`
+only close the "both services changed in one commit" trigger, not the
+narrower "only tailscale-admin's own config changed" trigger). No longer
+an open decision - both third-party options from the topology doc
+(`buxxdev/containernetwork-autofix`, `treyturner/whalewatcher`) were
+researched and rejected (Unraid-only host paths; no verifiable source repo
+for a docker.sock-mounted image, respectively). Built as a custom
+`command:` on an **official** image instead, matching this same file's
+own `haproxy-config-init` precedent (official image + shell script, no
+custom Dockerfile/build).
+
+- **Image**: `docker:27-cli` - official Docker CLI image; comment in the
+  compose file flags that Compose-v2-plugin bundling in this exact tag
+  should be confirmed with `docker compose version` on first deploy (can't
+  be 100% verified without a live check).
+- **Behavior**: `docker events --filter event=start --filter
+  container=tailscale-admin --format '{{.Time}} {{.Status}}
+  {{.Actor.Attributes.name}}'` piped into an infinite `while read -r line`
+  loop (server-side `--filter`, not client-side grep, so it only wakes for
+  the exact event that matters) → `sleep "$WATCHER_RESTART_WAIT_TIME"` →
+  `docker compose -f /stack/docker-compose.yml -p
+  tailscale-admin_traefik-tailnet-forwarder up -d --force-recreate
+  traefik-tailnet-forwarder`. `docker events` streams/blocks by design, so
+  this reacts to every future restart, not just the first.
+- **New env vars**: `WATCHER_RESTART_WAIT_TIME` (default `15`),
+  `PORTAINER_STACK_ID` (real live value for this deployment: `350`,
+  confirmed via Portainer StackInspect 2026-09-08 - NOT a fixed constant,
+  must be re-verified if this stack is ever deleted/recreated since that
+  assigns a new stack ID).
+- **Volumes**: `/var/run/docker.sock:/var/run/docker.sock` (read-write - it
+  issues `docker compose up`, not just reads events; repo already has an
+  established precedent for docker.sock mounts, not flagged as a new risk)
+  and a read-only mount of this exact stack's own compose file at its real
+  Portainer-on-disk path:
+  `${VOLUME_CONFIG}/portainer/compose/${PORTAINER_STACK_ID}/tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml`
+  → `/stack/docker-compose.yml:ro` (confirmed 2026-09-08 that Portainer's
+  own `/data` maps to `${VOLUME_CONFIG}/portainer` on this host - same fact
+  already used by [[portainer_service]]'s memory).
+- **restart: unless-stopped** (not `always`) - deliberately a lower
+  criticality tier than `tailscale-admin`/`traefik-tailnet-forwarder`
+  themselves; it's a safety-net automation sidecar, not itself on the
+  tailnet-admin request path.
+- **No healthcheck** - judgment call: a background docker-events loop has
+  no meaningful probe beyond "process alive", which restart policy + `docker
+  ps` already cover.
+- **Not** added to any `depends_on` in either direction (independent,
+  parallel watcher, not part of the startup ordering chain) and **no**
+  Traefik router/Cloudflare network/DNS entry/SAN group - it has no
+  hostname at all, pure background automation.
+- `.claude/rules/core-infra-topology.md`'s "This pair's residual risk"
+  section was reworded from "not yet decided" to "RESOLVED - watcher
+  implemented" - don't let a stale local copy of that file's old wording
+  resurface in a future session.
 
 ## Tooling note
 
