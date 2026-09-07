@@ -30,11 +30,14 @@ The stacks listed below are **not application services** - they are the
 shared plumbing every other service in this repo depends on. A mistake in
 one of these has repo-wide blast radius (confirmed by real incidents: a
 config change here has caused a full outage of every Traefik-routed
-service at least twice). Before editing `traefik/`, `traefik-private-forwarder/`,
-`traefik-tailnet-forwarder/`, `tailscale/`, `tailscale-admin/`, `dnsmasq/`,
-`dnsmasq-tailnet/`, or `cloudflared/`, read this file completely and
-understand which OTHER stacks the change could affect - these seven are
-tightly coupled, and a change that looks local to one file often isn't.
+service at least twice, and a THIRD incident, 2026-09-08, was caused by
+`tailscale-admin` and `traefik-tailnet-forwarder` being separate stacks in
+the first place - see that pair's note below). Before editing `traefik/`,
+`traefik-private-forwarder/`, `tailscale-admin_traefik-tailnet-forwarder/`,
+`tailscale/`, `dnsmasq/`, `dnsmasq-tailnet/`, or `cloudflared/`, read this
+file completely and understand which OTHER stacks the change could affect -
+these six are tightly coupled, and a change that looks local to one file
+often isn't.
 
 Ordinary application services (everything else in this repo) do not need
 this level of caution - this file is specifically about the shared
@@ -88,7 +91,24 @@ bind. Solves this via **macvlan**: it gets its own dedicated LAN IP,
 genuinely separate L2 identity from the NAS's own IP, so its 443 bind
 never collides with Traefik's own wildcard bind.
 
-**`tailscale-admin`** - a SECOND, independent Tailscale node/identity,
+**`tailscale-admin` + `traefik-tailnet-forwarder`** - as of 2026-09-08 these
+are TWO SERVICES IN ONE MERGED STACK
+(`tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml`), not two
+separate stacks as they used to be. See that file's own top-of-file comment
+for the full incident writeup; short version: `traefik-tailnet-forwarder`'s
+`network_mode: container:tailscale-admin` is a hard runtime coupling
+(Docker pins tailscale-admin's raw container ID at creation time), but
+being two INDEPENDENT Portainer git stacks meant their separate 5-minute
+auto-poll timers could recreate one without the other, leaving the
+forwarder bound inside a stale, orphaned network namespace - real
+tailnet-admin traffic then got an instant "Connection refused" while
+everything looked locally "healthy". Merging into one stack removes the
+independent-timer hazard; the stack's Portainer `AutoUpdate.ForceUpdate`
+must ALSO be `true` (a Portainer setting, not expressible in the compose
+file) so a redeploy always force-recreates both services together -
+without it, this bug can still recur, just less often.
+
+`tailscale-admin` - a SECOND, independent Tailscale node/identity,
 deliberately not the same node as `tailscale` above, and deliberately NOT
 `network_mode: host`. Uses ordinary Docker networking (`cap_add: [NET_ADMIN,
 SYS_MODULE]` + a `/dev/net/tun` device) so it gets its own real, isolated
@@ -99,14 +119,15 @@ host's namespace with everything else published there. Exists purely so
 the same namespace as Traefik's own listener. Does not advertise any LAN
 subnet route - it's not a gateway, just a reachable node.
 
-**`traefik-tailnet-forwarder`** - the tailnet-facing sibling of
+`traefik-tailnet-forwarder` - the tailnet-facing sibling of
 `traefik-private-forwarder`, same job (clean, no-port URL for admin-gated
 traffic) but a different mechanism because Tailscale's interface is a TUN
 device (macvlan can't attach to it): it joins `tailscale-admin`'s network
-namespace directly (`network_mode: container:tailscale-admin`, NOT
-Compose's `service:` form - that only resolves within one compose
-project, and these are separate stacks) and binds port 443/80 there. It
-forwards into Traefik's own container using the PROXY protocol
+namespace directly (`network_mode: container:tailscale-admin` - kept in its
+literal raw-Docker form even post-merge, not switched to Compose's
+`service:` sugar, since both resolve identically as long as
+`tailscale-admin`'s `container_name` stays fixed) and binds port 443/80
+there. It forwards into Traefik's own container using the PROXY protocol
 (`send-proxy-v2`), which is what lets Traefik trust the real original
 client IP even though the connection arrives via this forwarder -
 Traefik's `proxyProtocol.trustedIPs` on the tailnet-admin entrypoint only
@@ -116,7 +137,7 @@ trusts PROXY headers from this forwarder's own static IP.
 access path. Untouched by anything above - none of the Tailscale/tailnet-admin
 plumbing affects public/Cloudflare access at all.
 
-## Known structural constraints (the reasons these 7 stacks look the way they do)
+## Known structural constraints (the reasons these 6 stacks look the way they do)
 
 - **A wildcard-bound port and a specific-IP bind on the same port cannot
   coexist in the same network namespace.** This is why the private tier
