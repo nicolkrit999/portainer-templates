@@ -6,7 +6,11 @@ services:
     user: "0"
     volumes:
       - ${VOLUME_CONFIG}/grafana:/data
-    command: chown -R 472:472 /data
+    # chmod after chown: the NAS's btrfs volume is mounted with the `ugacl`
+    # option (Synology-style Windows-ACL layer) which silently overrides
+    # POSIX mode bits and is invisible to ls/getfacl/chown - an explicit
+    # chmod resets that ACL layer so grafana can actually read provisioning/.
+    command: sh -c "chown -R 472:472 /data && chmod -R 0777 /data"
 
   grafana:
     image: grafana/grafana-enterprise:13.2.1
