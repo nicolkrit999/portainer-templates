@@ -26,6 +26,19 @@ This repo's convention is that all host-state-affecting configuration is git-tra
 
 **This is load-bearing infrastructure** for AdGuard's DNS forwarding to `dnsmasq` - do not remove without re-verifying the macvlan limitation no longer applies.
 
+## 2026-09-08: this relay is being deleted entirely
+
+Not because of an incident this specific relay caused (it carries far less
+traffic than its sibling in `tailscale-adguard`, which is the one that
+actually failed), but as part of the same fix: since `dnsmasq` runs
+`network_mode: host`, it can bind this shim's IP directly, removing the
+`socat` relay from this path altogether. See
+**[`../adguard/INCIDENT-2026-09-08-dns-relay-outage.md`](../adguard/INCIDENT-2026-09-08-dns-relay-outage.md)**
+for the full plan (ships as two separate verified commits, given a real
+prior `dnsmasq` crash-loop incident in this exact area - not yet
+implemented as of this write). This container's `ip link`/route-add job
+stays; only the two `socat` lines are removed.
+
 ## Two incidents worth knowing if you're adapting this
 
 **Process leak**: `socat`'s `fork` mode never terminates a forked child that handled a UDP query - UDP has no "connection closed" signal, so each child just sits there indefinitely waiting for more traffic from that same peer. This relay carries much less traffic than its sibling in `tailscale-adguard` (only internal conditional-forward lookups, not general household DNS) so it hadn't hit the failure point when found (21 processes vs. 2000+ on the busier relay), but had the identical latent bug. Fixed by adding `-T5` (5-second inactivity timeout) to both `socat` invocations - see `tailscale-adguard/README.md` for the full incident and verification, since it's where the bug was actually caught in production.
