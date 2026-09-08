@@ -12,14 +12,19 @@ contactPoints:
     receivers:
       - uid: discord-alerts-webhook
         type: discord
+        # Grafana's discord notifier treats `url` as a secret field and only
+        # looks it up in secureSettings - putting it under plain `settings`
+        # (as this file did before) makes Grafana fail with "could not find
+        # webhook url property in settings" even though the value is present.
         settings:
-          url: "${DISCORD_ALERT_WEBHOOK_URL}"
           use_discord_username: false
           message: |-
             {{ if eq .Status "firing" }}:rotating_light:{{ else }}:white_check_mark:{{ end }} **{{ .Status | toUpper }}** - {{ .CommonLabels.alertname }}
             {{ range .Alerts }}
             > {{ .Annotations.summary }}
             {{ end }}
+        secureSettings:
+          url: "${DISCORD_ALERT_WEBHOOK_URL}"
         disableResolveMessage: false
 
 policies:
