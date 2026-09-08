@@ -48,6 +48,13 @@ services:
     # like immich_machine_learning/jellyfin transcodes - 4x Docker's
     # default of 1024, not a reservation.
     cpu_shares: 4096
+    # Protects AdGuard from being an early OOM-kill target - it's the
+    # household's DNS chain, not something that should ever be sacrificed
+    # first under memory pressure. -1000 to +1000 range; -800 is a strong
+    # protection without disabling the OOM killer for this container
+    # entirely (that's -1000, reserved for things that must NEVER be
+    # killed). See adguard/INCIDENT-2026-09-08-dns-relay-outage.md.
+    oom_score_adj: -800
     restart: always
     healthcheck:
       # Port 3000 only exists during the one-time first-run setup wizard;
