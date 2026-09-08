@@ -1,9 +1,17 @@
 services:
-  # Host-side macvlan shim interface + active DNS relay, working around
-  # Docker macvlan's host<->macvlan-child unreachability. Load-bearing for
-  # AdGuard's conditional-forward to dnsmasq - see adguard/README.md
-  # "Why macvlan instead of a normal Docker network" for the full design,
-  # the host-route requirement, and the operational .95-not-.98 rule.
+  # Host-side macvlan shim interface, working around Docker macvlan's
+  # host<->macvlan-child unreachability. Load-bearing for AdGuard's
+  # conditional-forward to dnsmasq - see adguard/README.md "Why macvlan
+  # instead of a normal Docker network" for the full design, the
+  # host-route requirement, and the operational .95-not-.98 rule.
+  #
+  # 2026-09-08: the socat DNS relay that used to run in this container is
+  # GONE - dnsmasq now binds ${MACVLAN_SHIM_IP} directly (it runs
+  # network_mode: host, so it can), removing a relay hop entirely rather
+  # than just hardening it. This container's only remaining job is the
+  # interface + host routes below - see
+  # ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for why, and
+  # ../dnsmasq/docker-compose.yml for the other half of this change.
   macvlan-host-shim:
     image: alpine:latest
     container_name: macvlan-host-shim
@@ -12,21 +20,20 @@ services:
       - NET_ADMIN
     # Idempotent: safe to re-run on every restart/reboot. `$ip` (the loop
     # variable) must stay $$-escaped - Compose interpolates bare $words
-    # too, not just ${VAR} - and -T5 on both socat relays is required to
-    # avoid a process leak. See README for both incidents.
-    command: "sh -c 'apk add --no-cache iproute2 socat netcat-openbsd >/dev/null 2>&1; ip link show ${MACVLAN_SHIM_IFACE} >/dev/null 2>&1 || ip link add ${MACVLAN_SHIM_IFACE} link ${LAN_INTERFACE} type macvlan mode bridge; ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" || ip addr add ${MACVLAN_SHIM_IP}/32 dev ${MACVLAN_SHIM_IFACE}; ip link set ${MACVLAN_SHIM_IFACE} up; for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || ip route add \"$$ip/32\" dev ${MACVLAN_SHIM_IFACE}; done; socat -T5 UDP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr UDP:${NAS_IP}:53 & socat -T5 TCP-LISTEN:53,bind=${MACVLAN_SHIM_IP},fork,reuseaddr TCP:${NAS_IP}:53 & wait'"
+    # too, not just ${VAR}.
+    command: "sh -c 'apk add --no-cache iproute2 >/dev/null 2>&1; ip link show ${MACVLAN_SHIM_IFACE} >/dev/null 2>&1 || ip link add ${MACVLAN_SHIM_IFACE} link ${LAN_INTERFACE} type macvlan mode bridge; ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" || ip addr add ${MACVLAN_SHIM_IP}/32 dev ${MACVLAN_SHIM_IFACE}; ip link set ${MACVLAN_SHIM_IFACE} up; for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || ip route add \"$$ip/32\" dev ${MACVLAN_SHIM_IFACE}; done; while true; do sleep 3600; done'"
     # Relative CPU scheduling priority (cgroup v2 cpu.weight, no hard cap)
-    # - this relay is part of AdGuard's DNS resolution chain, so it must
-    # not starve under contention from bursty workloads like
-    # immich_machine_learning/jellyfin transcodes. 4x Docker's default of
-    # 1024, not a reservation.
+    # - still part of AdGuard's DNS resolution chain (the interface/routes
+    # this sets up are still load-bearing), must not starve under
+    # contention. 4x Docker's default of 1024, not a reservation.
     cpu_shares: 4096
     restart: always
     healthcheck:
-      # Checks the interface, the relay, AND every route in
-      # ${MACVLAN_ATTACHED_IPS} - not just the interface, which could pass
-      # even with a crashed relay or a lost route.
-      test: ["CMD-SHELL", "ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" && nc -z ${MACVLAN_SHIM_IP} 53 && for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || exit 1; done"]
+      # No relay/port to check anymore - this container's only job is the
+      # interface and routes. Checks the interface AND every route in
+      # ${MACVLAN_ATTACHED_IPS}, not just the interface (which could pass
+      # even with a lost route).
+      test: ["CMD-SHELL", "ip addr show dev ${MACVLAN_SHIM_IFACE} | grep -q \"${MACVLAN_SHIM_IP}/32\" && for ip in $(echo ${MACVLAN_ATTACHED_IPS} | tr \",\" \" \"); do ip route show \"$$ip/32\" | grep -q \"dev ${MACVLAN_SHIM_IFACE}\" || exit 1; done"]
       interval: 30s
       timeout: 5s
       retries: 3
