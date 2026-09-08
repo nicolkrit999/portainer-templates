@@ -25,9 +25,11 @@ services:
   #
   # PARTIALLY SUPERSEDED 2026-08-22: the note above ("every hostname resolves
   # to the same tailnet IP") no longer holds for admin-gated hostnames. A
-  # second, independent Tailscale identity (tailscale-admin, ../tailscale-admin/,
-  # tailnet IP ${TAILSCALE_ADMIN_IP}) now fronts admin-only-gated services via
-  # its own forwarder + Traefik entrypoint path (../traefik-tailnet-forwarder/,
+  # second, independent Tailscale identity (tailscale-admin, merged 2026-09-08
+  # into ../tailscale-admin_traefik-tailnet-forwarder/ alongside its forwarder -
+  # see that file's top-of-file comment for why - tailnet IP
+  # ${TAILSCALE_ADMIN_IP}) now fronts admin-only-gated services via its own
+  # forwarder + Traefik entrypoint path (same merged directory,
   # TRAEFIK_ENTRYPOINT_7 in ../traefik/docker-compose.yml). Those hostnames
   # must resolve to the admin node's tailnet IP instead of the primary node's
   # ${TAILNET_IP}, so they need their own more-specific --address= rule below,

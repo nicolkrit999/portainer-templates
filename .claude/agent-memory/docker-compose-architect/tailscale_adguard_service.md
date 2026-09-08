@@ -17,4 +17,4 @@ Created 2026-09-07: `tailscale-adguard/docker-compose.yml` + `.env.example`.
 
 **Portainer setup needed**: only `TS_AUTHKEY_ADGUARD` is a real secret to fill in (generate reusable pre-auth key via Tailscale admin console). `TS_HOSTNAME_ADGUARD`, `TAILSCALE_ADGUARD_INTERNAL_IP` have safe working defaults. `VOLUME_CONFIG` is the existing repo-wide var, already set at stack level typically.
 
-See also [[tailscale_admin_service]], [[traefik_tailnet_forwarder_service]] for the sibling patterns this was modeled on.
+See also [[tailscale_admin_traefik_tailnet_forwarder_service]] for the sibling pattern this was modeled on (merged into one file 2026-09-08, was two separate memories/stacks when this note was originally written).
