@@ -45,15 +45,20 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Writes dnsdist's YAML config to a bind-mounted host path (idempotent -
-  # only writes if missing, same pattern as
-  # ../traefik-tailnet-forwarder/docker-compose.yml's haproxy-config-init)
-  # so ${ADGUARD_INTERNAL_IP} gets substituted into the backend address at
-  # generation time - dnsdist YAML files have no ${VAR} interpolation of
-  # their own. CUTOVER (2026-09-08): this replaced `socat` as the live
-  # relay on :53 after burst-test validation via a :5300 canary showed
-  # zero failures at 100x+ the query rate that caused two real outages -
-  # see ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for the full
+  # Writes dnsdist's YAML config to a bind-mounted host path. ALWAYS
+  # regenerates (no "skip if exists" check, deliberately - the generated
+  # file has no state of its own worth preserving, and an idempotency
+  # guard here meant three separate manual "delete the stale file" steps
+  # during this fix's own rollout every time the config needed to change;
+  # since regeneration is deterministic and cheap, always-write means a
+  # future config change just takes effect on next redeploy, no manual
+  # deletion ever needed again). ${ADGUARD_INTERNAL_IP}/${DNSDIST_CONSOLE_KEY}
+  # get substituted into the file at generation time - dnsdist YAML files
+  # have no ${VAR} interpolation of their own. CUTOVER (2026-09-08): this
+  # replaced `socat` as the live relay on :53 after burst-test validation
+  # via a :5300 canary showed zero failures at 100x+ the query rate that
+  # caused two real outages - see
+  # ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for the full
   # incident, root cause, and validation results.
   dnsdist-config-init:
     image: alpine:latest
@@ -61,12 +66,13 @@ services:
     restart: "no"
     environment:
       ADGUARD_INTERNAL_IP: "${ADGUARD_INTERNAL_IP}"
+      DNSDIST_CONSOLE_KEY: "${DNSDIST_CONSOLE_KEY}"
     volumes:
       - ${VOLUME_CONFIG}/tailscale-adguard:/target
     command:
       - "sh"
       - "-c"
-      - "if [ -f /target/dnsdist.yml ]; then echo \"dnsdist.yml already exists, skipping\"; else mkdir -p /target && cat > /target/dnsdist.yml << EOF\n# See ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for why this\n# replaced socat (UDP-LISTEN,fork race, root cause of two real outages).\nconsole:\n  listen_address: \"127.0.0.1:5199\"\n\nacl:\n  - \"100.64.0.0/10\"\n\nbinds:\n  - listen_address: \"0.0.0.0:53\"\n    protocol: Do53\n\nbackends:\n  - address: \"$$ADGUARD_INTERNAL_IP:53\"\n    protocol: Do53\n    name: \"adguard\"\n# Deliberately NO packet_caches section - AdGuard already caches; caching\n# here would blind AdGuard's own query log (the tool that diagnosed the\n# 2026-09-08 incident) and delay blocklist changes. See the incident doc.\nEOF\nchmod 644 /target/dnsdist.yml; fi; cat /target/dnsdist.yml"
+      - "mkdir -p /target && cat > /target/dnsdist.yml << EOF\n# See ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for why this\n# replaced socat (UDP-LISTEN,fork race, root cause of two real outages).\nconsole:\n  listen_address: \"127.0.0.1:5199\"\n  key: \"$$DNSDIST_CONSOLE_KEY\"\n\nacl:\n  - \"100.64.0.0/10\"\n\nbinds:\n  - listen_address: \"0.0.0.0:53\"\n    protocol: Do53\n\nbackends:\n  - address: \"$$ADGUARD_INTERNAL_IP:53\"\n    protocol: Do53\n    name: \"adguard\"\n# Deliberately NO packet_caches section - AdGuard already caches; caching\n# here would blind AdGuard's own query log (the tool that diagnosed the\n# 2026-09-08 incident) and delay blocklist changes. See the incident doc.\nEOF\nchmod 644 /target/dnsdist.yml; echo 'dnsdist.yml written (contents not echoed - contains the console key)'; grep -v 'key:' /target/dnsdist.yml"
 
   # Relays DNS (UDP+TCP 53) from tailscale-adguard's tailnet IP to the real
   # adguard container. Shares tailscale-adguard's namespace (service:
@@ -83,6 +89,11 @@ services:
         condition: service_healthy
       dnsdist-config-init:
         condition: service_completed_successfully
+    environment:
+      # Only used by the healthcheck below (dnsdist -k) - the config file
+      # itself already has the same key baked in via console.key at
+      # generation time.
+      DNSDIST_CONSOLE_KEY: "${DNSDIST_CONSOLE_KEY}"
     volumes:
       - ${VOLUME_CONFIG}/tailscale-adguard/dnsdist.yml:/etc/dnsdist/dnsdist.yml:ro
     # dnsdist-startup (the image's own ENTRYPOINT wrapper) execs
@@ -110,8 +121,20 @@ services:
     healthcheck:
       # dnsdist's own console/control-socket command, not a custom nc -z
       # check - queries the running instance directly via the console
-      # bound above (127.0.0.1:5199, unauthenticated - local-only ACL).
-      test: ["CMD", "dnsdist", "-e", "showVersion()"]
+      # bound above (127.0.0.1:5199). Must pass -k with the same key the
+      # config sets via console.key, or every connection is silently
+      # refused - dnsdist's CLI still exits 0 on that failure (confirmed
+      # live), so an unauthenticated version of this check is a false
+      # positive that would never catch a genuinely dead/hung dnsdist.
+      # CMD-SHELL (not the CMD array form) is required here so the
+      # container's own shell actually expands $DNSDIST_CONSOLE_KEY at
+      # runtime - the array form passes each argument literally with no
+      # expansion. Escaped as $$ (not a bare $VAR) so COMPOSE doesn't
+      # interpolate this at file-parse time and bake the plaintext key
+      # into the container's inspectable healthcheck config - the same
+      # bare-$VAR trap this repo has hit repeatedly (see
+      # macvlan-host-shim/README.md), caught here before deploy this time.
+      test: ["CMD-SHELL", "dnsdist -e 'showVersion()' -k \"$$DNSDIST_CONSOLE_KEY\" -c 127.0.0.1:5199"]
       interval: 30s
       timeout: 10s
       retries: 3
