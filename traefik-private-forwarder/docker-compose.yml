@@ -36,7 +36,7 @@ services:
     # back after a host reboot unconditionally, not just after a crash.
     restart: always
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "443"]
+      test: ["CMD", "nc", "-z", "127.0.0.1", "443"]
       interval: 30s
       timeout: 5s
       retries: 3
