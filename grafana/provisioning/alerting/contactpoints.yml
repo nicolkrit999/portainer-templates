@@ -1,30 +1,27 @@
 apiVersion: 1
 
-# Grafana expands ${VAR} / $VAR against the container's own environment when
-# reading provisioning files - no extra GF_ setting is required for this to
-# work. This applies to contact point `settings`/`secure_settings` values;
-# it does NOT apply to alert rule annotations, time ranges, or the rule
-# query model (those need a different mechanism), which is one reason
-# alert *rules* are deliberately not shipped in this repo yet - see rules.yml.
+# Grafana's provisioning env-var interpolation ONLY supports bare $VAR, not
+# ${VAR} with braces (confirmed against Grafana's own docs and
+# github.com/grafana/grafana/issues/40148) - the braces form gets treated as
+# an unrecognized/empty variable, so `url` silently ends up "" and Grafana
+# fails alerting provisioning entirely with "could not find webhook url
+# property in settings". `url` also belongs under plain `settings`, not
+# `secure_settings` - per that same issue, Discord's url is a regular
+# setting despite looking secret-shaped.
 contactPoints:
   - orgId: 1
     name: discord-alerts
     receivers:
       - uid: discord-alerts-webhook
         type: discord
-        # Grafana's discord notifier treats `url` as a secret field and only
-        # looks it up in secureSettings - putting it under plain `settings`
-        # (as this file did before) makes Grafana fail with "could not find
-        # webhook url property in settings" even though the value is present.
         settings:
+          url: "$DISCORD_ALERT_WEBHOOK_URL"
           use_discord_username: false
           message: |-
             {{ if eq .Status "firing" }}:rotating_light:{{ else }}:white_check_mark:{{ end }} **{{ .Status | toUpper }}** - {{ .CommonLabels.alertname }}
             {{ range .Alerts }}
             > {{ .Annotations.summary }}
             {{ end }}
-        secureSettings:
-          url: "${DISCORD_ALERT_WEBHOOK_URL}"
         disableResolveMessage: false
 
 policies:
