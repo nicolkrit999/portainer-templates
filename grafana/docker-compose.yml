@@ -19,9 +19,12 @@ services:
     # The sed step renders contactpoints.yml.template into the real
     # contactpoints.yml at startup - a workaround for Grafana's broken
     # alerting-provisioning env-var interpolation (grafana/grafana#54984,
-    # #56437), see the template file's own comment for detail. Re-chmod
-    # after render so the freshly-written file is readable by uid 472 too.
-    command: sh -c "chown -R 472:472 /data && chmod -R 0700 /data && sed 's|__DISCORD_ALERT_WEBHOOK_URL__|'\"$$DISCORD_ALERT_WEBHOOK_URL\"'|' /data/provisioning/alerting/contactpoints.yml.template > /data/provisioning/alerting/contactpoints.yml && chmod 0700 /data/provisioning/alerting/contactpoints.yml"
+    # #56437), see the template file's own comment for detail. The `>`
+    # redirect creates that file as root (this container's user), so it
+    # needs its own chown -R 472:472 pass, not just chmod - a chmod alone
+    # left it root-owned and unreadable by grafana's uid 472 (confirmed
+    # real bug the first time this ran).
+    command: sh -c "chown -R 472:472 /data && chmod -R 0700 /data && sed 's|__DISCORD_ALERT_WEBHOOK_URL__|'\"$$DISCORD_ALERT_WEBHOOK_URL\"'|' /data/provisioning/alerting/contactpoints.yml.template > /data/provisioning/alerting/contactpoints.yml && chown 472:472 /data/provisioning/alerting/contactpoints.yml && chmod 0700 /data/provisioning/alerting/contactpoints.yml"
 
   grafana:
     image: grafana/grafana-enterprise:13.2.1
