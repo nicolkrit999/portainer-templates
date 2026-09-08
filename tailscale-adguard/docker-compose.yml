@@ -72,7 +72,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "mkdir -p /target && cat > /target/dnsdist.yml << EOF\n# See ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for why this\n# replaced socat (UDP-LISTEN,fork race, root cause of two real outages).\nconsole:\n  listen_address: \"127.0.0.1:5199\"\n  key: \"$$DNSDIST_CONSOLE_KEY\"\n\nacl:\n  - \"100.64.0.0/10\"\n\nbinds:\n  - listen_address: \"0.0.0.0:53\"\n    protocol: Do53\n\nbackends:\n  - address: \"$$ADGUARD_INTERNAL_IP:53\"\n    protocol: Do53\n    name: \"adguard\"\n# Deliberately NO packet_caches section - AdGuard already caches; caching\n# here would blind AdGuard's own query log (the tool that diagnosed the\n# 2026-09-08 incident) and delay blocklist changes. See the incident doc.\nEOF\nchmod 644 /target/dnsdist.yml; echo 'dnsdist.yml written (contents not echoed - contains the console key)'; grep -v 'key:' /target/dnsdist.yml"
+      - "mkdir -p /target && cat > /target/dnsdist.yml << EOF\n# See ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for why this\n# replaced socat (UDP-LISTEN,fork race, root cause of two real outages).\nconsole:\n  listen_address: \"127.0.0.1:5199\"\n  key: \"$$DNSDIST_CONSOLE_KEY\"\n\nacl:\n  - \"100.64.0.0/10\"\n\nbinds:\n  - listen_address: \"0.0.0.0:53\"\n    protocol: Do53\n\nbackends:\n  - address: \"$$ADGUARD_INTERNAL_IP:53\"\n    protocol: Do53\n    name: \"adguard\"\n# Deliberately NO packet_caches section - AdGuard already caches; caching\n# here would blind AdGuard's own query log (the tool that diagnosed the\n# 2026-09-08 incident) and delay blocklist changes. See the incident doc.\nEOF\nchmod 644 /target/dnsdist.yml && cat > /target/dnsdist-client.conf << EOF\n# Client-side config for the healthcheck's dnsdist -C / -c / -e call.\n# NOT the same as -k/--setkey on the command line - that flag is broken\n# in this dnsdist build (2.0.9): it silently fails auth even with the\n# exact right key, confirmed via a clean isolated reproduction - but this\n# file-based client-config approach (setKey + controlSocket, the docs'\n# primary documented pattern) works correctly. See the incident doc.\nsetKey(\"$$DNSDIST_CONSOLE_KEY\")\ncontrolSocket(\"127.0.0.1:5199\")\nEOF\nchmod 644 /target/dnsdist-client.conf; echo 'dnsdist.yml + dnsdist-client.conf written (contents not echoed - both contain the console key)'; grep -v 'key:' /target/dnsdist.yml"
 
   # Relays DNS (UDP+TCP 53) from tailscale-adguard's tailnet IP to the real
   # adguard container. Shares tailscale-adguard's namespace (service:
@@ -89,13 +89,11 @@ services:
         condition: service_healthy
       dnsdist-config-init:
         condition: service_completed_successfully
-    environment:
-      # Only used by the healthcheck below (dnsdist -k) - the config file
-      # itself already has the same key baked in via console.key at
-      # generation time.
-      DNSDIST_CONSOLE_KEY: "${DNSDIST_CONSOLE_KEY}"
     volumes:
       - ${VOLUME_CONFIG}/tailscale-adguard/dnsdist.yml:/etc/dnsdist/dnsdist.yml:ro
+      # Client-side config for the healthcheck below - see the comment on
+      # dnsdist-config-init's command for why this exists instead of -k.
+      - ${VOLUME_CONFIG}/tailscale-adguard/dnsdist-client.conf:/etc/dnsdist/dnsdist-client.conf:ro
     # dnsdist-startup (the image's own ENTRYPOINT wrapper) execs
     # `dnsdist --supervised --disable-syslog` plus whatever args are given
     # as this service's `command:` - no need to override entrypoint.
@@ -121,20 +119,14 @@ services:
     healthcheck:
       # dnsdist's own console/control-socket command, not a custom nc -z
       # check - queries the running instance directly via the console
-      # bound above (127.0.0.1:5199). Must pass -k with the same key the
-      # config sets via console.key, or every connection is silently
-      # refused - dnsdist's CLI still exits 0 on that failure (confirmed
-      # live), so an unauthenticated version of this check is a false
-      # positive that would never catch a genuinely dead/hung dnsdist.
-      # CMD-SHELL (not the CMD array form) is required here so the
-      # container's own shell actually expands $DNSDIST_CONSOLE_KEY at
-      # runtime - the array form passes each argument literally with no
-      # expansion. Escaped as $$ (not a bare $VAR) so COMPOSE doesn't
-      # interpolate this at file-parse time and bake the plaintext key
-      # into the container's inspectable healthcheck config - the same
-      # bare-$VAR trap this repo has hit repeatedly (see
-      # macvlan-host-shim/README.md), caught here before deploy this time.
-      test: ["CMD-SHELL", "dnsdist -e 'showVersion()' -k \"$$DNSDIST_CONSOLE_KEY\" -c 127.0.0.1:5199"]
+      # bound above (127.0.0.1:5199), authenticated via the client config
+      # file (NOT -k/--setkey on the command line - that flag is broken in
+      # dnsdist 2.0.9, silently fails auth even with the exact right key;
+      # confirmed via a clean isolated reproduction, see the incident doc).
+      # An unauthenticated/failed-auth version of this check would be a
+      # false positive that never catches a genuinely dead/hung dnsdist -
+      # dnsdist's CLI exits 0 even on an auth failure (confirmed live).
+      test: ["CMD", "dnsdist", "-C", "/etc/dnsdist/dnsdist-client.conf", "-c", "-e", "showVersion()"]
       interval: 30s
       timeout: 10s
       retries: 3
