@@ -70,6 +70,11 @@ services:
     container_name: immich_machine_learning
     image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}-openvino
     cpus: 4.0
+    # Pinned away from core 5, leaving it reachable by AdGuard's DNS chain
+    # under contention - part of the 2026-09-08 DNS relay fix (repo-wide
+    # cpuset sweep was rejected as too much blast radius; just the known
+    # hogs instead). See adguard/INCIDENT-2026-09-08-dns-relay-outage.md.
+    cpuset: "0-4"
     user: "${PUID}:${PGID}"
     devices:
       - /dev/dri:/dev/dri
