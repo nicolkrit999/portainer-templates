@@ -13,9 +13,17 @@ services:
     command: ["--no-check-update", "-c", "/opt/adguardhome/conf/AdGuardHome.yaml", "-w", "/opt/adguardhome/work"]
     networks:
       adguard_net:
-        ipv4_address: ${ADGUARD_STATIC_IP}
+        ipv4_address: "${ADGUARD_STATIC_IP}"
         priority: 100
+      # Static IP (not the bare `adguard` hostname) so dnsdist - which
+      # resolves its backend ONCE at config-parse time, unlike socat which
+      # re-resolved via Docker's embedded DNS on every connection - has a
+      # stable target. See adguard/INCIDENT-2026-09-08-dns-relay-outage.md
+      # step 1. Same 172.27.255.x static-IP pool already used on this
+      # network by traefik (.250), tailscale-admin (.249), and
+      # tailscale-adguard (.248).
       traefik_proxy_network:
+        ipv4_address: "${ADGUARD_INTERNAL_IP}"
 
     labels:
       traefik.enable: "true"
