@@ -1,9 +1,59 @@
-# 2026-09-08: DNS relay outage - root cause, and the planned fix
+# 2026-09-08: DNS relay outage - root cause, fix, and implementation log
 
-Status as of last edit: **root cause confirmed, fix plan fully verified
-(4/4 independent reviews), NOT YET IMPLEMENTED.** This file is the durable,
-git-tracked record - read this before re-investigating any AdGuard/Tailscale
-DNS outage, so the same investigation doesn't have to happen twice.
+Status as of last edit: **steps 1 (static IP) and 2 (dnsdist canary)
+implemented and confirmed healthy live.** Steps 3-6 (deleting the
+macvlan-host-shim relay, oom_score_adj, tugtainer TZ, cpuset) not yet
+started. This file is the durable, git-tracked record - read this before
+re-investigating any AdGuard/Tailscale DNS outage, so the same
+investigation doesn't have to happen twice.
+
+## Implementation log - two real bugs hit deploying step 2, both fixed
+
+Worth reading before touching this canary again, or writing any similar
+init-container-writes-a-config-file pattern elsewhere in this repo:
+
+1. **The new `ADGUARD_INTERNAL_IP` var didn't reach the live containers on
+   first deploy.** Git-tracking a new variable in `.env.example` does NOT
+   auto-populate it into a live Portainer stack's actual environment - that
+   needs to be added to the stack's env separately (done manually via the
+   Portainer UI in this case, deliberately avoiding this session's own
+   `StackUpdate`/`StackGitRedeploy` tools to sidestep the git-detach and
+   env-wipe risks documented in `.claude/rules/portainer-instance.md` for
+   exactly this kind of change). Symptom: `adguard` got a random dynamic IP
+   instead of its intended static one (empty `IPAMConfig` on inspection).
+2. **`$ADGUARD_INTERNAL_IP` inside the canary's config-writing heredoc was
+   the exact same bare-`$VAR`-gets-Compose-interpolated bug already
+   documented in this repo** (`macvlan-host-shim/README.md`'s `$ip` incident,
+   `adguard/README.md`'s original entrypoint-patch incident) - missed again
+   here despite being documented twice already. Fixed by escaping as
+   `$$ADGUARD_INTERNAL_IP` so the container's own shell substitutes it at
+   runtime from the value passed via the service's `environment:` block,
+   not Compose at file-parse time. **If you're writing a new init-container
+   config-writer heredoc anywhere in this repo, grep for bare `$VAR` in it
+   before shipping - this is now the THIRD time this exact bug has been
+   hit.**
+3. **`dnsdist` 2.0's YAML schema requires `protocol` on every `backends:`
+   entry, not just every `binds:` entry.** Not documented clearly in
+   dnsdist's own docs at a glance - the error
+   (`backends[0]: missing field 'protocol'`) only shows up at container
+   startup. Fixed by adding `protocol: Do53` under the `backends:` list
+   item too.
+4. **The init container's own idempotency (`if file exists, skip`) means a
+   broken file doesn't self-heal on redeploy** - after either fix above,
+   the corrupted `dnsdist-canary.yml` had to be manually deleted from
+   `${VOLUME_CONFIG}/tailscale-adguard/` before redeploying, or the init
+   container just keeps skipping regeneration forever.
+
+**Confirmed live and healthy after both fixes** (`dns-relay-canary`
+container, `docker_proxy` inspect): `state: running`, `health: healthy`,
+`RestartCount: 0`. Its own startup log confirms a clean load: listening on
+`0.0.0.0:5300`, ACL restricted to `100.64.0.0/10`, backend `adguard`
+(`172.27.255.247:53`) marked `up`. The still-live `socat` `dns-relay` on
+`:53` was never touched or interrupted by any of this.
+
+**Not yet done**: the actual burst/stress validation against the canary
+(per the "Deployment sequence" section below) before considering step 2
+ready for cutover, and steps 3-6.
 
 ## The problem
 

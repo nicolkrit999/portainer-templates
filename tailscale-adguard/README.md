@@ -37,8 +37,10 @@ This relay (`dns-relay`, the `socat` UDP/TCP forwarder above) is the one
 that actually caused two confirmed household-wide internet outages - see
 **[`../adguard/INCIDENT-2026-09-08-dns-relay-outage.md`](../adguard/INCIDENT-2026-09-08-dns-relay-outage.md)**
 for the full root cause and the verified fix plan (replacing `socat` with
-`dnsdist`, staged via a canary before cutover - not yet implemented as of
-this write).
+`dnsdist`, staged via a canary before cutover). The `dns-relay-canary`
+service is deployed and confirmed healthy on `:5300` as of this write - the
+live `dns-relay` (`socat`, `:53`) is still what actually serves traffic
+until burst-testing is done and the cutover commit lands.
 
 ## A visibility limitation worth knowing
 
