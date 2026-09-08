@@ -59,15 +59,17 @@ services:
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_6}.address=:${TRAEFIK_PORT_6}"
       # Internal-only entrypoint dedicated to tailnet-sourced admin traffic,
       # reached exclusively via the traefik-tailnet-forwarder sidecar (see
-      # ../traefik-tailnet-forwarder/docker-compose.yml) over the
+      # ../tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml -
+      # merged 2026-09-08 with tailscale-admin into one stack) over the
       # traefik-proxy network at this container's static
       # ${TRAEFIK_INTERNAL_IP}. No `ports:` host publish - same internal-only
       # pattern as entrypoints 5 and 6.
       #
       # proxyProtocol.trustedIPs=${TAILSCALE_ADMIN_INTERNAL_IP}/32 trusts
       # PROXY-protocol headers only from the tailscale-admin sidecar's own
-      # static IP on the traefik-proxy network (../tailscale-admin/docker-compose.yml).
-      # The tailnet forwarder (../traefik-tailnet-forwarder) no longer runs
+      # static IP on the traefik-proxy network
+      # (../tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml).
+      # The tailnet forwarder (same merged directory) no longer runs
       # network_mode: host - that design was reverted after it conflicted
       # with Traefik's own wildcard bind on the family entrypoint in the
       # same host network namespace. It now runs as an ordinary

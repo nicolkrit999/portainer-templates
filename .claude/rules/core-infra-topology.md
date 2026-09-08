@@ -30,11 +30,14 @@ The stacks listed below are **not application services** - they are the
 shared plumbing every other service in this repo depends on. A mistake in
 one of these has repo-wide blast radius (confirmed by real incidents: a
 config change here has caused a full outage of every Traefik-routed
-service at least twice). Before editing `traefik/`, `traefik-private-forwarder/`,
-`traefik-tailnet-forwarder/`, `tailscale/`, `tailscale-admin/`, `dnsmasq/`,
-`dnsmasq-tailnet/`, or `cloudflared/`, read this file completely and
-understand which OTHER stacks the change could affect - these seven are
-tightly coupled, and a change that looks local to one file often isn't.
+service at least twice, and a THIRD incident, 2026-09-08, was caused by
+`tailscale-admin` and `traefik-tailnet-forwarder` being separate stacks in
+the first place - see that pair's note below). Before editing `traefik/`,
+`traefik-private-forwarder/`, `tailscale-admin_traefik-tailnet-forwarder/`,
+`tailscale/`, `dnsmasq/`, `dnsmasq-tailnet/`, or `cloudflared/`, read this
+file completely and understand which OTHER stacks the change could affect -
+these six are tightly coupled, and a change that looks local to one file
+often isn't.
 
 Ordinary application services (everything else in this repo) do not need
 this level of caution - this file is specifically about the shared
@@ -88,7 +91,103 @@ bind. Solves this via **macvlan**: it gets its own dedicated LAN IP,
 genuinely separate L2 identity from the NAS's own IP, so its 443 bind
 never collides with Traefik's own wildcard bind.
 
-**`tailscale-admin`** - a SECOND, independent Tailscale node/identity,
+**`tailscale-admin` + `traefik-tailnet-forwarder`** - as of 2026-09-08 these
+are TWO SERVICES IN ONE MERGED STACK
+(`tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml`), not two
+separate stacks as they used to be. See that file's own top-of-file comment
+for the full incident writeup; short version: `traefik-tailnet-forwarder`'s
+`network_mode: container:tailscale-admin` is a hard runtime coupling
+(Docker pins tailscale-admin's raw container ID at creation time), but
+being two INDEPENDENT Portainer git stacks meant their separate 5-minute
+auto-poll timers could recreate one without the other, leaving the
+forwarder bound inside a stale, orphaned network namespace - real
+tailnet-admin traffic then got an instant "Connection refused" while
+everything looked locally "healthy". Merging into one stack, plus setting
+this stack's Portainer `AutoUpdate.ForceUpdate` to `true`, fully closed
+*that specific trigger* (a change touching both services' config in one
+commit). It did **not** close the underlying gap completely - see the
+dedicated section below, read it before making any future change to
+either service.
+
+### ⚠️ This pair's residual risk - not fully closed by the 2026-09-08 merge
+
+**Verified via Portainer's own docs and Docker Compose's documented
+behavior (2026-09-08), not assumed:**
+- Portainer's `AutoUpdate.ForceUpdate` only means "redeploy on schedule
+  even if the git commit hasn't changed" - it does NOT force recreation of
+  a container whose own config is unchanged. ([Portainer docs](https://docs.portainer.io/faqs/troubleshooting/stacks-deployments-and-updates/how-do-automatic-updates-for-stacks-applications-work):
+  "we do not force a redeployment if the image has not updated... if
+  Docker determines the image hasn't changed for a container it will not
+  redeploy that container.")
+- Native Docker Compose has no mechanism to cascade-recreate a
+  `network_mode: service:X`/`container:X` dependent when X itself gets
+  recreated - a long-standing, documented Compose gap (third-party tools
+  like "ContainerNetwork AutoFix" and "whalewatcher" exist specifically
+  because vanilla Compose doesn't handle this).
+
+**What this means in practice:** the merge prevents the *exact* trigger
+that caused the 2026-09-08 incident (one commit changing both services'
+config, previously split across two independently-timed stacks - now one
+`docker compose up` invocation recreates both together, since both
+actually changed). It does **not** prevent a *narrower* future trigger:
+any change that touches `tailscale-admin`'s own config **without** also
+touching something in `traefik-tailnet-forwarder`'s block in that same
+commit/deploy - e.g. rotating `TS_AUTHKEY_ADMIN` alone, bumping
+`tailscale-admin`'s image tag alone, or any Portainer-UI-only env edit to
+just that service. In that case Compose will recreate only
+`tailscale-admin`, and the forwarder will be left pointing at the old,
+now-stale container ID - reproducing the identical bug.
+
+**How to check if this has already happened** (suspect this whenever
+tailnet-admin access is failing but `traefik` itself and its cert/router
+config look fine): compare `tailscale-admin`'s current container start
+time against how long ago `traefik-tailnet-forwarder` was last (re)created
+- `docker_proxy` `GET /containers/tailscale-admin/json` and
+`GET /containers/traefik-tailnet-forwarder/json`, both projected to
+`State.StartedAt`. If `tailscale-admin`'s `StartedAt` is NEWER than the
+forwarder's, the forwarder is stale. Confirm by checking the forwarder's
+actual `HostConfig.NetworkMode` value (a raw `container:<id>` string) against
+`tailscale-admin`'s CURRENT container `Id` - if they don't match, this is
+happening right now, not just a suspicion.
+
+**RESOLVED 2026-09-08 (same day): a watcher sidecar was implemented as the
+permanent fix**, not left as an open decision. `tailscale-admin-watcher`
+was added to this same merged stack (see the compose file itself) - a
+custom `command:` on the official `docker:27-cli` image (no custom build,
+same off-the-shelf-image pattern as `haproxy-config-init` above), not
+either of the two third-party images that were evaluated and rejected:
+`buxxdev/containernetwork-autofix` (hard-requires Unraid plugin host paths
+absent on this NAS) and `treyturner/whalewatcher` (no verifiable public
+source repo - a supply-chain concern for an image needing read-write
+docker.sock access). It pipes `docker events --filter event=start --filter
+container=tailscale-admin` into an infinite `while read` loop, waits
+`${WATCHER_RESTART_WAIT_TIME}` seconds after each restart it detects (lets
+the new Tailscale identity establish its tailnet connection first), then
+runs `docker compose -f /stack/docker-compose.yml -p
+tailscale-admin_traefik-tailnet-forwarder up -d --force-recreate
+traefik-tailnet-forwarder` against a read-only mount of this exact stack's
+own compose file at its real Portainer-on-disk path
+(`${VOLUME_CONFIG}/portainer/compose/${PORTAINER_STACK_ID}/tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml`).
+This closes the narrower trigger structurally - staleness can no longer
+depend on remembering to touch both services' config in the same
+commit/deploy.
+
+The manual-fix and documented-discipline paths below remain useful as
+fallbacks (e.g. if the watcher container itself is ever down), but are no
+longer the primary mitigation:
+1. **Documented discipline (fallback only):** any edit to `tailscale-admin`'s
+   own block that also touches something in `traefik-tailnet-forwarder`'s
+   block in the same commit/deploy still forces Compose to recreate both
+   together - still true, just no longer load-bearing now that the watcher
+   exists.
+2. **Immediate manual fix if staleness is ever found regardless:** just
+   restart/recreate `traefik-tailnet-forwarder` (its `network_mode:
+   container:tailscale-admin` reference re-resolves fresh against whatever
+   `tailscale-admin` container is currently running) - the same one-line
+   fix that resolved the live 2026-09-08 incident before either the
+   structural merge or the watcher existed.
+
+`tailscale-admin` - a SECOND, independent Tailscale node/identity,
 deliberately not the same node as `tailscale` above, and deliberately NOT
 `network_mode: host`. Uses ordinary Docker networking (`cap_add: [NET_ADMIN,
 SYS_MODULE]` + a `/dev/net/tun` device) so it gets its own real, isolated
@@ -99,14 +198,15 @@ host's namespace with everything else published there. Exists purely so
 the same namespace as Traefik's own listener. Does not advertise any LAN
 subnet route - it's not a gateway, just a reachable node.
 
-**`traefik-tailnet-forwarder`** - the tailnet-facing sibling of
+`traefik-tailnet-forwarder` - the tailnet-facing sibling of
 `traefik-private-forwarder`, same job (clean, no-port URL for admin-gated
 traffic) but a different mechanism because Tailscale's interface is a TUN
 device (macvlan can't attach to it): it joins `tailscale-admin`'s network
-namespace directly (`network_mode: container:tailscale-admin`, NOT
-Compose's `service:` form - that only resolves within one compose
-project, and these are separate stacks) and binds port 443/80 there. It
-forwards into Traefik's own container using the PROXY protocol
+namespace directly (`network_mode: container:tailscale-admin` - kept in its
+literal raw-Docker form even post-merge, not switched to Compose's
+`service:` sugar, since both resolve identically as long as
+`tailscale-admin`'s `container_name` stays fixed) and binds port 443/80
+there. It forwards into Traefik's own container using the PROXY protocol
 (`send-proxy-v2`), which is what lets Traefik trust the real original
 client IP even though the connection arrives via this forwarder -
 Traefik's `proxyProtocol.trustedIPs` on the tailnet-admin entrypoint only
@@ -116,7 +216,7 @@ trusts PROXY headers from this forwarder's own static IP.
 access path. Untouched by anything above - none of the Tailscale/tailnet-admin
 plumbing affects public/Cloudflare access at all.
 
-## Known structural constraints (the reasons these 7 stacks look the way they do)
+## Known structural constraints (the reasons these 6 stacks look the way they do)
 
 - **A wildcard-bound port and a specific-IP bind on the same port cannot
   coexist in the same network namespace.** This is why the private tier

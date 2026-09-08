@@ -10,7 +10,7 @@ A device connected to Tailscale with an active exit node (tested with Mullvad's 
 
 Give AdGuard its own Tailscale identity, and register that identity as the tailnet's DNS nameserver in the Tailscale admin console. This is a two-container stack:
 
-- **`tailscale-adguard`** - a dedicated Tailscale node (ordinary, non-host networking, since `tailscale0` is a TUN device and can't be macvlan'd - third independent Tailscale identity in this repo, after `../tailscale/` and `../tailscale-admin/`).
+- **`tailscale-adguard`** - a dedicated Tailscale node (ordinary, non-host networking, since `tailscale0` is a TUN device and can't be macvlan'd - third independent Tailscale identity in this repo, after `../tailscale/` and `../tailscale-admin_traefik-tailnet-forwarder/`).
 - **`dns-relay`** - a `socat` relay that forwards DNS traffic arriving on that node's tailnet IP to the real `adguard` container over the `traefik-proxy` Docker network (both containers share that network, so no macvlan-crossing is involved in this path at all - unlike the `macvlan-host-shim` case).
 
 ## Required manual steps (Tailscale admin console, not part of this repo)
