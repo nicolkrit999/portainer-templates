@@ -31,6 +31,15 @@ Found after the fix above was already live: the household's internet started fai
 
 **If you're writing a `socat ...,fork` UDP relay of your own**: always pair it with `-T<seconds>`. There is no default timeout, and the leak is invisible in normal testing - it only shows up after sustained real traffic, by which point it's already taken the service down.
 
+## 2026-09-08 outage and planned fix
+
+This relay (`dns-relay`, the `socat` UDP/TCP forwarder above) is the one
+that actually caused two confirmed household-wide internet outages - see
+**[`../adguard/INCIDENT-2026-09-08-dns-relay-outage.md`](../adguard/INCIDENT-2026-09-08-dns-relay-outage.md)**
+for the full root cause and the verified fix plan (replacing `socat` with
+`dnsdist`, staged via a canary before cutover - not yet implemented as of
+this write).
+
 ## A visibility limitation worth knowing
 
 Every device using this Tailscale-relay path shows up in AdGuard's query log as the **same single client identity** (the relay container's own internal IP), not the real end-user device's IP - `socat`'s plain TCP/UDP relay doesn't preserve or forward the original source address. Per-client rules/stats in AdGuard won't distinguish between devices using this path.
