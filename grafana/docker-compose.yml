@@ -4,13 +4,24 @@ services:
     container_name: grafana-init
     restart: "no"
     user: "0"
+    environment:
+      DISCORD_ALERT_WEBHOOK_URL: "${DISCORD_ALERT_WEBHOOK_URL}"
     volumes:
       - ${VOLUME_CONFIG}/grafana:/data
     # chmod after chown: the NAS's btrfs volume is mounted with the `ugacl`
     # option (Synology-style Windows-ACL layer) which silently overrides
     # POSIX mode bits and is invisible to ls/getfacl/chown - an explicit
     # chmod resets that ACL layer so grafana can actually read provisioning/.
-    command: sh -c "chown -R 472:472 /data && chmod -R 0777 /data"
+    # 0700 (owner-only) is sufficient: chown just above sets owner to
+    # 472:472, and only this container (root, during init) and the grafana
+    # container (uid 472) ever need access - no group/other bits needed.
+    #
+    # The sed step renders contactpoints.yml.template into the real
+    # contactpoints.yml at startup - a workaround for Grafana's broken
+    # alerting-provisioning env-var interpolation (grafana/grafana#54984,
+    # #56437), see the template file's own comment for detail. Re-chmod
+    # after render so the freshly-written file is readable by uid 472 too.
+    command: sh -c "chown -R 472:472 /data && chmod -R 0700 /data && sed 's|__DISCORD_ALERT_WEBHOOK_URL__|'\"$$DISCORD_ALERT_WEBHOOK_URL\"'|' /data/provisioning/alerting/contactpoints.yml.template > /data/provisioning/alerting/contactpoints.yml && chmod 0700 /data/provisioning/alerting/contactpoints.yml"
 
   grafana:
     image: grafana/grafana-enterprise:13.2.1
