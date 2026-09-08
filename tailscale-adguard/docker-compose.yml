@@ -89,6 +89,17 @@ services:
     # `dnsdist --supervised --disable-syslog` plus whatever args are given
     # as this service's `command:` - no need to override entrypoint.
     command: ["-C", "/etc/dnsdist/dnsdist.yml"]
+    # dnsdist's own startup warning: its configuration can use more file
+    # descriptors than Docker's default 1024 soft limit (confirmed via
+    # `ulimit -n` inside the container after cutover) - raise it well
+    # above dnsdist's own stated potential need (>10053 for this config)
+    # so a large enough connection burst can't hit an artificial ceiling
+    # this fix was specifically meant to eliminate. Standard fix per
+    # dnsdist's own docs (equivalent of `ulimit -n`/systemd `LimitNOFILE`).
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     # Relative CPU scheduling priority (cgroup v2 cpu.weight, no hard cap)
     # - part of AdGuard's DNS resolution chain, must not starve under
     # contention. 4x Docker's default of 1024, not a reservation. Note:
