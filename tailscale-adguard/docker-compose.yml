@@ -79,6 +79,70 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # CANARY ONLY - not yet the live relay. Runs alongside the still-live
+  # `dns-relay` (socat) service above on a DIFFERENT port (:5300, not :53)
+  # so it never competes for live traffic. Writes dnsdist's YAML config to
+  # a bind-mounted host path (idempotent - only writes if missing, same
+  # pattern as ../traefik-tailnet-forwarder/docker-compose.yml's
+  # haproxy-config-init) so ${ADGUARD_INTERNAL_IP} gets substituted into
+  # the backend address at generation time - dnsdist YAML files have no
+  # ${VAR} interpolation of their own.
+  dnsdist-canary-config-init:
+    image: alpine:latest
+    container_name: tailscale-adguard-dnsdist-canary-init
+    restart: "no"
+    environment:
+      ADGUARD_INTERNAL_IP: "${ADGUARD_INTERNAL_IP}"
+    volumes:
+      - ${VOLUME_CONFIG}/tailscale-adguard:/target
+    command:
+      - "sh"
+      - "-c"
+      - "if [ -f /target/dnsdist-canary.yml ]; then echo \"dnsdist-canary.yml already exists, skipping\"; else mkdir -p /target && cat > /target/dnsdist-canary.yml << EOF\n# CANARY config - listens on :5300, not :53. See\n# ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for why (socat's\n# UDP-LISTEN,fork race, root cause of two real outages) and why this is\n# staged as a canary rather than a hot swap of the live dns-relay.\nconsole:\n  listen_address: \"127.0.0.1:5199\"\n\nacl:\n  - \"100.64.0.0/10\"\n\nbinds:\n  - listen_address: \"0.0.0.0:5300\"\n    protocol: Do53\n\nbackends:\n  - address: \"$ADGUARD_INTERNAL_IP:53\"\n    name: \"adguard\"\n# Deliberately NO packet_caches section - AdGuard already caches; caching\n# here would blind AdGuard's own query log (the tool that diagnosed the\n# 2026-09-08 incident) and delay blocklist changes. See the incident doc.\nEOF\nchmod 644 /target/dnsdist-canary.yml; fi; cat /target/dnsdist-canary.yml"
+
+  # dnsdist canary - validates the real fix (dnsdist replacing socat, see
+  # ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md step 2) BEFORE any
+  # cutover. Listens on :5300 only; the live `dns-relay` service above
+  # keeps serving :53 untouched throughout. Cutover (dnsdist -> :53,
+  # delete `dns-relay`) is a separate, later commit per the incident doc -
+  # do not point this at :53 or remove the socat service as part of this
+  # change.
+  dns-relay-canary:
+    image: powerdns/dnsdist-20:2.0.9
+    container_name: tailscale-adguard-dns-relay-canary
+    network_mode: service:tailscale-adguard
+    depends_on:
+      tailscale-adguard:
+        condition: service_healthy
+      dnsdist-canary-config-init:
+        condition: service_completed_successfully
+    volumes:
+      - ${VOLUME_CONFIG}/tailscale-adguard/dnsdist-canary.yml:/etc/dnsdist/dnsdist-canary.yml:ro
+    # dnsdist-startup (the image's own ENTRYPOINT wrapper) execs
+    # `dnsdist --supervised --disable-syslog` plus whatever args are given
+    # as this service's `command:` - no need to override entrypoint.
+    command: ["-C", "/etc/dnsdist/dnsdist-canary.yml"]
+    # Relative CPU scheduling priority (cgroup v2 cpu.weight, no hard cap)
+    # - same convention as the rest of the DNS chain. 4x Docker's default
+    # of 1024, not a reservation. network_mode: service: does not share
+    # cgroups, so this needs its own weight independent of
+    # tailscale-adguard's/dns-relay's.
+    cpu_shares: 4096
+    restart: unless-stopped
+    healthcheck:
+      # dnsdist's own console/control-socket command, not a custom nc -z
+      # check - queries the running instance directly via the console
+      # bound above (127.0.0.1:5199, unauthenticated - local-only ACL).
+      test: ["CMD", "dnsdist", "-e", "showVersion()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 # No Cloudflare/Traefik labels - Tailscale-only, no HTTP surface (like ../iperf3/).
 networks:
   traefik_proxy_network:
