@@ -3,6 +3,9 @@ services:
     image: duplicati/duplicati:canary
     container_name: duplicati
     cpus: 4.0
+    # Pinned away from core 5, leaving it reachable by AdGuard's DNS chain
+    # under contention. See adguard/INCIDENT-2026-09-08-dns-relay-outage.md.
+    cpuset: "0-4"
     restart: always
     ports:
       - "${DUPLICATI_HOST_PORT}:8200"

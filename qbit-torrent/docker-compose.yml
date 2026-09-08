@@ -10,6 +10,9 @@ services:
       retries: 3
     mem_limit: 16g
     cpus: 4.0
+    # Pinned away from core 5, leaving it reachable by AdGuard's DNS chain
+    # under contention. See adguard/INCIDENT-2026-09-08-dns-relay-outage.md.
+    cpuset: "0-4"
     security_opt:
       - no-new-privileges:true
     network_mode: host
