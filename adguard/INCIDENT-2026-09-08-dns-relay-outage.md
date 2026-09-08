@@ -1,11 +1,18 @@
 # 2026-09-08: DNS relay outage - root cause, fix, and implementation log
 
-Status as of last edit: **steps 1 (static IP) and 2 (dnsdist canary)
-implemented and confirmed healthy live.** Steps 3-6 (deleting the
-macvlan-host-shim relay, oom_score_adj, tugtainer TZ, cpuset) not yet
-started. This file is the durable, git-tracked record - read this before
-re-investigating any AdGuard/Tailscale DNS outage, so the same
-investigation doesn't have to happen twice.
+Status as of last edit: **step 2's cutover is DONE and live** - `dnsdist`
+replaced `socat` as the actual relay serving real traffic on `:53`
+(`tailscale-adguard`'s `dns-relay`), validated first via a `:5300` canary
+(0/500 failures at 100x+ the outage-causing query rate - see
+[[adguard-dnsdist-burst-test-results-2026-09-08]] for full data), then a
+follow-up fix raised the container's file-descriptor limit (Docker default
+1024 -> 65536) after dnsdist's own startup warning flagged its
+configuration could need more than that. Step 1 (static IP) also done.
+Steps 3-6 (deleting the `macvlan-host-shim` relay, `oom_score_adj`,
+tugtainer TZ, cpuset) **not yet started** - this is the next real work
+remaining, not just polish. This file is the durable, git-tracked record -
+read this before re-investigating any AdGuard/Tailscale DNS outage, so the
+same investigation doesn't have to happen twice.
 
 ## Implementation log - two real bugs hit deploying step 2, both fixed
 
