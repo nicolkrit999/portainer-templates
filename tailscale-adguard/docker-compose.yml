@@ -33,6 +33,7 @@ services:
     # contention from bursty workloads like immich_machine_learning/
     # jellyfin transcodes. 4x Docker's default of 1024, not a reservation.
     cpu_shares: 4096
+    oom_score_adj: -800
     restart: always
     healthcheck:
       test: ["CMD", "tailscale", "status", "--json"]
@@ -115,6 +116,7 @@ services:
     # network_mode: service: does not share cgroups, so this needs its
     # own weight independent of tailscale-adguard's.
     cpu_shares: 4096
+    oom_score_adj: -800
     restart: unless-stopped
     healthcheck:
       # dnsdist's own console/control-socket command, not a custom nc -z

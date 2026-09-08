@@ -27,6 +27,9 @@ services:
     # this sets up are still load-bearing), must not starve under
     # contention. 4x Docker's default of 1024, not a reservation.
     cpu_shares: 4096
+    # Protects this container from being an early OOM-kill target - part
+    # of AdGuard's DNS chain. See adguard/INCIDENT-2026-09-08-dns-relay-outage.md.
+    oom_score_adj: -800
     restart: always
     healthcheck:
       # No relay/port to check anymore - this container's only job is the
