@@ -139,7 +139,28 @@ services:
       - "--server=/ssh.${DNS_WILDCARD_DOMAIN}/1.1.1.1"
       - "--log-facility=-"
       - "--listen-address=${DNS_TARGET_IP}"
-      - "--bind-interfaces"
+      # 2026-09-08: also bind the macvlan-host-shim IP directly - that
+      # sibling stack's socat relay was removed (dnsmasq runs
+      # network_mode: host, so it can bind this IP itself, no relay hop
+      # needed at all). See
+      # ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md and
+      # ../macvlan-host-shim/docker-compose.yml.
+      - "--listen-address=${MACVLAN_SHIM_IP}"
+      # --bind-dynamic (not --bind-interfaces): the macvlan-shim0 interface
+      # this second listen-address depends on lives in a SEPARATE stack
+      # (macvlan-host-shim) with no deploy-order guarantee relative to this
+      # one - --bind-interfaces hard-fails at startup if a listed address
+      # isn't already present; --bind-dynamic instead starts listening on
+      # it whenever it appears. Still only binds the addresses explicitly
+      # listed here (not a wildcard) - same accept scope as before, just
+      # tolerant of startup ordering. --except-interface=lo is defensive:
+      # this repo has a real prior incident of dnsmasq crash-looping from
+      # a too-permissive bind colliding with systemd-resolved on
+      # 127.0.0.1:53 (see git history/agent memory for
+      # dnsmasq_service.md) - excluding loopback here costs nothing if
+      # unneeded, and prevents that exact failure mode if it is.
+      - "--bind-dynamic"
+      - "--except-interface=lo"
       # This resolver only ever answers for ${DNS_WILDCARD_DOMAIN} (queries reach
       # it only via the Tailscale restricted nameserver or manual LAN testing),
       # so filtering these record types globally is safe here. Without this,
