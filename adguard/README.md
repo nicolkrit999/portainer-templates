@@ -36,8 +36,11 @@ A device connected to Tailscale with an active exit node has its DNS bypass AdGu
 Two confirmed real outages (one CPU-contention-driven, one a genuine DNS
 query burst) root-caused to the `socat` relay chain used by both
 `tailscale-adguard` and `macvlan-host-shim` - both relays are getting
-replaced. Full incident writeup, ruled-out theories, and the fully-verified
-fix plan (4/4 independent reviews, not yet implemented as of this write):
+replaced. The `tailscale-adguard` canary (`dnsdist` alongside the still-live
+`socat` relay) is deployed and confirmed healthy as of this write; cutover
+and the `macvlan-host-shim` change are still pending. Full incident
+writeup, ruled-out theories, and the fully-verified fix plan (4/4
+independent reviews):
 **[`INCIDENT-2026-09-08-dns-relay-outage.md`](INCIDENT-2026-09-08-dns-relay-outage.md)**.
 Read that before re-investigating any AdGuard/Tailscale DNS outage.
 
