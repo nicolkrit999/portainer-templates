@@ -13,6 +13,13 @@ services:
       UP_UNIFI_CONTROLLER_0_USER: "${UNIFI_POLLER_USER}"
       UP_UNIFI_CONTROLLER_0_PASS: "${UNIFI_POLLER_PASSWORD}"
       UP_UNIFI_CONTROLLER_0_VERIFY_SSL: "false"
+      # Controller-side Traffic Identification (Threat Management ->
+      # Identification) being on is NOT enough on its own - unpoller has its
+      # own separate poller-side flag to actually request/export DPI stats.
+      # Without this, unpoller_site_dpi_* never appears even with a fully
+      # DPI-capable controller. Confirmed real gap 2026-09-09 (empty DPI
+      # metrics despite controller Identification already being on).
+      UP_UNIFI_CONTROLLER_0_SAVE_DPI: "true"
       UP_PROMETHEUS_HTTP_LISTEN: "0.0.0.0:9130"
       UP_PROMETHEUS_NAMESPACE: "unpoller"
       TZ: "${TZ}"
