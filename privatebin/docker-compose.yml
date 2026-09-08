@@ -10,7 +10,7 @@ services:
       - PHP_UPLOAD_MAX_FILESIZE=10G
 
     volumes:
-      - ${DOCKER_CONFIG_DIR}/privatebin/conf.php:/srv/cfg/conf.php:ro
+      - ./conf.php:/srv/cfg/conf.php:ro
 
       - ${DOCKER_CONFIG_DIR}/privatebin/data:/srv/data
 
@@ -26,6 +26,9 @@ services:
       - traefik_proxy_network
 
     labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.purge.schedule: "@daily"
+      ofelia.job-exec.purge.command: "php /srv/bin/administration --purge"
       traefik.enable: "true"
       traefik.http.routers.privatebin.rule: "Host(`${PRIVATEBIN_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.privatebin.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
@@ -39,6 +42,28 @@ services:
       traefik.http.routers.privatebin-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.privatebin.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
+
+  ofelia:
+    image: mcuadros/ofelia:0.3.22
+    container_name: privatebin-ofelia
+    restart: unless-stopped
+    depends_on:
+      - privatebin
+    command: daemon --docker
+    environment:
+      TZ: "${TZ}"
+    volumes:
+      # Read-only is sufficient: ofelia's job-exec talks to the Docker API over
+      # this unix socket, which isn't gated by the bind mount's ro/rw flag the
+      # way a regular file write would be - upstream's own job-exec examples
+      # use :ro. No more-restrictive alternative exists for label-driven
+      # docker exec against the privatebin container.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   cloudflare_web_network:
