@@ -31,18 +31,33 @@ A device connected to Tailscale with an active exit node has its DNS bypass AdGu
 
 **A visibility limitation worth knowing**: every device using the Tailscale-relay path shows up in AdGuard's query log as the **same single client identity** (the relay container's own internal IP), not the real end-user device's IP - `socat`'s plain TCP/UDP relay doesn't preserve or forward the original source address. Per-client rules/stats in AdGuard won't distinguish between devices using this path.
 
-## 2026-09-08 outage and planned fix
+## 2026-09-08 outage and fix (DONE)
 
 Two confirmed real outages (one CPU-contention-driven, one a genuine DNS
 query burst) root-caused to the `socat` relay chain used by both
-`tailscale-adguard` and `macvlan-host-shim` - both relays are getting
-replaced. The `tailscale-adguard` canary (`dnsdist` alongside the still-live
-`socat` relay) is deployed and confirmed healthy as of this write; cutover
-and the `macvlan-host-shim` change are still pending. Full incident
-writeup, ruled-out theories, and the fully-verified fix plan (4/4
-independent reviews):
+`tailscale-adguard` and `macvlan-host-shim`. **`dnsdist` fully replaced
+`socat` as the live `tailscale-adguard` relay 2026-09-08** - cutover done,
+load-tested clean at 100x+ the outage-triggering query rate. Full incident
+writeup, ruled-out theories, and the fix plan:
 **[`INCIDENT-2026-09-08-dns-relay-outage.md`](INCIDENT-2026-09-08-dns-relay-outage.md)**.
-Read that before re-investigating any AdGuard/Tailscale DNS outage.
+Read that before re-investigating any AdGuard/Tailscale relay-level outage.
+
+## 2026-09-09 outage and fix (DONE) - tailnet global-resolver SPOF
+
+A separate, later incident: the whole household lost DNS/internet on
+Tailscale-connected devices, but it was **not** AdGuard/dnsdist being
+down - both were confirmed healthy throughout. Root cause: the tailnet had
+only one Global Nameserver configured (`100.72.14.7`, AdGuard's own tailnet
+identity, with Override Local DNS on), making it a tailnet-wide DNS single
+point of failure - any transient transport hiccup to that one node breaks
+DNS for every device simultaneously. Fixed by adding public Quad9 addresses
+as additional Global Nameservers in the Tailscale admin console (not a
+compose/repo change). Full writeup, what was ruled out, and why "restrict to
+split-DNS only" was rejected as the fix:
+**[`INCIDENT-2026-09-09-tailnet-global-resolver-spof.md`](INCIDENT-2026-09-09-tailnet-global-resolver-spof.md)**.
+Read that before re-investigating any "AdGuard/Tailscale DNS broke the whole
+household" report - check `tailscale-adguard`'s magicsock log for the
+affected peer first, not `adguard`'s own logs.
 
 ## Configuration
 
