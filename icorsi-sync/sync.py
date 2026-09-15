@@ -1282,6 +1282,31 @@ def sync_course(dav, course_id, rel_folder, state):
             actual, missing = find_missing()
             if len(missing) >= before:
                 break
+        # Last resort: a handful of resources (observed: chapters of the same mod_book/
+        # mod_page) collide when fetched concurrently and never recover within reconcile's
+        # own concurrency-4 passes, even across multiple passes - confirmed live: the exact
+        # same URL succeeds every single time when fetched completely alone. One final
+        # serial pass (no thread pool, one request at a time) gives them a real shot -
+        # matches the actual failure mode instead of just repeating the same collision.
+        serial_todo = [lg for lg in missing if lg not in hard_failed]
+        if serial_todo:
+            log.info("serial (no-concurrency) retry for %s: %d files", course_id, len(serial_todo))
+            moodle_err = None
+            for lg in serial_todo:
+                try:
+                    do_item(lg)
+                    uploaded += 1
+                except MoodleError as e:
+                    if e.code == "invalidtoken":
+                        moodle_err = e
+                        break
+                    log.error("failed %s: %s", lg, e)
+                except Exception as e:
+                    log.error("failed %s: %s", lg, _redact(str(e)))
+            if moodle_err:
+                raise moodle_err
+            actual, missing = find_missing()
+
         for lg in missing:
             log.error("STILL MISSING after %d passes: %s", passes, lg)
         errors = len(missing)
