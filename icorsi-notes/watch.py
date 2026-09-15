@@ -470,7 +470,9 @@ _SETUP_KEYWORDS = (
     "run `claude login`",
     "invalid api key",
     "authentication_error",
+    "failed to authenticate",
     "oauth token",
+    "oauth session",        # "OAuth session expired and could not be refreshed"
 )
 
 
