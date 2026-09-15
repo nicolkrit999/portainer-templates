@@ -205,7 +205,12 @@ def retrying(label, fn):
             last = e
         if attempt < HTTP_RETRIES:
             time.sleep(2 * attempt)
-    raise RuntimeError(f"{label} failed after {HTTP_RETRIES} attempts: {_redact(str(last))}")
+    # Preserve TransientDownloadError specifically: do_file() keys off its type to decide
+    # whether a course-level reconcile pass gets a real shot at it. Wrapping it in a plain
+    # RuntimeError here (as every other exhausted-retry case does) would silently defeat that -
+    # the caller only ever sees this generic exception, never the original one.
+    exc_type = TransientDownloadError if isinstance(last, TransientDownloadError) else RuntimeError
+    raise exc_type(f"{label} failed after {HTTP_RETRIES} attempts: {_redact(str(last))}")
 
 
 def _due_for_alert(already_alerted, last_ts):
