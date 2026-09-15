@@ -121,9 +121,12 @@ redeploys. On every start the entrypoint also restores `.claude.json` from the n
 backup on the volume if it is missing, so a lost state file heals itself.
 
 **Billing safety:** the bot refuses to start if any API-billing credential is present in the
-environment (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, Bedrock/Vertex flags). If a non-zero
-`total_cost_usd` ever appears in a Claude response, the bot writes `/data/HALT`, sends a
-Discord alert, and stops until you remove the file manually.
+environment (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, Bedrock/Vertex flags). Keep
+"extra usage" disabled on your Anthropic account; that is the only real guard against paid
+usage. The optional `COST_CIRCUIT_BREAKER` (compose default `true`) halts on any non-zero
+`total_cost_usd`, but on a Max/Pro subscription the CLI reports the list-price equivalent of
+every run (`costBasis: "list"`) even though nothing is billed, so leaving it on just halts the
+pass after the first completed course. Set it to `false` in the stack env on a subscription.
 
 ---
 
@@ -157,6 +160,24 @@ docker exec icorsi-notes claude -p "reply with ok" --output-format json
 The daemon now also pre-checks for `.claude.json` and `.credentials.json` before each pass
 and sends a single `⛔ claude CLI state missing` alert instead of one opaque error per course.
 
+### `Failed to authenticate: OAuth session expired and could not be refreshed`
+
+The refresh token on the volume is dead; log in once more. Maximize the terminal first
+(the login URL is long and a wrapped copy drops its `client_id`, giving "Invalid OAuth
+Request" in the browser), then:
+
+```bash
+docker exec -it icorsi-notes claude
+```
+
+Run `/login`, copy the URL into an editor, remove any line breaks / `│` characters, open
+it, paste the code back, `/exit`. Verify with the `claude -p "reply with ok"` call above.
+
+### `⛔ non-zero cost detected ... Writing /data/HALT`
+
+`COST_CIRCUIT_BREAKER` is enabled. On a subscription the reported cost is never 0 (see
+Billing safety above), so set it to `false` in the stack env and `rm /data/HALT`.
+
 ---
 
 ## Settings
@@ -176,6 +197,7 @@ and sends a single `⛔ claude CLI state missing` alert instead of one opaque er
 | `WINDOW_GRACE_MINUTES` | `10` | Grace period for writes before hard kill at window end |
 | `RUN_ON_START` | `true` | Run a pass immediately on container start |
 | `DRY_RUN` | `false` | Log what would run; invoke nothing |
+| `COST_CIRCUIT_BREAKER` | `true` | Halt on non-zero `total_cost_usd`; set `false` on a subscription (always non-zero there) |
 | `CLAUDE_MODEL` | - | Force a specific Claude model (leave empty for default) |
 
 **Tip:** set `DRY_RUN=true` on first deploy to verify course discovery and rclone mount before
