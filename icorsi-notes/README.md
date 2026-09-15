@@ -114,10 +114,48 @@ Exhausting your plan limit triggers a configurable sleep (default 1 h), never AP
 2. Run: `docker exec -it icorsi-notes claude` and complete the OAuth login once.
 3. The token persists in `${DOCKER_CONFIG_DIR}/icorsi-notes/claude/` and auto-refreshes.
 
+The image sets `CLAUDE_CONFIG_DIR=/root/.claude`, so *everything* the CLI needs - the
+OAuth credential (`.credentials.json`), its main state file (`.claude.json`), settings,
+agents, skills and its own `backups/` - lives on that one volume and survives rebuilds and
+redeploys. On every start the entrypoint also restores `.claude.json` from the newest
+backup on the volume if it is missing, so a lost state file heals itself.
+
 **Billing safety:** the bot refuses to start if any API-billing credential is present in the
 environment (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, Bedrock/Vertex flags). If a non-zero
 `total_cost_usd` ever appears in a Claude response, the bot writes `/data/HALT`, sends a
 Discord alert, and stops until you remove the file manually.
+
+---
+
+## Troubleshooting
+
+### Every course fails instantly with `{"is_error":true,"duration_api_ms":0,"num_turns":1,...}`
+
+The Discord pass summary shows every course as `error (will retry next pass)` within a
+few seconds of each other, and the container log says:
+
+```
+Claude configuration file not found at: /root/.claude.json
+A backup file exists at: /root/.claude/backups/.claude.json.backup.<timestamp>
+```
+
+The Claude CLI's main state file was lost. Older images kept it at `/root/.claude.json`,
+which sits on the container's ephemeral layer, not on the `/root/.claude` volume - so a
+rebuild or redeploy wiped it, and the CLI refuses to start rather than silently recreate it.
+
+Fix: redeploy the stack on the current image. The entrypoint restores `.claude.json` from
+the newest backup on the volume (`[entrypoint] Restored ... from backup ...` in the log)
+and `CLAUDE_CONFIG_DIR` keeps it on the volume from then on. If the log instead warns
+`no usable backup found`, log in once more: `docker exec -it icorsi-notes claude`.
+
+To confirm before the next active window, run a trivial call and check it succeeds:
+
+```bash
+docker exec icorsi-notes claude -p "reply with ok" --output-format json
+```
+
+The daemon now also pre-checks for `.claude.json` and `.credentials.json` before each pass
+and sends a single `⛔ claude CLI state missing` alert instead of one opaque error per course.
 
 ---
 
