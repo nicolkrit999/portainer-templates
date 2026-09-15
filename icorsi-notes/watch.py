@@ -458,6 +458,58 @@ def _is_limit_error(text):
     return any(k in t for k in _LIMIT_KEYWORDS)
 
 
+# ─── CLI setup / auth failure detection ──────────────────────────────────────
+# These are deterministic container-level failures (missing state file, logged-out
+# CLI): retrying the next course is pointless and only spams the pass summary with
+# an opaque {"is_error":true,...} envelope. Detect once, abort the pass, say why.
+
+_SETUP_KEYWORDS = (
+    "configuration file not found",
+    "not logged in",
+    "please run /login",
+    "run `claude login`",
+    "invalid api key",
+    "authentication_error",
+    "oauth token",
+)
+
+
+def _is_setup_error(text):
+    t = text.lower()
+    return any(k in t for k in _SETUP_KEYWORDS)
+
+
+def _error_detail(text, limit=120):
+    """
+    First human-readable line of a failed run's output. Skips blank lines and the
+    JSON envelope claude -p prints on stdout, so the Discord summary shows e.g.
+    "Claude configuration file not found at: ..." instead of {"is_error":true,...}.
+    """
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("{"):
+            return line[:limit]
+    return text.strip()[:limit]
+
+
+def claude_state_problem():
+    """
+    Cheap pre-flight before spending a claude -p call: the CLI needs its main
+    state file and the OAuth credential file, both under CLAUDE_CONFIG_DIR
+    (the /root/.claude volume). Returns a description of what is missing, or None.
+    """
+    cfg_dir = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+    state_file = os.path.join(cfg_dir, ".claude.json")
+    cred_file = os.path.join(cfg_dir, ".credentials.json")
+    missing = [f for f in (state_file, cred_file) if not os.path.isfile(f)]
+    if not missing:
+        return None
+    return (
+        "claude CLI state missing: " + ", ".join(missing)
+        + " (restore from backups/ or `docker exec -it icorsi-notes claude` to log in)"
+    )
+
+
 # ─── suggestions STATUS parser ────────────────────────────────────────────────
 
 
@@ -643,11 +695,16 @@ def run_claude(cwd, notes_dir, format_, language_, time_budget_secs):
         return False, False, True, "window-cutoff", 0.0
 
     if proc.returncode != 0:
-        combined = stdout + stderr
+        # Newline-join: claude -p prints its JSON envelope on stdout without a
+        # trailing newline, and the human-readable reason on stderr.
+        combined = stdout.rstrip("\n") + "\n" + stderr
         if _is_limit_error(combined):
             log.warning("Rate/usage limit detected in %s", cwd)
             return False, True, False, combined, 0.0
-        log.error("claude rc=%d in %s:\n%s", proc.returncode, cwd, stderr[:500])
+        log.error(
+            "claude rc=%d in %s:\n%s", proc.returncode, cwd,
+            (stderr.strip() or stdout)[:500],
+        )
         return False, False, False, combined, 0.0
 
     # Parse JSON envelope
@@ -735,6 +792,19 @@ def run_once(state, active_hours):
                 win_end_s, MIN_TASK_WINDOW,
             )
             break
+
+        # Fail fast, once per pass, if the CLI cannot possibly run: a missing
+        # .claude.json / .credentials.json makes every course fail identically.
+        if not DRY_RUN:
+            problem = claude_state_problem()
+            if problem:
+                msg = (
+                    f"⛔ icorsi-notes: {problem}. Skipping this pass - "
+                    "see README → Troubleshooting."
+                )
+                log.error(msg)
+                notify(msg)
+                break
 
         # ── per-course config ─────────────────────────────────────────────────
         if isinstance(opts, dict):
@@ -881,8 +951,17 @@ def run_once(state, active_hours):
                 break  # stop the whole pass after a window cutoff
 
             if not success:
-                outcome = f"⚠️ {label} - error (will retry next pass): {summary[:80]}"
-                log.warning("Error for %s: %s", key, summary[:100])
+                detail = _error_detail(summary)
+                if _is_setup_error(summary):
+                    outcome = (
+                        f"⛔ {label} - claude CLI setup/auth error, aborting this pass "
+                        f"(every course would fail the same way): {detail}"
+                    )
+                    log.error("Setup/auth error for %s: %s", key, detail)
+                    pass_outcomes.append(outcome)
+                    break
+                outcome = f"⚠️ {label} - error (will retry next pass): {detail}"
+                log.warning("Error for %s: %s", key, detail)
                 pass_outcomes.append(outcome)
                 continue  # try the next course
 
