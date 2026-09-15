@@ -93,8 +93,11 @@ def _resolve_courses_file():
 
 UA = "icorsi-sync/1.0 (+https://github.com)"
 # Substring "MoodleMobile" satisfies Moodle's is_moodle_app(); without it the
-# autologin/relaunch endpoints reject the request with "apprequired". Used ONLY by
-# the renewal path (TokenManager), never by the read path.
+# autologin/relaunch endpoints reject the request with "apprequired". Used by the
+# renewal path (TokenManager) and by download()'s session-cookie fallback below -
+# both send requests against the same mobile-app-issued MoodleSession, so they
+# present the same UA that session was minted under. Never used by the plain
+# wstoken read path (ws()/file_download_url()'s first attempt).
 MOODLE_APP_UA = "MoodleMobile 4.4.0 (44000)"
 
 logging.basicConfig(
@@ -1001,15 +1004,28 @@ def fetch_forums(course_id):
 def download(fileurl, expected_size=0):
     """Download a pluginfile to a temp file (with retries). Returns (path, size).
     Rejects HTML/error-page bodies and (when the manifest gives a size) short reads,
-    so a 200 error page is never stored and marked up-to-date forever."""
+    so a 200 error page is never stored and marked up-to-date forever.
+
+    Some resources (observed: embedded/inline HTML content served under an
+    "index.html" path) reject plain ?token=<wstoken> auth on pluginfile.php and
+    hand back the login page instead, even though the wstoken is perfectly valid
+    for every other file - they require a live browser-style session. If the
+    token-only attempt comes back text/html AND the TokenManager has a stored
+    MoodleSession, retry the SAME url once via that cookie before giving up."""
     url = file_download_url(fileurl)
     _assert_icorsi_get(url, "GET")
 
-    def attempt():
+    def _fetch(cookiejar=None):
         tmp = tempfile.NamedTemporaryFile(delete=False)
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=max(HTTP_TIMEOUT, 300)) as r:
+            ua = MOODLE_APP_UA if cookiejar is not None else UA
+            req = urllib.request.Request(url, headers={"User-Agent": ua})
+            if cookiejar is not None:
+                opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar))
+                ctx = opener.open(req, timeout=max(HTTP_TIMEOUT, 300))
+            else:
+                ctx = urllib.request.urlopen(req, timeout=max(HTTP_TIMEOUT, 300))
+            with ctx as r:
                 ctype = (r.headers.get("Content-Type") or "").lower()
                 first = r.read(1 << 16)
                 if ctype.startswith("text/html"):
@@ -1044,6 +1060,16 @@ def download(fileurl, expected_size=0):
             except OSError:
                 pass
             raise
+
+    def attempt():
+        try:
+            return _fetch()
+        except RuntimeError as e:
+            if "text/html" not in str(e) or _TM is None or not _TM.session_cookie:
+                raise
+            log.info("token-auth download got a login page; retrying via session cookie: %s",
+                      _redact(url))
+            return _fetch(cookiejar=_TM._jar_from_stored())
 
     return retrying(f"GET {_redact(url)}", attempt)
 
