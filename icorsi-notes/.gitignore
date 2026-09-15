@@ -4,3 +4,6 @@ courses.json
 # Runtime secrets / state
 .env
 *.log
+
+# Python bytecode
+__pycache__/
