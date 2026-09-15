@@ -1,11 +1,21 @@
 ---
 name: authoring-course-notes
-description: "Use this skill when creating detailed study notes or course documentation from source material and (optionally) compiling them to PDF - for any CS or math course (linear algebra, calculus, discrete math, statistics, programming). Triggers: 'make notes for this chapter', 'write detailed notes on …', 'turn this course material into a PDF', 'create documentation explaining every topic in …', 'compile these notes to PDF', 'typst/latex notes for …'. Works from ANY course folder (callable by name without an absolute path). Orchestrates reading the source → authoring the explanations → formatting/compiling through the project's `cs-notes` Nix dev environment (Typst, LaTeX via Tectonic, Pandoc, diagrams, plotting, Python). Use whenever study notes / documentation should be produced as a polished file, especially when LaTeX/Typst/PDF compilation is involved. NOT for a page-capped exam cheat sheet (maximal density fitted to a hard page limit) - that's creating-exam-cheat-sheets."
+description: "Use this skill when creating detailed study notes or course documentation from source material, OR when updating/extending/correcting notes that already exist (new chapters or slides, missing topics, fixes), and (optionally) compiling them to PDF - for any CS or math course (linear algebra, calculus, discrete math, statistics, programming). Creation triggers: 'make notes for this chapter', 'write detailed notes on …', 'turn this course material into a PDF', 'create documentation explaining every topic in …', 'compile these notes to PDF', 'typst/latex notes for …'. Update triggers: 'add/append chapter X to the notes', 'update the notes with the new slides', 'the notes are missing …', 'complete/extend/fix the existing notes'. Works from ANY course folder (callable by name without an absolute path). Orchestrates reading the source → authoring the explanations → formatting/compiling through the project's `cs-notes` Nix dev environment (Typst, LaTeX via Tectonic, Pandoc, diagrams, plotting, Python). Use whenever study notes / documentation should be produced as a polished file, especially when LaTeX/Typst/PDF compilation is involved. NOT for a page-capped exam cheat sheet (maximal density fitted to a hard page limit) - that's creating-exam-cheat-sheets."
 ---
 
 # Authoring course notes
 
 Produce detailed, faithful study notes/documentation from course material and compile them to a polished file. Works from any folder - you do **not** need to be inside the school workspace.
+
+## Stage 0 - detect the mode (create vs update) FIRST
+
+Before anything else, check the course folder for existing output: `_notes.md`, a notes source file (`.typ`/`.tex`/`.md`), or a compiled notes PDF.
+
+- **Existing notes found** → default to **Update / incremental mode** (see below). Tell the user briefly ("found existing notes - extending them, not regenerating") and do NOT rebuild from scratch.
+- **Nothing found** → creation mode: run the full pipeline below.
+- **Ambiguous** (notes exist but the request sounds like a full rebuild, or vice versa) → ask the user which mode they want before doing any heavy work.
+
+The user should never have to say "this is an update" - what's on disk decides the default.
 
 ## Pipeline (four stages)
 
@@ -38,6 +48,17 @@ Only when the auditor returns `FAITHFUL` is the task complete.
 - **LaTeX** - when the doc needs it; compiled with **Tectonic** (fetches only the packages each doc uses - no multi-GB TeX Live).
 - **Markdown → PDF** - via `pandoc --pdf-engine=tectonic`.
 
+Whoever calls this skill (the student, or an automated caller like the `icorsi-notes` daemon) states the format explicitly. If none is given, default to Typst.
+
+## Language choice
+
+The student (or automated caller) states the target language explicitly (e.g. Italian, English). If none is given, default to the language of the source material. This choice governs:
+- all authored prose (`cs-notes-author`'s explanations, examples, tips),
+- the `LANG` placeholder / `babel` language in the templates below,
+- every hardcoded boilerplate string in the templates - title-page labels, the `personal-addition`/`personaladditionlabel` callout text, the TOC title, the footer line. These do **not** auto-translate with `LANG` - the formatter must translate them by hand to match the target language.
+
+Formulas, code, and notation stay language-neutral regardless of the chosen language.
+
 ## Document setup conventions
 
 Both formats have a mandatory standard template - see `./typst-and-latex-document-templates.md` for the full copy-paste code. Adapt the metadata placeholders (`SUBJECT`, `CHAPTERS_LABEL`, `LANG`, `SUBTITLE_TOPICS`, `YEAR`) but keep the structure and style intact.
@@ -65,14 +86,14 @@ Write the notes (and the compiled PDF) **in the course folder the work is about*
 
 ## Update / incremental mode (existing notes present)
 
-If notes for this course already exist (new slides/chapters were added, not a fresh start), **do not regenerate** - append the delta:
+Entered **automatically via Stage 0** whenever existing notes are found - explicit phrasing like "add/append the new chapter" or "update the notes with these slides" just confirms it. **Do not regenerate** - append the delta:
 1. **Bootstrap `_notes.md` if it doesn't exist.** If there is no `_notes.md` in the course folder (notes were produced before the pipeline tracking system), have `cs-material-researcher` read the existing notes file first and write a `## Existing coverage` section to `_notes.md` listing every topic already covered. This is a one-time cost that makes all future incremental runs and resumptions free. Do this before inventorying any new material.
 2. Inventory **only the new material** - don't re-read source already covered.
 3. Read the **existing notes** (already compact, cheap) so the author can place new topics in the right order and link "connections" to what's there.
 4. Author **only the new topics** and insert them in source order; leave existing sections untouched unless the new material corrects them.
 5. Compile, then **audit only the new sections** (plus spot-check the connections into existing ones). Notes have no page cap, so appending is cleanly additive.
 
-Trigger this when the user says "add/append the new chapter", "update the notes with these slides", etc. It turns a full rebuild into a delta-sized job.
+It turns a full rebuild into a delta-sized job.
 
 ## Persistent pipeline file (`_notes.md`)
 

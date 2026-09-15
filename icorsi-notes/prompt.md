@@ -1,5 +1,9 @@
 Use the `authoring-course-notes` skill to PROPOSE study-note additions for the course in the current directory, from the material in its `_icorsi/` folder as the source.
 
+**Output format:** `<format>` (one of `typst`, `markdown`, `latex`). Author every new section in this format.
+
+**Language:** `<language>`. Write all authored prose, headings, and template boilerplate (title-page labels, the `personal-addition` callout label, TOC title, footer line) in this language - translate the template's default Italian boilerplate if `<language>` isn't Italian. Formulas/code/notation stay language-neutral. Keep source quotes/definitions in the source's own language when extracting during inventory; only the authored explanations follow `<language>`.
+
 **Pipeline state file:** use `<notes_dir>/_suggested/_notes.md` as the persistent cross-night checkpoint. The daemon reads its `## Coverage status` block to decide whether to resume or start fresh, and reads `STATUS:` after every run to decide whether the course is complete.
 
 **Incremental writes (CRITICAL - do NOT batch at the end):** author **one section at a time**. Immediately after finishing each section: (1) write that section's `.typ`/`.md` file into `<notes_dir>/_suggested/`, then (2) rewrite the `## Coverage status` block at the top of `<notes_dir>/_suggested/_notes.md` to reflect the current state. The daemon may send SIGTERM at any moment (window end, limit, stop), so the on-disk state must always be up-to-date. Losing the one in-progress section is acceptable; losing the record of everything already done is not.

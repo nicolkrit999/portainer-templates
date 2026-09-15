@@ -35,11 +35,13 @@ Lives in the `/data` volume (never in the image). Map each course folder - relat
 {
   "0001 Course Name": {
     "format": "typst",
-    "notes_dir": "Notes"
+    "notes_dir": "Notes",
+    "language": "italian"
   },
   "0002 Another Course/semester-2": {
     "format": "markdown",
-    "notes_dir": "notes"
+    "notes_dir": "notes",
+    "language": "english"
   },
   "0003 Skip This": null
 }
@@ -49,9 +51,12 @@ Options per entry:
 
 | Option | Default | Meaning |
 |---|---|---|
-| `format` | `"typst"` | Output format: `"typst"` or `"markdown"` |
-| `notes_dir` | `"notes"` | Subfolder (beside `_icorsi/`) for live notes and `_suggested/` |
+| `format` | `"typst"` | Output format: `"typst"`, `"markdown"`, or `"latex"` |
+| `notes_dir` | `"notes"` | Subfolder (beside `_icorsi/`) for live notes and `_suggested/` - any folder name works, there's no fixed set of values |
+| `language` | `"italian"` | Language for authored prose and document boilerplate (e.g. `"italian"`, `"english"`) |
 | `null` | - | Skip this course entirely |
+
+An unrecognized `format` value falls back to `"typst"` with a warning in the logs.
 
 Courses are processed **sequentially in file order**, one at a time.
 
@@ -146,7 +151,7 @@ The bot runs the full 4-stage authoring pipeline baked into the image:
 
 1. **`cs-material-researcher`** - inventories all topics in the source material
 2. **`cs-notes-author`** - writes detailed notes for each gap topic
-3. **`cs-notes-formatter`** - formats output in the chosen format (Typst or Markdown)
+3. **`cs-notes-formatter`** - formats output in the chosen format (Typst, Markdown, or LaTeX) and chosen language
 4. **`cs-notes-auditor`** - checks for omissions, inventions, and formatting errors
 
 Agents and skills are merged into the container's `~/.claude/` on startup, while OAuth

@@ -518,7 +518,7 @@ def _read_file(path):
         return ""
 
 
-def run_claude(cwd, notes_dir, format_, time_budget_secs):
+def run_claude(cwd, notes_dir, format_, language_, time_budget_secs):
     """
     Invoke claude -p headlessly for one course directory with a graceful window stop.
 
@@ -536,12 +536,17 @@ def run_claude(cwd, notes_dir, format_, time_budget_secs):
     if not prompt_template:
         return False, False, False, "empty prompt", 0.0
 
-    prompt = prompt_template.replace("<notes_dir>", notes_dir).replace("<format>", format_)
+    prompt = (
+        prompt_template
+        .replace("<notes_dir>", notes_dir)
+        .replace("<format>", format_)
+        .replace("<language>", language_)
+    )
 
     if DRY_RUN:
         log.info(
-            "[DRY_RUN] Would run claude -p in %s (notes_dir=%s, format=%s)",
-            cwd, notes_dir, format_,
+            "[DRY_RUN] Would run claude -p in %s (notes_dir=%s, format=%s, language=%s)",
+            cwd, notes_dir, format_, language_,
         )
         return True, False, False, "dry-run", 0.0
 
@@ -735,8 +740,16 @@ def run_once(state, active_hours):
         if isinstance(opts, dict):
             notes_dir = opts.get("notes_dir", "notes")
             format_ = opts.get("format", "typst")
+            language_ = opts.get("language", "italian")
         else:
             notes_dir = "notes"
+            format_ = "typst"
+            language_ = "italian"
+
+        if format_ not in ("typst", "markdown", "latex"):
+            log.warning(
+                "Unknown format %r for %s; falling back to typst", format_, folder
+            )
             format_ = "typst"
 
         folder = folder.strip("/")
@@ -790,7 +803,7 @@ def run_once(state, active_hours):
                 break
 
             success, is_limit, window_cutoff, summary, cost = run_claude(
-                cwd, notes_dir, format_, win_end_s
+                cwd, notes_dir, format_, language_, win_end_s
             )
 
             # ── cost circuit-breaker (layer 2 billing safety) ─────────────────

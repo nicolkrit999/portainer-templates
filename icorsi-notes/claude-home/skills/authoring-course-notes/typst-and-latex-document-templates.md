@@ -12,6 +12,8 @@ Both formats share the same visual language: dark navy box for H1, blue left-bar
 | `SUBTITLE_TOPICS` | `Funzioni Lineari · Applicazioni · Sistemi Dinamici Discreti` |
 | `YEAR` | `2025/26` |
 
+**`LANG` only sets text-shaping/hyphenation (Typst `lang:`) or the `babel` package (LaTeX) - it does NOT translate anything.** Both templates below are written with Italian boilerplate by default (`Note di Studio`, `Aggiunta personale`/`\personaladditionlabel`, `Indice`, `Basato sui materiali del corso · … · Anno Accademico`, `babel[italian]`). When the target language isn't Italian, translate every one of these strings by hand to match, in addition to setting `LANG`/`babel` correctly. Formulas, code, and math notation never change with language.
+
 ---
 
 ## Typst template
