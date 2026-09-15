@@ -470,7 +470,9 @@ _SETUP_KEYWORDS = (
     "run `claude login`",
     "invalid api key",
     "authentication_error",
+    "failed to authenticate",
     "oauth token",
+    "oauth session",        # "OAuth session expired and could not be refreshed"
 )
 
 
@@ -479,12 +481,41 @@ def _is_setup_error(text):
     return any(k in t for k in _SETUP_KEYWORDS)
 
 
-def _error_detail(text, limit=120):
+def _envelope_message(text):
     """
-    First human-readable line of a failed run's output. Skips blank lines and the
-    JSON envelope claude -p prints on stdout, so the Discord summary shows e.g.
-    "Claude configuration file not found at: ..." instead of {"is_error":true,...}.
+    The human-readable reason inside claude -p's JSON envelope ("error" or
+    "result"), or "" if the text is not such an envelope or carries none.
+    With --output-format json the reason often lives ONLY here - stderr is empty -
+    and the envelope's usage blob pushes it past any naive prefix truncation.
     """
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            msg = data.get("error") or data.get("result") or ""
+            if isinstance(msg, dict):
+                msg = msg.get("message") or json.dumps(msg)
+            msg = str(msg).strip()
+            if msg:
+                return msg
+    return ""
+
+
+def _error_detail(text, limit=160):
+    """
+    Human-readable reason for a failed run: the envelope's error/result if there
+    is one, else the first non-JSON line (stderr), so the Discord summary shows
+    e.g. "Claude configuration file not found at: ..." or "Invalid API key ·
+    Please run /login" instead of {"is_error":true,...}.
+    """
+    msg = _envelope_message(text)
+    if msg:
+        return msg[:limit]
     for line in text.splitlines():
         line = line.strip()
         if line and not line.startswith("{"):
@@ -703,7 +734,7 @@ def run_claude(cwd, notes_dir, format_, language_, time_budget_secs):
             return False, True, False, combined, 0.0
         log.error(
             "claude rc=%d in %s:\n%s", proc.returncode, cwd,
-            (stderr.strip() or stdout)[:500],
+            (_envelope_message(stdout) or stderr.strip() or stdout)[:1000],
         )
         return False, False, False, combined, 0.0
 
@@ -720,7 +751,7 @@ def run_claude(cwd, notes_dir, format_, language_, time_budget_secs):
     cost = float(data.get("total_cost_usd", 0) or 0)
 
     if data.get("is_error"):
-        msg = str(data.get("error", data.get("result", stdout)))
+        msg = _envelope_message(stdout) or stdout
         if _is_limit_error(msg):
             return False, True, False, msg, cost
         log.error("claude is_error in %s: %s", cwd, msg[:300])
