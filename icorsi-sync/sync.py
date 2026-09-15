@@ -1158,6 +1158,14 @@ def sync_course(dav, course_id, rel_folder, state):
                 path, size = download(f["fileurl"], f.get("size", 0))
             except MoodleError:
                 raise
+            except TransientDownloadError:
+                # Exhausted download()'s own retries, but that retry loop runs back-to-back
+                # WHILE this course's other concurrent downloads are still in flight - the
+                # very contention that seems to cause it in the first place (see
+                # TransientDownloadError's docstring). Don't hard_fail: a reconcile pass runs
+                # only after the whole batch has drained, so it's a genuinely different
+                # (lower-contention) shot, not just more of the same collision.
+                raise
             except Exception:
                 with lock:
                     hard_failed.add(logical)
