@@ -200,7 +200,8 @@ def retrying(label, fn):
                 raise
             last = e
         except (urllib.error.URLError, TimeoutError, OSError,
-                http_client.IncompleteRead, json.JSONDecodeError) as e:
+                http_client.IncompleteRead, json.JSONDecodeError,
+                TransientDownloadError) as e:
             last = e
         if attempt < HTTP_RETRIES:
             time.sleep(2 * attempt)
@@ -265,6 +266,16 @@ class MoodleError(Exception):
     def __init__(self, fn, code, msg):
         self.fn, self.code, self.msg = fn, code, msg
         super().__init__(f"{fn}: {code} - {msg}")
+
+
+class TransientDownloadError(RuntimeError):
+    """A download came back text/html (login page) despite a token that's otherwise valid.
+    Observed cause: fetching several chapters of the same mod_book/mod_page concurrently
+    trips something server-side (session-locking under Moodle's webservice layer) that
+    resolves on its own a moment later - confirmed by re-fetching the exact same URL
+    standalone right after a run failed on it, repeatedly, with no auth change at all.
+    Kept as its own type (not a bare RuntimeError) so retrying() treats it as transient
+    instead of do_file() marking it permanently hard_failed after zero retries."""
 
 
 # Safety guard 1 - function allowlist (default-deny). The only WS functions this tool may
@@ -1006,12 +1017,13 @@ def download(fileurl, expected_size=0):
     Rejects HTML/error-page bodies and (when the manifest gives a size) short reads,
     so a 200 error page is never stored and marked up-to-date forever.
 
-    Some resources (observed: embedded/inline HTML content served under an
-    "index.html" path) reject plain ?token=<wstoken> auth on pluginfile.php and
-    hand back the login page instead, even though the wstoken is perfectly valid
-    for every other file - they require a live browser-style session. If the
-    token-only attempt comes back text/html AND the TokenManager has a stored
-    MoodleSession, retry the SAME url once via that cookie before giving up."""
+    A text/html response raises TransientDownloadError (not a bare RuntimeError) so
+    retrying()'s normal backoff applies to it. Confirmed transient, not an auth gap:
+    firing several concurrent requests at chapters of the SAME mod_book/mod_page (this
+    tool's per-course concurrency) reliably reproduces it, while re-fetching the exact
+    same URL standalone moments later - same wstoken, no cookie - succeeds every time.
+    Also tries the stored MoodleSession cookie as a second angle of attack before
+    giving up on a given attempt, in case a real dead-token case ever looks the same."""
     url = file_download_url(fileurl)
     _assert_icorsi_get(url, "GET")
 
@@ -1029,7 +1041,8 @@ def download(fileurl, expected_size=0):
                 ctype = (r.headers.get("Content-Type") or "").lower()
                 first = r.read(1 << 16)
                 if ctype.startswith("text/html"):
-                    raise RuntimeError("download returned text/html (error/login page); refusing to store")
+                    raise TransientDownloadError(
+                        "download returned text/html (error/login page); refusing to store")
                 if first[:1] in (b"{", b"[") and ("json" in ctype or b'"exception"' in first[:1024]):
                     j = None
                     try:
