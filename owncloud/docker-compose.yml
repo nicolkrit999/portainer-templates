@@ -48,6 +48,11 @@ services:
       traefik.http.routers.owncloud-private.service: "owncloud-private"
       traefik.http.routers.owncloud-private.middlewares: "hsts-headers@docker"
       traefik.http.services.owncloud-private.loadbalancer.server.port: "8080"
+      traefik.http.routers.owncloud-tailnet.rule: "Host(`${OWNCLOUD_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.owncloud-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.owncloud-tailnet.tls: "true"
+      traefik.http.routers.owncloud-tailnet.service: "owncloud-private"
+      traefik.http.routers.owncloud-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.docker.network: "traefik-proxy"
 
   mariadb:
