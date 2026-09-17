@@ -34,9 +34,6 @@ services:
       TZ: "${TZ}"
     volumes:
       - "${DOCKER_CONFIG_DIR}/opencloud/config:/etc/opencloud"
-      - "./config/csp.yaml:/etc/opencloud/csp.yaml"
-      - "./config/apps.yaml:/etc/opencloud/apps.yaml"
-      - "./config/banned-password-list.txt:/etc/opencloud/banned-password-list.txt"
       - "${DOCKER_DATA_DIR}/opencloud/data:/var/lib/opencloud"
     healthcheck:
       test: ["CMD", "opencloud", "health"]
@@ -75,8 +72,9 @@ services:
     image: alpine:latest
     container_name: "opencloud-init"
     user: root
-    command: "sh -c \"echo 'Fixing OpenCloud config/data permissions...' && chown -R ${PUID}:${PGID} /fix/config /fix/data && echo 'Permissions fixed. Exiting.'\""
+    command: "sh -c \"echo 'Seeding OpenCloud static config...' && cp -f /source-config/csp.yaml /source-config/apps.yaml /source-config/banned-password-list.txt /fix/config/ && echo 'Fixing OpenCloud config/data permissions...' && chown -R ${PUID}:${PGID} /fix/config /fix/data && echo 'Permissions fixed. Exiting.'\""
     volumes:
+      - "./config:/source-config:ro"
       - "${DOCKER_CONFIG_DIR}/opencloud/config:/fix/config"
       - "${DOCKER_DATA_DIR}/opencloud/data:/fix/data"
 
