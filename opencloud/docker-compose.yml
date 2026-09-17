@@ -2,6 +2,10 @@ services:
   opencloud:
     image: "${OC_DOCKER_IMAGE:-opencloudeu/opencloud-rolling}:${OC_DOCKER_TAG:-8.0.1}"
     container_name: "opencloud"
+    # University file storage - important but not core infra, matches this
+    # repo's "high but not highest" tier (same as vikunja/paperlessngx/homebox).
+    cpu_shares: 2048
+    mem_limit: 4g
     user: "${PUID}:${PGID}"
     entrypoint: ["/bin/sh"]
     command: ["-c", "opencloud init || true; opencloud server"]
@@ -45,6 +49,12 @@ services:
     volumes:
       - "${DOCKER_CONFIG_DIR}/opencloud/config:/etc/opencloud"
       - "${DOCKER_DATA_DIR}/opencloud/data:/var/lib/opencloud"
+      # Extra web apps (draw.io, calculator, etc.) - extract each app's
+      # zip into its own subfolder here, e.g. .../apps/draw-io/manifest.json.
+      # Per OpenCloud's own docs, apps in this directory auto-appear with no
+      # enable-list needed; a plain `docker restart opencloud` (no recreate)
+      # picks up newly-added apps.
+      - "${DOCKER_DATA_DIR}/opencloud/apps:/var/lib/opencloud/web/assets/apps"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9200/status.php"]
       interval: 30s
@@ -89,10 +99,11 @@ services:
     image: alpine:latest
     container_name: "opencloud-init"
     user: root
-    command: "sh -c \"echo 'Seeding OpenCloud static config...' && echo 'IyBEZWZhdWx0IENvbnRlbnQtU2VjdXJpdHktUG9saWN5IGZvciBPcGVuQ2xvdWQncyB3ZWIgVUkuCiMgTWlycm9ycyBvQ0lTL09wZW5DbG91ZCdzIGRvY3VtZW50ZWQgZGVmYXVsdCBDU1Agc2hhcGU6IGFsbG93IHNlbGYgcGx1cyB0aGUKIyBpbnN0YW5jZSdzIG93biBPQ19VUkwgb3JpZ2luIGZvciB0aGUgZGlyZWN0aXZlcyB0aGUgd2ViIFVJIGFjdHVhbGx5IG5lZWRzLgojIFRpZ2h0ZW4gZnVydGhlciBvbmNlIHRoZSB3ZWIgVUkncyByZWFsIGV4dGVybmFsIGFzc2V0IG5lZWRzIChpZiBhbnkpIGFyZSBrbm93bi4KZGlyZWN0aXZlczoKICBkZWZhdWx0LXNyYzoKICAgIC0gIidzZWxmJyIKICBzY3JpcHQtc3JjOgogICAgLSAiJ3NlbGYnIgogICAgLSAiJ3Vuc2FmZS1pbmxpbmUnIgogIHN0eWxlLXNyYzoKICAgIC0gIidzZWxmJyIKICAgIC0gIid1bnNhZmUtaW5saW5lJyIKICBpbWctc3JjOgogICAgLSAiJ3NlbGYnIgogICAgLSAiZGF0YToiCiAgICAtICJibG9iOiIKICBmb250LXNyYzoKICAgIC0gIidzZWxmJyIKICAgIC0gImRhdGE6IgogIGNvbm5lY3Qtc3JjOgogICAgLSAiJ3NlbGYnIgogIG1lZGlhLXNyYzoKICAgIC0gIidzZWxmJyIKICBvYmplY3Qtc3JjOgogICAgLSAiJ25vbmUnIgogIGZyYW1lLWFuY2VzdG9yczoKICAgIC0gIidzZWxmJyIK' | base64 -d > /fix/config/csp.yaml && echo 'IyBQZXItYXBwIGNvbmZpZ3VyYXRpb24gb3ZlcnJpZGVzIGZvciBPcGVuQ2xvdWQncyBidWlsdC1pbiB3ZWIgVUkgYXBwcwojIChGaWxlcywgTWFwcywgUERGIHZpZXdlciwgZXRjLiAtIHRoZXNlIHNoaXAgaW5zaWRlIHRoZSBvcGVuY2xvdWQgYmluYXJ5CiMgaXRzZWxmLCB0aGlzIGZpbGUgZG9lcyBub3QgZW5hYmxlL2Rpc2FibGUgdGhlbSwgaXQgb25seSBjb25maWd1cmVzIHRoZW0pLgojIE1hdGNoZXMgdGhlIHJlYWwgdXBzdHJlYW0gb3BlbmNsb3VkLWNvbXBvc2UgZGVmYXVsdCBleGFjdGx5LgptYXBzOgogIGNvbmZpZzoKICAgIGZvbGRlclZpZXdFbmFibGVkOiBmYWxzZQo=' | base64 -d > /fix/config/apps.yaml && echo 'IyBPcHQtaW4gYmFubmVkLXBhc3N3b3JkIGxpc3QgZm9yIE9DX1BBU1NXT1JEX1BPTElDWV9CQU5ORURfUEFTU1dPUkRTX0xJU1QuCiMgRW1wdHkgYnkgZGVmYXVsdCAtIGFkZCBvbmUgYmFubmVkIHBhc3N3b3JkIHBlciBsaW5lIHRvIGVuYWJsZSB0aGlzIGNoZWNrLgo=' | base64 -d > /fix/config/banned-password-list.txt && echo 'Fixing OpenCloud config/data permissions...' && chown -R ${PUID}:${PGID} /fix/config /fix/data && echo 'Permissions fixed. Exiting.'\""
+    command: "sh -c \"echo 'Seeding OpenCloud static config...' && echo 'IyBEZWZhdWx0IENvbnRlbnQtU2VjdXJpdHktUG9saWN5IGZvciBPcGVuQ2xvdWQncyB3ZWIgVUkuCiMgTWlycm9ycyBvQ0lTL09wZW5DbG91ZCdzIGRvY3VtZW50ZWQgZGVmYXVsdCBDU1Agc2hhcGU6IGFsbG93IHNlbGYgcGx1cyB0aGUKIyBpbnN0YW5jZSdzIG93biBPQ19VUkwgb3JpZ2luIGZvciB0aGUgZGlyZWN0aXZlcyB0aGUgd2ViIFVJIGFjdHVhbGx5IG5lZWRzLgojIFRpZ2h0ZW4gZnVydGhlciBvbmNlIHRoZSB3ZWIgVUkncyByZWFsIGV4dGVybmFsIGFzc2V0IG5lZWRzIChpZiBhbnkpIGFyZSBrbm93bi4KZGlyZWN0aXZlczoKICBkZWZhdWx0LXNyYzoKICAgIC0gIidzZWxmJyIKICBzY3JpcHQtc3JjOgogICAgLSAiJ3NlbGYnIgogICAgLSAiJ3Vuc2FmZS1pbmxpbmUnIgogIHN0eWxlLXNyYzoKICAgIC0gIidzZWxmJyIKICAgIC0gIid1bnNhZmUtaW5saW5lJyIKICBpbWctc3JjOgogICAgLSAiJ3NlbGYnIgogICAgLSAiZGF0YToiCiAgICAtICJibG9iOiIKICBmb250LXNyYzoKICAgIC0gIidzZWxmJyIKICAgIC0gImRhdGE6IgogIGNvbm5lY3Qtc3JjOgogICAgLSAiJ3NlbGYnIgogIG1lZGlhLXNyYzoKICAgIC0gIidzZWxmJyIKICBvYmplY3Qtc3JjOgogICAgLSAiJ25vbmUnIgogIGZyYW1lLWFuY2VzdG9yczoKICAgIC0gIidzZWxmJyIK' | base64 -d > /fix/config/csp.yaml && echo 'IyBQZXItYXBwIGNvbmZpZ3VyYXRpb24gb3ZlcnJpZGVzIGZvciBPcGVuQ2xvdWQncyBidWlsdC1pbiB3ZWIgVUkgYXBwcwojIChGaWxlcywgTWFwcywgUERGIHZpZXdlciwgZXRjLiAtIHRoZXNlIHNoaXAgaW5zaWRlIHRoZSBvcGVuY2xvdWQgYmluYXJ5CiMgaXRzZWxmLCB0aGlzIGZpbGUgZG9lcyBub3QgZW5hYmxlL2Rpc2FibGUgdGhlbSwgaXQgb25seSBjb25maWd1cmVzIHRoZW0pLgojIE1hdGNoZXMgdGhlIHJlYWwgdXBzdHJlYW0gb3BlbmNsb3VkLWNvbXBvc2UgZGVmYXVsdCBleGFjdGx5LgptYXBzOgogIGNvbmZpZzoKICAgIGZvbGRlclZpZXdFbmFibGVkOiBmYWxzZQo=' | base64 -d > /fix/config/apps.yaml && echo 'IyBPcHQtaW4gYmFubmVkLXBhc3N3b3JkIGxpc3QgZm9yIE9DX1BBU1NXT1JEX1BPTElDWV9CQU5ORURfUEFTU1dPUkRTX0xJU1QuCiMgRW1wdHkgYnkgZGVmYXVsdCAtIGFkZCBvbmUgYmFubmVkIHBhc3N3b3JkIHBlciBsaW5lIHRvIGVuYWJsZSB0aGlzIGNoZWNrLgo=' | base64 -d > /fix/config/banned-password-list.txt && echo 'Fixing OpenCloud config/data permissions...' && chown -R ${PUID}:${PGID} /fix/config /fix/data /fix/apps && echo 'Permissions fixed. Exiting.'\""
     volumes:
       - "${DOCKER_CONFIG_DIR}/opencloud/config:/fix/config"
       - "${DOCKER_DATA_DIR}/opencloud/data:/fix/data"
+      - "${DOCKER_DATA_DIR}/opencloud/apps:/fix/apps"
 
 networks:
   cloudflare_web_network:
