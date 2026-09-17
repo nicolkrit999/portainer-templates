@@ -818,19 +818,20 @@ class WebDav:
         self.ensure_dir("/".join(logical_path.strip("/").split("/")[:-1]))
         if DRY_RUN:
             return
-        hdr = {**self.hdr, "Content-Type": "application/octet-stream",
-               "Content-Length": str(size)}
+        hdr = {**self.hdr, "Content-Type": "application/octet-stream"}
 
         def attempt():
-            req = urllib.request.Request(self._abs(logical_path), method="PUT")
-            for k, v in hdr.items():
-                req.add_header(k, v)
-            req.add_header("User-Agent", UA)
             with open(local_path, "rb") as fh:      # reopen per retry
-                req.data = fh
-                with urllib.request.urlopen(req, timeout=max(HTTP_TIMEOUT, 300)) as r:
-                    if r.status not in (200, 201, 204):
-                        raise RuntimeError(f"PUT {logical_path} -> HTTP {r.status}")
+                data = fh.read()
+            # Read fully into memory and PUT as plain bytes (same path as put_bytes) -
+            # streaming via a file-like `Request.data` (set post-construction) got
+            # rejected with HTTP 400 by OpenCloud's WebDAV on every single real file,
+            # while this exact bytes-at-construction path works. Course files are
+            # small enough (course material, not bulk media) that this is fine.
+            status, _, _ = http_retry(self._abs(logical_path), method="PUT", data=data,
+                                       headers=hdr, timeout=max(HTTP_TIMEOUT, 300))
+            if status not in (200, 201, 204):
+                raise RuntimeError(f"PUT {logical_path} -> HTTP {status}")
         retrying(f"PUT {logical_path}", attempt)
 
     def delete(self, logical_path):
