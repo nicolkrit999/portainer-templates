@@ -1,9 +1,9 @@
 # icorsi-sync
 
-Automatically download your **Moodle / iCorsi** course material into **ownCloud**.
+Automatically download your **Moodle / iCorsi** course material into **OpenCloud**.
 
 It logs into Moodle's API with a personal token, looks at each course you choose, and
-copies the material into ownCloud - keeping the **same structure and order** the course uses.
+copies the material into OpenCloud - keeping the **same structure and order** the course uses.
 It runs on a schedule, only fetches what's new or changed, and retries until nothing is missing.
 
 What it saves per course:
@@ -44,7 +44,7 @@ This file decides **which courses to download and where to put them**. It is *no
 repo (it's personal) - it lives next to the running container, in the data folder you mount
 (e.g. `${VOLUME_CONFIG}/icorsi-sync/data/courses.json`). See `courses.example.json` for the shape.
 
-It maps a **course ID** to a **folder** (relative to `OWNCLOUD_BASE_PATH`):
+It maps a **course ID** to a **folder** (relative to `OPENCLOUD_BASE_PATH`):
 
 ```json
 {
@@ -185,10 +185,10 @@ Set these where you run the container (e.g. Portainer stack env). Secrets stay h
 | `ICORSI_TOKEN` | your Moodle token (secret, **bootstrap only** - seeds `/data/token.json` once) |
 | `ICORSI_PRIVATETOKEN` | your Moodle private token (secret, **bootstrap only**) - enables headless auto-renewal |
 | `ICORSI_USERID` | your numeric Moodle user id (optional; auto-discovered on first run) |
-| `OWNCLOUD_WEBDAV_URL` | ownCloud WebDAV URL, e.g. `http://owncloud:8080/remote.php/dav/files/<user>` |
-| `OWNCLOUD_USER` / `OWNCLOUD_APP_PASSWORD` | ownCloud login - use an **app password** (secret) |
-| `OWNCLOUD_HOST_HEADER` | trusted domain to send as `Host` when hitting the container directly (else ownCloud returns HTTP 400), e.g. `owncloud.nicolkrit.ch` |
-| `OWNCLOUD_BASE_PATH` | base folder the `courses.json` paths are relative to |
+| `OPENCLOUD_WEBDAV_URL` | OpenCloud spaces WebDAV URL, e.g. `http://opencloud:9200/dav/spaces/<space-id>` (`<space-id>` is `<storage-uuid>$<node-uuid>`) |
+| `OPENCLOUD_USER` / `OPENCLOUD_APP_PASSWORD` | OpenCloud login - use an **app password** (secret) |
+| `OPENCLOUD_HOST_HEADER` | optional trusted domain to send as `Host` when hitting the container directly, e.g. `opencloud.nicolkrit.ch` - only needed if direct requests are rejected |
+| `OPENCLOUD_BASE_PATH` | base folder (relative to the space root) the `courses.json` paths are relative to |
 | `PUID` / `PGID` | host user/group the container drops to; must own the mounted `/data` dir (default `1000`/`1000`) |
 | `DISCORD_WEBHOOK_URL` | optional - get notified of new files / new courses / renewal trouble / problems |
 | `HEARTBEAT_URL` | optional - GET after each successful run (uptime-kuma / healthchecks.io push URL) |
@@ -202,11 +202,11 @@ Optional toggles (sensible defaults, see `.env.example`): `SUBFOLDER` (`_icorsi`
 - **`PRUNE_ORPHANS`** (default `false`) - when `true`, files inside a course's `_icorsi/` that
   are no longer part of the course (renamed / moved / removed on iCorsi) are **deleted**, so you
   always have exactly **one current copy**. Strictly limited to `_icorsi/`, and only runs for a
-  course that fetched successfully with **0 missing files**. Deletions go to ownCloud's **trash**
+  course that fetched successfully with **0 missing files**. Deletions go to OpenCloud's **trash**
   (recoverable), so they still use quota until you empty it.
 
 **Reliability:** each file download/upload is retried on transient errors, and after uploading
-the tool re-checks what's actually in ownCloud and re-fetches anything still missing - looping
+the tool re-checks what's actually in OpenCloud and re-fetches anything still missing - looping
 until nothing is missing (bounded by `RECON_MAX_PASSES`). Anything it truly can't get is
 reported (`⚠️ missing`) and retried on the next scheduled run. It never deletes your own files.
 

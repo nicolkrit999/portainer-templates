@@ -18,11 +18,11 @@ services:
       ICORSI_PRIVATETOKEN: "${ICORSI_PRIVATETOKEN:-}"       # secret: enables headless auto-renewal (bootstrap only)
       ICORSI_SESSION_COOKIE: "${ICORSI_SESSION_COOKIE:-}"   # secret: session-based renewal fallback (bootstrap only)
       ICORSI_USERID: "${ICORSI_USERID:-}"                   # your Moodle userid (auto-discovered if empty)
-      OWNCLOUD_WEBDAV_URL: "${OWNCLOUD_WEBDAV_URL}"         # e.g. http://owncloud:8080/remote.php/dav/files/oc_admin
-      OWNCLOUD_USER: "${OWNCLOUD_USER}"
-      OWNCLOUD_APP_PASSWORD: "${OWNCLOUD_APP_PASSWORD}"     # secret (ownCloud app password)
-      OWNCLOUD_HOST_HEADER: "${OWNCLOUD_HOST_HEADER:-}"     # trusted domain, e.g. owncloud.${DOMAIN} (avoids HTTP 400)
-      OWNCLOUD_BASE_PATH: "${OWNCLOUD_BASE_PATH}"           # e.g. University/Supsi
+      OPENCLOUD_WEBDAV_URL: "${OPENCLOUD_WEBDAV_URL}"       # e.g. http://opencloud:9200/dav/spaces/<space-id>
+      OPENCLOUD_USER: "${OPENCLOUD_USER}"
+      OPENCLOUD_APP_PASSWORD: "${OPENCLOUD_APP_PASSWORD}"   # secret (OpenCloud app password)
+      OPENCLOUD_HOST_HEADER: "${OPENCLOUD_HOST_HEADER:-}"   # optional trusted domain, e.g. opencloud.${DOMAIN}
+      OPENCLOUD_BASE_PATH: "${OPENCLOUD_BASE_PATH}"         # e.g. 1-year/2025-2026 (relative to the space root)
       SUBFOLDER: "${SUBFOLDER:-_icorsi}"
       INCLUDE_URL_LINKS: "${INCLUDE_URL_LINKS:-true}"      # save url modules as .txt
       SAVE_SECTION_INFO: "${SAVE_SECTION_INFO:-true}"      # labels + section intros -> _info.md

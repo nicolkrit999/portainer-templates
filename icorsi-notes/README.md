@@ -29,7 +29,7 @@ never touched by the bot.
 ## The one thing you'll edit: `courses.json`
 
 Lives in the `/data` volume (never in the image). Map each course folder - relative to
-`OWNCLOUD_BASE_PATH` - to per-course options. Edit anytime; no rebuild needed.
+`OPENCLOUD_BASE_PATH` - to per-course options. Edit anytime; no rebuild needed.
 
 ```json
 {
@@ -184,11 +184,11 @@ Billing safety above), so set it to `false` in the stack env and `rm /data/HALT`
 
 | Variable | Default | What it does |
 |---|---|---|
-| `OWNCLOUD_WEBDAV_URL` | - | ownCloud WebDAV URL |
-| `OWNCLOUD_USER` | - | ownCloud username |
-| `OWNCLOUD_APP_PASSWORD` | - | ownCloud app password (secret) |
-| `OWNCLOUD_HOST_HEADER` | - | Trusted domain for the HTTP `Host` header |
-| `OWNCLOUD_BASE_PATH` | - | Base folder; `courses.json` paths are relative to this |
+| `OPENCLOUD_WEBDAV_URL` | - | OpenCloud spaces WebDAV URL, e.g. `http://opencloud:9200/dav/spaces/<space-id>` |
+| `OPENCLOUD_USER` | - | OpenCloud username |
+| `OPENCLOUD_APP_PASSWORD` | - | OpenCloud app password (secret) |
+| `OPENCLOUD_HOST_HEADER` | - | Optional trusted domain for the HTTP `Host` header |
+| `OPENCLOUD_BASE_PATH` | - | Base folder (relative to the space root); `courses.json` paths are relative to this |
 | `DISCORD_WEBHOOK_URL` | - | Optional Discord webhook for per-pass summaries |
 | `NOTES_INTERVAL_SECONDS` | `21600` | How often to check for new material (6 h) |
 | `LIMIT_BACKOFF_SECONDS` | `3600` | Sleep after hitting the Max plan rate-limit (1 h) |
