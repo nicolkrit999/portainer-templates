@@ -6,6 +6,9 @@ services:
     entrypoint: ["/bin/sh"]
     command: ["-c", "opencloud init || true; opencloud server"]
     restart: always
+    depends_on:
+      fix-permissions:
+        condition: service_completed_successfully
     environment:
       OC_URL: "https://${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}"
       OC_LOG_LEVEL: "${LOG_LEVEL:-info}"
@@ -67,6 +70,15 @@ services:
       traefik.http.routers.opencloud-tailnet.service: "opencloud-private"
       traefik.http.routers.opencloud-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.docker.network: "traefik-proxy"
+
+  fix-permissions:
+    image: alpine:latest
+    container_name: "opencloud-init"
+    user: root
+    command: "sh -c \"echo 'Fixing OpenCloud config/data permissions...' && chown -R ${PUID}:${PGID} /fix/config /fix/data && echo 'Permissions fixed. Exiting.'\""
+    volumes:
+      - "${DOCKER_CONFIG_DIR}/opencloud/config:/fix/config"
+      - "${DOCKER_DATA_DIR}/opencloud/data:/fix/data"
 
 networks:
   cloudflare_web_network:
