@@ -19,6 +19,16 @@ services:
       PROXY_ENABLE_BASIC_AUTH: "false"
       IDM_CREATE_DEMO_USERS: "false"
       IDM_ADMIN_PASSWORD: "${OPENCLOUD_ADMIN_PASSWORD}"
+      # SMTP - Gmail relay via an app password (requires 2FA enabled on the
+      # Google account: https://myaccount.google.com/apppasswords)
+      NOTIFICATIONS_SMTP_HOST: "${SMTP_HOST:-smtp.gmail.com}"
+      NOTIFICATIONS_SMTP_PORT: "${SMTP_PORT:-587}"
+      NOTIFICATIONS_SMTP_SENDER: "${SMTP_SENDER}"
+      NOTIFICATIONS_SMTP_USERNAME: "${SMTP_USERNAME}"
+      NOTIFICATIONS_SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      NOTIFICATIONS_SMTP_INSECURE: "false"
+      NOTIFICATIONS_SMTP_AUTHENTICATION: "login"
+      NOTIFICATIONS_SMTP_ENCRYPTION: "starttls"
       FRONTEND_ARCHIVER_MAX_SIZE: "10000000000"
       FRONTEND_CHECK_FOR_UPDATES: "true"
       PROXY_CSP_CONFIG_FILE_LOCATION: "/etc/opencloud/csp.yaml"
