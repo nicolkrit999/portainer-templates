@@ -36,7 +36,7 @@ services:
       - "${DOCKER_CONFIG_DIR}/opencloud/config:/etc/opencloud"
       - "${DOCKER_DATA_DIR}/opencloud/data:/var/lib/opencloud"
     healthcheck:
-      test: ["CMD", "opencloud", "health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9200/status.php"]
       interval: 30s
       timeout: 10s
       retries: 5
