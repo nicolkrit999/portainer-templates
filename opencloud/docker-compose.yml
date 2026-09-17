@@ -20,7 +20,10 @@ services:
       OC_LOG_PRETTY: "false"
       PROXY_TLS: "false"
       OC_INSECURE: "false"
-      PROXY_ENABLE_BASIC_AUTH: "false"
+      # Needed for WebDAV clients that don't support OpenID Connect (rclone,
+      # desktop/mobile sync clients). Enabled for the ownCloud->OpenCloud
+      # migration; fine to leave on afterward for the same reason.
+      PROXY_ENABLE_BASIC_AUTH: "true"
       IDM_CREATE_DEMO_USERS: "false"
       IDM_ADMIN_PASSWORD: "${OPENCLOUD_ADMIN_PASSWORD}"
       # SMTP - Gmail relay via an app password (requires 2FA enabled on the
