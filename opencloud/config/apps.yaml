@@ -1,0 +1,7 @@
+# Per-app configuration overrides for OpenCloud's built-in web UI apps
+# (Files, Maps, PDF viewer, etc. - these ship inside the opencloud binary
+# itself, this file does not enable/disable them, it only configures them).
+# Matches the real upstream opencloud-compose default exactly.
+maps:
+  config:
+    folderViewEnabled: false

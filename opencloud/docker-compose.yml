@@ -1,0 +1,77 @@
+services:
+  opencloud:
+    image: "${OC_DOCKER_IMAGE:-opencloudeu/opencloud-rolling}:${OC_DOCKER_TAG:-8.0.1}"
+    container_name: "opencloud"
+    user: "${PUID}:${PGID}"
+    entrypoint: ["/bin/sh"]
+    command: ["-c", "opencloud init || true; opencloud server"]
+    restart: always
+    environment:
+      OC_URL: "https://${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}"
+      OC_LOG_LEVEL: "${LOG_LEVEL:-info}"
+      OC_LOG_COLOR: "false"
+      OC_LOG_PRETTY: "false"
+      PROXY_TLS: "false"
+      OC_INSECURE: "false"
+      PROXY_ENABLE_BASIC_AUTH: "false"
+      IDM_CREATE_DEMO_USERS: "false"
+      IDM_ADMIN_PASSWORD: "${OPENCLOUD_ADMIN_PASSWORD}"
+      FRONTEND_ARCHIVER_MAX_SIZE: "10000000000"
+      FRONTEND_CHECK_FOR_UPDATES: "true"
+      PROXY_CSP_CONFIG_FILE_LOCATION: "/etc/opencloud/csp.yaml"
+      OC_PASSWORD_POLICY_BANNED_PASSWORDS_LIST: "banned-password-list.txt"
+      OC_SHARING_PUBLIC_SHARE_MUST_HAVE_PASSWORD: "true"
+      OC_SHARING_PUBLIC_WRITEABLE_SHARE_MUST_HAVE_PASSWORD: "false"
+      OC_PASSWORD_POLICY_DISABLED: "false"
+      OC_PASSWORD_POLICY_MIN_CHARACTERS: "8"
+      OC_PASSWORD_POLICY_MIN_LOWERCASE_CHARACTERS: "1"
+      OC_PASSWORD_POLICY_MIN_UPPERCASE_CHARACTERS: "1"
+      OC_PASSWORD_POLICY_MIN_DIGITS: "1"
+      OC_PASSWORD_POLICY_MIN_SPECIAL_CHARACTERS: "1"
+      TZ: "${TZ}"
+    volumes:
+      - "${DOCKER_CONFIG_DIR}/opencloud/config:/etc/opencloud"
+      - "./config/csp.yaml:/etc/opencloud/csp.yaml"
+      - "./config/apps.yaml:/etc/opencloud/apps.yaml"
+      - "./config/banned-password-list.txt:/etc/opencloud/banned-password-list.txt"
+      - "${DOCKER_DATA_DIR}/opencloud/data:/var/lib/opencloud"
+    healthcheck:
+      test: ["CMD", "opencloud", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cloudflare_web_network
+      - traefik_proxy_network
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.opencloud.rule: "Host(`${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}`)"
+      traefik.http.routers.opencloud.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
+      traefik.http.routers.opencloud.tls: "true"
+      traefik.http.routers.opencloud.service: "opencloud-private"
+      traefik.http.routers.opencloud.middlewares: "hsts-headers@docker"
+      traefik.http.routers.opencloud-private.rule: "Host(`${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}`)"
+      traefik.http.routers.opencloud-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.opencloud-private.tls: "true"
+      traefik.http.routers.opencloud-private.service: "opencloud-private"
+      traefik.http.routers.opencloud-private.middlewares: "hsts-headers@docker"
+      traefik.http.services.opencloud-private.loadbalancer.server.port: "9200"
+      traefik.http.routers.opencloud-tailnet.rule: "Host(`${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}`)"
+      traefik.http.routers.opencloud-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.opencloud-tailnet.tls: "true"
+      traefik.http.routers.opencloud-tailnet.service: "opencloud-private"
+      traefik.http.routers.opencloud-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
+      traefik.docker.network: "traefik-proxy"
+
+networks:
+  cloudflare_web_network:
+    name: cloudflare-web
+    external: true
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true
