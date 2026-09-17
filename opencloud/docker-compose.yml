@@ -68,13 +68,19 @@ services:
       traefik.http.routers.opencloud-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.docker.network: "traefik-proxy"
 
+  # Static OpenCloud config content is embedded as base64 below (decode with
+  # `echo '<blob>' | base64 -d`) rather than bind-mounted from a sibling
+  # ./config/ file - Portainer's git-stack deploy only fetches the single
+  # referenced compose file, not the rest of the repo tree, so any relative
+  # path to a sibling file resolves to nothing at deploy time. To change
+  # csp.yaml/apps.yaml/banned-password-list.txt, edit the plaintext, re-run
+  # `base64 -w0 <file>`, and replace the matching blob below.
   fix-permissions:
     image: alpine:latest
     container_name: "opencloud-init"
     user: root
-    command: "sh -c \"echo 'Seeding OpenCloud static config...' && cp -f /source-config/csp.yaml /source-config/apps.yaml /source-config/banned-password-list.txt /fix/config/ && echo 'Fixing OpenCloud config/data permissions...' && chown -R ${PUID}:${PGID} /fix/config /fix/data && echo 'Permissions fixed. Exiting.'\""
+    command: "sh -c \"echo 'Seeding OpenCloud static config...' && echo 'IyBEZWZhdWx0IENvbnRlbnQtU2VjdXJpdHktUG9saWN5IGZvciBPcGVuQ2xvdWQncyB3ZWIgVUkuCiMgTWlycm9ycyBvQ0lTL09wZW5DbG91ZCdzIGRvY3VtZW50ZWQgZGVmYXVsdCBDU1Agc2hhcGU6IGFsbG93IHNlbGYgcGx1cyB0aGUKIyBpbnN0YW5jZSdzIG93biBPQ19VUkwgb3JpZ2luIGZvciB0aGUgZGlyZWN0aXZlcyB0aGUgd2ViIFVJIGFjdHVhbGx5IG5lZWRzLgojIFRpZ2h0ZW4gZnVydGhlciBvbmNlIHRoZSB3ZWIgVUkncyByZWFsIGV4dGVybmFsIGFzc2V0IG5lZWRzIChpZiBhbnkpIGFyZSBrbm93bi4KZGlyZWN0aXZlczoKICBkZWZhdWx0LXNyYzoKICAgIC0gIidzZWxmJyIKICBzY3JpcHQtc3JjOgogICAgLSAiJ3NlbGYnIgogICAgLSAiJ3Vuc2FmZS1pbmxpbmUnIgogIHN0eWxlLXNyYzoKICAgIC0gIidzZWxmJyIKICAgIC0gIid1bnNhZmUtaW5saW5lJyIKICBpbWctc3JjOgogICAgLSAiJ3NlbGYnIgogICAgLSAiZGF0YToiCiAgICAtICJibG9iOiIKICBmb250LXNyYzoKICAgIC0gIidzZWxmJyIKICAgIC0gImRhdGE6IgogIGNvbm5lY3Qtc3JjOgogICAgLSAiJ3NlbGYnIgogIG1lZGlhLXNyYzoKICAgIC0gIidzZWxmJyIKICBvYmplY3Qtc3JjOgogICAgLSAiJ25vbmUnIgogIGZyYW1lLWFuY2VzdG9yczoKICAgIC0gIidzZWxmJyIK' | base64 -d > /fix/config/csp.yaml && echo 'IyBQZXItYXBwIGNvbmZpZ3VyYXRpb24gb3ZlcnJpZGVzIGZvciBPcGVuQ2xvdWQncyBidWlsdC1pbiB3ZWIgVUkgYXBwcwojIChGaWxlcywgTWFwcywgUERGIHZpZXdlciwgZXRjLiAtIHRoZXNlIHNoaXAgaW5zaWRlIHRoZSBvcGVuY2xvdWQgYmluYXJ5CiMgaXRzZWxmLCB0aGlzIGZpbGUgZG9lcyBub3QgZW5hYmxlL2Rpc2FibGUgdGhlbSwgaXQgb25seSBjb25maWd1cmVzIHRoZW0pLgojIE1hdGNoZXMgdGhlIHJlYWwgdXBzdHJlYW0gb3BlbmNsb3VkLWNvbXBvc2UgZGVmYXVsdCBleGFjdGx5LgptYXBzOgogIGNvbmZpZzoKICAgIGZvbGRlclZpZXdFbmFibGVkOiBmYWxzZQo=' | base64 -d > /fix/config/apps.yaml && echo 'IyBPcHQtaW4gYmFubmVkLXBhc3N3b3JkIGxpc3QgZm9yIE9DX1BBU1NXT1JEX1BPTElDWV9CQU5ORURfUEFTU1dPUkRTX0xJU1QuCiMgRW1wdHkgYnkgZGVmYXVsdCAtIGFkZCBvbmUgYmFubmVkIHBhc3N3b3JkIHBlciBsaW5lIHRvIGVuYWJsZSB0aGlzIGNoZWNrLgo=' | base64 -d > /fix/config/banned-password-list.txt && echo 'Fixing OpenCloud config/data permissions...' && chown -R ${PUID}:${PGID} /fix/config /fix/data && echo 'Permissions fixed. Exiting.'\""
     volumes:
-      - "./config:/source-config:ro"
       - "${DOCKER_CONFIG_DIR}/opencloud/config:/fix/config"
       - "${DOCKER_DATA_DIR}/opencloud/data:/fix/data"
 
