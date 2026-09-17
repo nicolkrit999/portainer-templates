@@ -9,17 +9,6 @@ services:
     depends_on:
       fix-permissions:
         condition: service_completed_successfully
-    # Resolve our own OC_URL hostname via the LAN dnsmasq (which already has
-    # a private-tier override for opencloud.${DOMAIN}) instead of whatever
-    # public/default DNS the Docker daemon would otherwise hand this
-    # container. Without this, opencloud's own self-referencing OIDC
-    # discovery call (verifying the token it just issued) resolves the
-    # hostname over the public internet, hits Cloudflare, and gets HTML
-    # back instead of JSON - the exact same class of bug already documented
-    # for n8n in this repo. dnsmasq runs with network_mode: host, so it's
-    # reachable at the NAS's own LAN IP.
-    dns:
-      - "${NAS_IP}"
     environment:
       OC_URL: "https://${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}"
       OC_LOG_LEVEL: "${LOG_LEVEL:-info}"
