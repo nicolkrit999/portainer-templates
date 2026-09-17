@@ -3,7 +3,7 @@
 icorsi-notes - watch _icorsi/ folders and propose study-note additions via Claude Code.
 
 Self-scheduling daemon (mirroring icorsi-sync patterns):
-  - rclone-mounts ownCloud over WebDAV at /oc
+  - rclone-mounts OpenCloud over WebDAV at /oc
   - fingerprints each watched course's _icorsi/ folder
   - on change: invokes `claude -p` headlessly to generate proposals into notes/_suggested/
   - active-hours window + /data/PAUSE file prevent running during the user's working hours
@@ -48,11 +48,11 @@ def env_bool(key, default=False):
 
 DRY_RUN = env_bool("DRY_RUN", False)
 
-DAV_URL = (env("OWNCLOUD_WEBDAV_URL", "", required=not DRY_RUN) or "").rstrip("/")
-DAV_USER = env("OWNCLOUD_USER", "", required=not DRY_RUN)
-DAV_PASS = env("OWNCLOUD_APP_PASSWORD", "", required=not DRY_RUN)
-DAV_HOST_HEADER = env("OWNCLOUD_HOST_HEADER", "")
-BASE_PATH = env("OWNCLOUD_BASE_PATH", "").strip("/")
+DAV_URL = (env("OPENCLOUD_WEBDAV_URL", "", required=not DRY_RUN) or "").rstrip("/")
+DAV_USER = env("OPENCLOUD_USER", "", required=not DRY_RUN)
+DAV_PASS = env("OPENCLOUD_APP_PASSWORD", "", required=not DRY_RUN)
+DAV_HOST_HEADER = env("OPENCLOUD_HOST_HEADER", "")
+BASE_PATH = env("OPENCLOUD_BASE_PATH", "").strip("/")
 
 MOUNT_POINT = "/oc"
 DATA_DIR = env("DATA_DIR", "/data")
@@ -85,7 +85,7 @@ _BILLING_ENV_VARS = {
 
 # Strip credentials from the subprocess env
 _STRIP_FROM_CLAUDE_ENV = _BILLING_ENV_VARS | {
-    "OWNCLOUD_APP_PASSWORD",   # WebDAV secret - rclone mount handles auth
+    "OPENCLOUD_APP_PASSWORD",  # WebDAV secret - rclone mount handles auth
     "DISCORD_WEBHOOK_URL",     # notification token - watch.py owns this
 }
 
@@ -241,7 +241,7 @@ def fingerprint_dir(path):
     entries = []
 
     def _on_walk_error(e):
-        # A single unreadable subdirectory (e.g. an ownCloud/WebDAV entry the
+        # A single unreadable subdirectory (e.g. an OpenCloud/WebDAV entry the
         # mount can't stat) shouldn't blow up fingerprinting for the whole tree.
         log.warning("Cannot list %s during fingerprint: %s", getattr(e, "filename", e), e)
 
@@ -288,7 +288,7 @@ def find_icorsi_dirs(course_path):
                 if sub.is_dir():
                     results.append((sub, child))
         except OSError as e:
-            # A single broken WebDAV entry (e.g. a share ownCloud can't stat)
+            # A single broken WebDAV entry (e.g. a share OpenCloud can't stat)
             # shouldn't abort discovery for the rest of the course tree.
             log.warning("Cannot stat %s: %s", child, e)
             continue
@@ -320,29 +320,30 @@ def notify(msg):
 # ─── rclone mount ─────────────────────────────────────────────────────────────
 
 
-def build_rclone_url():
+def apply_host_header(url):
     """
-    If OWNCLOUD_HOST_HEADER is set, entrypoint.sh added it to /etc/hosts pointing
-    to the real ownCloud container IP. We rewrite the WebDAV URL to use that trusted
-    domain as the HTTP Host header (ownCloud rejects the raw container hostname).
+    If OPENCLOUD_HOST_HEADER is set, entrypoint.sh added it to /etc/hosts pointing
+    to the real OpenCloud container IP. We rewrite the WebDAV URL to use that trusted
+    domain as the HTTP Host header (in case OpenCloud rejects the raw container hostname).
+    Shared across every mounted space - they're all the same OpenCloud instance/host.
     """
     if not DAV_HOST_HEADER:
-        return DAV_URL
-    m = re.match(r"(https?://)([^/:]+)(:\d+)?(.*)", DAV_URL)
+        return url
+    m = re.match(r"(https?://)([^/:]+)(:\d+)?(.*)", url)
     if not m:
-        return DAV_URL
+        return url
     scheme, _host, port, path = m.groups()
     rewritten = f"{scheme}{DAV_HOST_HEADER}{port or ''}{path}"
-    log.info("rclone URL: %s -> %s", DAV_URL, rewritten)
+    log.info("rclone URL: %s -> %s", url, rewritten)
     return rewritten
 
 
-def refresh_owncloud_host_entry():
+def refresh_opencloud_host_entry():
     """
-    Re-resolve 'owncloud' (the Docker service name) and rewrite its /etc/hosts
-    entry for OWNCLOUD_HOST_HEADER to match.
+    Re-resolve 'opencloud' (the Docker service name) and rewrite its /etc/hosts
+    entry for OPENCLOUD_HOST_HEADER to match.
 
-    entrypoint.sh writes this mapping once at container startup, but the owncloud
+    entrypoint.sh writes this mapping once at container startup, but the opencloud
     container's bridge-network IP can change independently (e.g. it gets recreated
     for an update) at any point during icorsi-notes' own uptime. A stale entry
     silently misroutes every WebDAV request to whatever container later reuses that
@@ -384,12 +385,12 @@ def refresh_owncloud_host_entry():
 
 
 def setup_mount():
-    """Write rclone config and mount ownCloud at MOUNT_POINT. Blocks until ready."""
+    """Write rclone config and mount OpenCloud at MOUNT_POINT. Blocks until ready."""
     if DRY_RUN and not DAV_URL:
         log.info("[DRY_RUN] No DAV_URL; skipping rclone mount")
         return
 
-    rclone_url = build_rclone_url()
+    rclone_url = apply_host_header(DAV_URL)
 
     # Obscure the password (rclone requires its own encoding for config files)
     try:
@@ -401,10 +402,10 @@ def setup_mount():
         sys.exit(1)
 
     cfg = (
-        f"[owncloud]\n"
+        f"[opencloud]\n"
         f"type = webdav\n"
         f"url = {rclone_url}\n"
-        f"vendor = owncloud\n"
+        f"vendor = owncloud\n"  # OpenCloud is ownCloud/oCIS-compatible; rclone has no dedicated vendor
         f"user = {DAV_USER}\n"
         f"pass = {obscured}\n"
     )
@@ -418,7 +419,7 @@ def setup_mount():
     # rclone mount <remote>:<path> <mountpoint> [flags]
     # NOTE: requires cap_add SYS_ADMIN + /dev/fuse device in compose
     cmd = [
-        "rclone", "mount", f"owncloud:{BASE_PATH}", MOUNT_POINT,
+        "rclone", "mount", f"opencloud:{BASE_PATH}", MOUNT_POINT,
         "--config", cfg_path,
         "--vfs-cache-mode", "writes",
         "--dir-cache-time", "2m",
@@ -772,9 +773,9 @@ def _course_label(key):
 
 
 def run_once(state, active_hours):
-    # Keep the WebDAV trusted-domain /etc/hosts mapping current - the owncloud
+    # Keep the WebDAV trusted-domain /etc/hosts mapping current - the opencloud
     # container's IP can drift at any time independent of icorsi-notes' own uptime.
-    refresh_owncloud_host_entry()
+    refresh_opencloud_host_entry()
 
     # ── HALT check ───────────────────────────────────────────────────────────
     # Written by the cost circuit-breaker when extra usage billing was detected.

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-icorsi-sync - mirror SUPSI iCorsi (Moodle) course material into ownCloud via WebDAV.
+icorsi-sync - mirror SUPSI iCorsi (Moodle) course material into OpenCloud via WebDAV.
 
 Pure stdlib. Reads Moodle Web Services with a mobile token, walks each mapped
 course, and uploads files (plus url links as .txt, section text and forum posts
-as .md) into ownCloud under a per-subject `_icorsi/` subfolder, mirroring the
+as .md) into OpenCloud under a per-subject `_icorsi/` subfolder, mirroring the
 course's structure and order. Allowlist of courses (courses.json); auto-discovery
 only notifies about new/unenrolled courses. Incremental, self-healing, read-only on
 Moodle. Optional prune keeps exactly one current copy.
@@ -52,13 +52,14 @@ ICORSI_BASE   = env("ICORSI_BASE_URL", "https://www.icorsi.ch").rstrip("/")
 WS_ENDPOINT   = f"{ICORSI_BASE}/webservice/rest/server.php"
 ICORSI_HOST   = urllib.parse.urlsplit(ICORSI_BASE).netloc.lower()
 
-DAV_URL       = (env("OWNCLOUD_WEBDAV_URL", "", required=not DRY_RUN) or "").rstrip("/")
-DAV_USER      = env("OWNCLOUD_USER", "", required=not DRY_RUN)
-DAV_PASS      = env("OWNCLOUD_APP_PASSWORD", "", required=not DRY_RUN)
-# Sent as the Host header. Reaching the container directly (http://owncloud:8080) would
-# otherwise fail ownCloud's trusted-domain check with HTTP 400.
-DAV_HOST_HEADER = env("OWNCLOUD_HOST_HEADER", "")
-BASE_PATH     = env("OWNCLOUD_BASE_PATH", "").strip("/")
+DAV_URL       = (env("OPENCLOUD_WEBDAV_URL", "", required=not DRY_RUN) or "").rstrip("/")
+DAV_USER      = env("OPENCLOUD_USER", "", required=not DRY_RUN)
+DAV_PASS      = env("OPENCLOUD_APP_PASSWORD", "", required=not DRY_RUN)
+# Sent as the Host header when reaching the container directly. Optional - OpenCloud
+# (unlike classic OpenCloud) may not enforce a trusted-domain check at all; set this
+# only if direct requests get rejected.
+DAV_HOST_HEADER = env("OPENCLOUD_HOST_HEADER", "")
+BASE_PATH     = env("OPENCLOUD_BASE_PATH", "").strip("/")
 SUBFOLDER     = env("SUBFOLDER", "_icorsi").strip("/")
 
 INCLUDE_URL_LINKS = env_bool("INCLUDE_URL_LINKS", True)
@@ -130,7 +131,7 @@ def _redact(text):
 
 def _clamp_bytes(name, limit=120):
     """Clamp one path segment to <=limit UTF-8 bytes, preserving the extension.
-    ownCloud/most filesystems cap a name at 255 bytes; an over-long segment would
+    OpenCloud/most filesystems cap a name at 255 bytes; an over-long segment would
     fail every PUT forever, so clamp deterministically."""
     if name is None:
         return name
@@ -225,7 +226,7 @@ def basic_auth_header(user, pw):
 
 
 def nfc(s):
-    """Canonical Unicode form. ownCloud stores/returns NFC; Moodle may send NFD. Normalizing
+    """Canonical Unicode form. OpenCloud stores/returns NFC; Moodle may send NFD. Normalizing
     both sides keeps the SAME file from looking like two different paths (which would cause
     endless re-upload and prune delete/recreate churn)."""
     return unicodedata.normalize("NFC", s)
@@ -833,7 +834,7 @@ class WebDav:
         retrying(f"PUT {logical_path}", attempt)
 
     def delete(self, logical_path):
-        """DELETE a file/collection (goes to ownCloud trash). Used only by prune."""
+        """DELETE a file/collection (goes to OpenCloud trash). Used only by prune."""
         if DRY_RUN:
             return
         status, _, _ = http_retry(self._abs(logical_path), method="DELETE", headers=self.hdr)
@@ -1153,7 +1154,7 @@ def sync_course(dav, course_id, rel_folder, state):
     lock = threading.Lock()
     dl_cache = {}        # logical -> (temp_path, size); each file downloaded at most once/run
     hard_failed = set()  # logicals whose iCorsi download failed this run (don't re-fetch)
-    existing = {}        # ownCloud view; kept updated as we upload so find_missing can reuse it
+    existing = {}        # OpenCloud view; kept updated as we upload so find_missing can reuse it
 
     def do_file(logical, f):
         if logical in dl_cache:
@@ -1206,16 +1207,16 @@ def sync_course(dav, course_id, rel_folder, state):
         elif logical in text_by:
             do_text(logical, text_by[logical])
 
-    # List ownCloud once, then decide what to (re)write vs skip as already-current. This runs for
+    # List OpenCloud once, then decide what to (re)write vs skip as already-current. This runs for
     # dry runs too, so the [dry] preview shows what would ACTUALLY change (present + unchanged on
-    # iCorsi + intact in ownCloud = skipped), not the full course inventory.
+    # iCorsi + intact in OpenCloud = skipped), not the full course inventory.
     existing.update(dav.list_files(base))
     uploaded = skipped = 0
     files_to_do, links_to_do, texts_to_do = [], [], []
     for logical, f in file_by.items():
         cur = existing.get(logical)
         prev = fstate.get(logical)
-        # Up-to-date = present + unchanged on iCorsi (timemodified) + intact (ownCloud size ==
+        # Up-to-date = present + unchanged on iCorsi (timemodified) + intact (OpenCloud size ==
         # the bytes we stored). Moodle's reported filesize is deliberately NOT used here: it is
         # 0 for generated 'page' files, which made those re-upload every run.
         if cur is not None and prev and prev.get("tm", -1) >= f["tm"] and cur == prev.get("size"):
@@ -1249,7 +1250,7 @@ def sync_course(dav, course_id, rel_folder, state):
         uploaded += _parallel(files_to_do, do_item, lock)
         uploaded += _parallel(links_to_do + texts_to_do, do_item, lock)
 
-        # Reconcile: re-list ownCloud and retry anything still missing/wrong-size, looping until
+        # Reconcile: re-list OpenCloud and retry anything still missing/wrong-size, looping until
         # none remain, bounded by RECON_MAX_PASSES and a no-progress guard. The FIRST check reuses
         # the in-memory `existing` view built during upload (no extra PROPFIND); later passes re-list
         # to truly verify. Files whose iCorsi download hard-failed are not re-fetched.
@@ -1321,7 +1322,7 @@ def sync_course(dav, course_id, rel_folder, state):
 
     # Prune (opt-in): delete everything under base that isn't in the current expected set -
     # old/renamed/removed files and their folders - so exactly one current copy remains.
-    # Only when the course fetched OK with 0 errors. Deletes go to ownCloud trash.
+    # Only when the course fetched OK with 0 errors. Deletes go to OpenCloud trash.
     pruned = 0
     if PRUNE_ORPHANS and expected and errors == 0:
         actual_files, actual_dirs = dav._list(base)

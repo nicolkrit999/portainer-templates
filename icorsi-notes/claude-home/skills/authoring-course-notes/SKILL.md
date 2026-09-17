@@ -24,7 +24,7 @@ The user should never have to say "this is an update" - what's on disk decides t
 3. **Format & compile** - choose the format and produce the final file (see below).
 4. **Audit & fix-loop** - verify the produced notes are faithful to the source, then loop fixes until they are (see **Audit loop** below). The work is **not done** until this passes.
 
-**Delegation:** if the school `cs-*` agents are available in this session (you're in/under the school workspace), delegate each stage to them - `cs-material-researcher` (stage 1), `cs-notes-author` (stage 2), `cs-notes-formatter` (stage 3), `cs-notes-auditor` (stage 4). If they are **not** available (e.g. the chat was opened directly in an owncloud course folder), perform the stages yourself, optionally via general-purpose subagents (haiku to inventory, sonnet to author/audit).
+**Delegation:** if the school `cs-*` agents are available in this session (you're in/under the school workspace), delegate each stage to them - `cs-material-researcher` (stage 1), `cs-notes-author` (stage 2), `cs-notes-formatter` (stage 3), `cs-notes-auditor` (stage 4). If they are **not** available (e.g. the chat was opened directly in an opencloud course folder), perform the stages yourself, optionally via general-purpose subagents (haiku to inventory, sonnet to author/audit).
 
 ## Audit loop (stage 4 - do not skip)
 
