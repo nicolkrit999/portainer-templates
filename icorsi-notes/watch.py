@@ -54,7 +54,7 @@ DAV_PASS = env("OPENCLOUD_APP_PASSWORD", "", required=not DRY_RUN)
 DAV_HOST_HEADER = env("OPENCLOUD_HOST_HEADER", "")
 BASE_PATH = env("OPENCLOUD_BASE_PATH", "").strip("/")
 
-MOUNT_POINT = "/oc"
+MOUNT_POINT = "/"
 DATA_DIR = env("DATA_DIR", "/data")
 STATE_FILE = os.path.join(DATA_DIR, "state.json")
 PAUSE_FILE = os.path.join(DATA_DIR, "PAUSE")
