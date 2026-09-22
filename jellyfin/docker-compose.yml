@@ -13,6 +13,23 @@ services:
       - ${DOCKER_CONFIG_DIR}/jellyfin/cache:/cache
       - ${DOCKER_DATA_DIR}/jellyfin/movies:/media/movies
       - ${DOCKER_DATA_DIR}/jellyfin/tv-shows:/media/tvshows
+      # RAM-backed, disposable HLS transcode/remux segment cache - keeps
+      # on-the-fly MKV->HLS remuxing (needed for browser playback of
+      # containers the HTML5 player can't handle) off the spinning media
+      # HDD pool. Bounded at 8g so it can't grow unbounded and pressure
+      # the host's 64GB RAM; mode 1777 (world-writable + sticky) so the
+      # non-root ${PUID}:${PGID} container user can write to it regardless
+      # of the configured UID/GID, since tmpfs mounts default to root
+      # ownership. Contents never touch disk and are wiped on
+      # container stop/recreate - used and deleted, not persisted.
+      # NOTE: this mount alone does not make Jellyfin use it - you must
+      # also set Dashboard -> Playback -> "Transcoding temporary path" to
+      # /transcodes in Jellyfin's own web UI after redeploying.
+      - type: tmpfs
+        target: /transcodes
+        tmpfs:
+          size: 8589934592
+          mode: 1777
     restart: 'always'
     environment:
       - TZ=${TZ}

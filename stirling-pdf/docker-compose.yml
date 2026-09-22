@@ -10,6 +10,20 @@ services:
       - ${DOCKER_CONFIG_DIR}/stirling-pdf/data:/usr/share/tessdata:rw
       - ${DOCKER_CONFIG_DIR}/stirling-pdf/config:/configs:rw
       - ${DOCKER_CONFIG_DIR}/stirling-pdf/logs:/logs:rw
+      # RAM-backed, disposable JVM scratch dir - Stirling-PDF's Spring Boot
+      # process uses the system temp dir (defaults to /tmp) for scratch
+      # files during merge/split/OCR/convert operations. Moved off the
+      # container's disk-backed writable overlay into RAM. Bounded at 1GiB
+      # so it can't grow unbounded and pressure host memory; mode 1777
+      # (world-writable + sticky) so the non-root container user can write
+      # to it regardless of configured UID/GID, since tmpfs mounts default
+      # to root ownership. Contents never touch disk and are wiped on
+      # container stop/recreate.
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 1073741824
+          mode: 1777
     environment:
      PUID: 1000
      PGID: 10

@@ -63,6 +63,21 @@ services:
     hostname: "${PAPERLESS_GOTENBERG_HOSTNAME}"
     security_opt:
       - no-new-privileges:true
+    volumes:
+      # RAM-backed, disposable scratch dir - gotenberg's headless
+      # Chromium/LibreOffice conversion work happens in /tmp today with no
+      # volume covering it, so it lands on the container's disk-backed
+      # writable overlay layer. Moved into RAM. Bounded at 512MiB so it
+      # can't grow unbounded and pressure host memory; mode 1777
+      # (world-writable + sticky) so the non-root container user can write
+      # to it regardless of configured UID/GID, since tmpfs mounts default
+      # to root ownership. Contents never touch disk and are wiped on
+      # container stop/recreate.
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 536870912
+          mode: 1777
     restart: unless-stopped
     networks:
       - cloudflare_web_network
@@ -76,6 +91,20 @@ services:
     hostname: "${PAPERLESS_TIKA_HOSTNAME}"
     security_opt:
       - no-new-privileges:true
+    volumes:
+      # RAM-backed, disposable scratch dir - Tika's text/metadata
+      # extraction work happens in /tmp today with no volume covering it,
+      # so it lands on the container's disk-backed writable overlay layer.
+      # Moved into RAM. Bounded at 512MiB so it can't grow unbounded and
+      # pressure host memory; mode 1777 (world-writable + sticky) so the
+      # non-root container user can write to it regardless of configured
+      # UID/GID, since tmpfs mounts default to root ownership. Contents
+      # never touch disk and are wiped on container stop/recreate.
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 536870912
+          mode: 1777
     restart: unless-stopped
     networks:
       - cloudflare_web_network
