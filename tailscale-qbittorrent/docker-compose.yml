@@ -31,7 +31,15 @@ services:
       # explicit here deliberately: no downside if it's redundant, and
       # it's already in place if a future tailnet-wide default ever
       # changes.
-      TS_EXTRA_ARGS: "--exit-node=${MULLVAD_EXIT_NODE} --accept-dns=true"
+      # --exit-node-allow-lan-access=true is required because Traefik (a
+      # different container on this same Docker host, on the
+      # 172.27.0.0/16 / 192.168.48.0/20 private ranges) must still reach
+      # this container over the local Docker network even while its own
+      # outbound traffic exits via the Mullvad exit node - by default the
+      # exit-node client firewall only allows loopback (127.0.0.0/8) and
+      # silently drops all other local/LAN-range traffic, which would cut
+      # Traefik off from qbittorrent's WebUI.
+      TS_EXTRA_ARGS: "--exit-node=${MULLVAD_EXIT_NODE} --accept-dns=true --exit-node-allow-lan-access=true"
     volumes:
       - ${VOLUME_CONFIG}/tailscale-qbittorrent/state:/var/lib/tailscale
     networks:
