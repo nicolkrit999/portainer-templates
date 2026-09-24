@@ -23,6 +23,10 @@ services:
       TS_HOSTNAME: "${TS_HOSTNAME_QBITTORRENT}"
       # Static Mullvad exit-node choice (Spain/Barcelona, deliberately not
       # Switzerland - traffic-correlation reasons) - no rotation.
+      # MULLVAD_EXIT_NODE must be a Tailscale IP, not a .ts.net hostname -
+      # on first boot, `tailscale up --exit-node=<hostname>` fails
+      # (hostname resolution needs the tailnet connection it's still
+      # establishing). See .env.example for the full explanation.
       # --accept-dns=true is Tailscale's own default already, but is kept
       # explicit here deliberately: no downside if it's redundant, and
       # it's already in place if a future tailnet-wide default ever
