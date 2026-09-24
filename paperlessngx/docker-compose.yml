@@ -55,6 +55,17 @@ services:
       - cloudflare_web_network
 
   # -----------------------------------------------------------------------------
+  # GOTENBERG-INIT (tmpfs permission fixup)
+  # -----------------------------------------------------------------------------
+  gotenberg-init:
+    image: "alpine:3.19"
+    container_name: paperlessngx-gotenberg-init
+    restart: "no"
+    volumes:
+      - paperlessngx_gotenberg_tmp:/tmp
+    command: "chmod 1777 /tmp"
+
+  # -----------------------------------------------------------------------------
   # GOTENBERG (PDF Engine)
   # -----------------------------------------------------------------------------
   gotenberg:
@@ -68,19 +79,35 @@ services:
       # Chromium/LibreOffice conversion work happens in /tmp today with no
       # volume covering it, so it lands on the container's disk-backed
       # writable overlay layer. Moved into RAM. Bounded at 512MiB so it
-      # can't grow unbounded and pressure host memory; mode 1777
-      # (world-writable + sticky) so the non-root container user can write
-      # to it regardless of configured UID/GID, since tmpfs mounts default
-      # to root ownership. Contents never touch disk and are wiped on
+      # can't grow unbounded and pressure host memory. Backed by the named
+      # tmpfs volume below instead of an inline `type: tmpfs` mount with
+      # `mode: 1777`, because Docker applies that YAML integer mode as a
+      # raw decimal value instead of interpreting it as octal, producing
+      # an actual runtime mode of octal 3361 (root-owned, non-root user
+      # denied access) - confirmed live via docker exec/stat on the
+      # equivalent jellyfin mount. The gotenberg-init container chmods the
+      # volume to the real 1777 (world-writable + sticky) before gotenberg
+      # starts, so the non-root container user can write to it regardless
+      # of configured UID/GID. Contents never touch disk and are wiped on
       # container stop/recreate.
-      - type: tmpfs
-        target: /tmp
-        tmpfs:
-          size: 536870912
-          mode: 1777
+      - paperlessngx_gotenberg_tmp:/tmp
     restart: unless-stopped
+    depends_on:
+      gotenberg-init:
+        condition: service_completed_successfully
     networks:
       - cloudflare_web_network
+
+  # -----------------------------------------------------------------------------
+  # TIKA-INIT (tmpfs permission fixup)
+  # -----------------------------------------------------------------------------
+  tika-init:
+    image: "alpine:3.19"
+    container_name: paperlessngx-tika-init
+    restart: "no"
+    volumes:
+      - paperlessngx_tika_tmp:/tmp
+    command: "chmod 1777 /tmp"
 
   # -----------------------------------------------------------------------------
   # TIKA (Text Extraction)
@@ -96,16 +123,22 @@ services:
       # extraction work happens in /tmp today with no volume covering it,
       # so it lands on the container's disk-backed writable overlay layer.
       # Moved into RAM. Bounded at 512MiB so it can't grow unbounded and
-      # pressure host memory; mode 1777 (world-writable + sticky) so the
+      # pressure host memory. Backed by the named tmpfs volume below
+      # instead of an inline `type: tmpfs` mount with `mode: 1777`,
+      # because Docker applies that YAML integer mode as a raw decimal
+      # value instead of interpreting it as octal, producing an actual
+      # runtime mode of octal 3361 (root-owned, non-root user denied
+      # access) - confirmed live via docker exec/stat on the equivalent
+      # jellyfin mount. The tika-init container chmods the volume to the
+      # real 1777 (world-writable + sticky) before Tika starts, so the
       # non-root container user can write to it regardless of configured
-      # UID/GID, since tmpfs mounts default to root ownership. Contents
-      # never touch disk and are wiped on container stop/recreate.
-      - type: tmpfs
-        target: /tmp
-        tmpfs:
-          size: 536870912
-          mode: 1777
+      # UID/GID. Contents never touch disk and are wiped on container
+      # stop/recreate.
+      - paperlessngx_tika_tmp:/tmp
     restart: unless-stopped
+    depends_on:
+      tika-init:
+        condition: service_completed_successfully
     networks:
       - cloudflare_web_network
 
@@ -184,6 +217,18 @@ services:
     networks:
       - cloudflare_web_network
       - traefik_proxy_network
+
+volumes:
+  paperlessngx_gotenberg_tmp:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=512m"
+  paperlessngx_tika_tmp:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=512m"
 
 networks:
   cloudflare_web_network:

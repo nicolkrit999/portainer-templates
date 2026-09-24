@@ -1,4 +1,12 @@
 services:
+  stirling-pdf-init:
+    image: "alpine:3.19"
+    container_name: stirling-pdf-init
+    restart: "no"
+    volumes:
+      - stirlingpdf_tmp:/tmp
+    command: "chmod 1777 /tmp"
+
   stirling-pdf:
     container_name: stirling-pdf
     image: ghcr.io/stirling-tools/stirling-pdf
@@ -14,16 +22,21 @@ services:
       # process uses the system temp dir (defaults to /tmp) for scratch
       # files during merge/split/OCR/convert operations. Moved off the
       # container's disk-backed writable overlay into RAM. Bounded at 1GiB
-      # so it can't grow unbounded and pressure host memory; mode 1777
-      # (world-writable + sticky) so the non-root container user can write
-      # to it regardless of configured UID/GID, since tmpfs mounts default
-      # to root ownership. Contents never touch disk and are wiped on
-      # container stop/recreate.
-      - type: tmpfs
-        target: /tmp
-        tmpfs:
-          size: 1073741824
-          mode: 1777
+      # so it can't grow unbounded and pressure host memory. Backed by the
+      # named tmpfs volume below instead of an inline `type: tmpfs` mount
+      # with `mode: 1777`, because Docker applies that YAML integer mode
+      # as a raw decimal value instead of interpreting it as octal,
+      # producing an actual runtime mode of octal 3361 (root-owned,
+      # non-root user denied access) - confirmed live via docker exec/stat
+      # on the equivalent jellyfin mount. The stirling-pdf-init container
+      # chmods the volume to the real 1777 (world-writable + sticky)
+      # before stirling-pdf starts, so the non-root container user can
+      # write to it regardless of configured UID/GID. Contents never
+      # touch disk and are wiped on container stop/recreate.
+      - stirlingpdf_tmp:/tmp
+    depends_on:
+      stirling-pdf-init:
+        condition: service_completed_successfully
     environment:
      PUID: 1000
      PGID: 10
@@ -60,6 +73,13 @@ services:
       traefik.http.routers.stirling-pdf-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.stirling-pdf.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
+
+volumes:
+  stirlingpdf_tmp:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=1g"
 
 networks:
   cloudflare_web_services:

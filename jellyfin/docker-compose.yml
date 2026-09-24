@@ -1,4 +1,12 @@
 services:
+  jellyfin-init:
+    image: "alpine:3.19"
+    container_name: jellyfin-init
+    restart: "no"
+    volumes:
+      - jellyfin_transcodes:/transcodes
+    command: "chmod 1777 /transcodes"
+
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
@@ -17,24 +25,30 @@ services:
       # on-the-fly MKV->HLS remuxing (needed for browser playback of
       # containers the HTML5 player can't handle) off the spinning media
       # HDD pool. Bounded at 8g so it can't grow unbounded and pressure
-      # the host's 64GB RAM; mode 1777 (world-writable + sticky) so the
-      # non-root ${PUID}:${PGID} container user can write to it regardless
-      # of the configured UID/GID, since tmpfs mounts default to root
-      # ownership. Contents never touch disk and are wiped on
-      # container stop/recreate - used and deleted, not persisted.
+      # the host's 64GB RAM. Backed by the named tmpfs volume below
+      # instead of an inline `type: tmpfs` mount with `mode: 1777`,
+      # because Docker applies that YAML integer mode as a raw decimal
+      # value instead of interpreting it as octal, producing an actual
+      # runtime mode of octal 3361 (root-owned, non-root user denied
+      # access) - confirmed live via docker exec/stat, and the root cause
+      # of a startup crash loop. The jellyfin-init container chmods the
+      # volume to the real 1777 (world-writable + sticky) before Jellyfin
+      # starts, so the non-root ${PUID}:${PGID} container user can write
+      # to it regardless of configured UID/GID. Contents never touch disk
+      # and are wiped on container stop/recreate - used and deleted, not
+      # persisted.
       # NOTE: this mount alone does not make Jellyfin use it - you must
       # also set Dashboard -> Playback -> "Transcoding temporary path" to
       # /transcodes in Jellyfin's own web UI after redeploying.
-      - type: tmpfs
-        target: /transcodes
-        tmpfs:
-          size: 8589934592
-          mode: 1777
+      - jellyfin_transcodes:/transcodes
     restart: 'always'
     environment:
       - TZ=${TZ}
     ports:
       - "${JELLYFIN_HOST_PORT}:8096"
+    depends_on:
+      jellyfin-init:
+        condition: service_completed_successfully
     networks:
       - cloudflare_web_network
       - traefik_proxy_network
@@ -85,6 +99,13 @@ services:
       traefik.http.routers.jellyfin-private.middlewares: "hsts-headers@docker"
       traefik.http.services.jellyfin-private.loadbalancer.server.port: "8096"
       traefik.docker.network: "traefik-proxy"
+
+volumes:
+  jellyfin_transcodes:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=8g"
 
 networks:
   cloudflare_web_network:
