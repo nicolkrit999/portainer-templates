@@ -102,6 +102,7 @@ services:
       - "--address=/privatebin.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/promemoria.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/qbit-torrent.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
+      - "--address=/qbit-torrent-tailscale.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/ricette.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/snapotter.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       - "--address=/snappyemail.${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"

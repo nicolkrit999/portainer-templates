@@ -5,6 +5,17 @@ metadata:
   type: project
 ---
 
+STALE (2026-09-24, same day): the "replaces qbit-torrent/ entirely, old
+dir deleted" claim below is WRONG - the user restored `qbit-torrent/` as a
+deliberate rollback reference (not deployed) and had BOTH directories
+restructured to coexist without collision (distinct container_name,
+volume paths, Traefik router names, and a new
+`QBIT_TORRENT_TAILSCALE_SUBDOMAIN` var). See
+[[tailscale_qbittorrent_naming_split]] for the full restructuring record.
+The "DOCKER_CONFIG_DIR/DOCKER_DATA_DIR left unchanged, out of scope"
+claim two paragraphs down is also now reversed - both directories were
+migrated to `${VOLUME_CONFIG}`/`${VOLUME_DATA}` in that same session.
+
 `tailscale-qbittorrent/docker-compose.yml` (new, 2 services) replaces
 `qbit-torrent/` entirely - the old directory is deleted by the user
 manually after verification, not by the agent.
