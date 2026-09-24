@@ -74,7 +74,7 @@ services:
       # pick up this bundled cert - do not "clean up" this block thinking
       # it's redundant.
       traefik.http.routers.jellyfin-family.tls.domains[0].main: "${JELLYFIN_SUBDOMAIN}.${DOMAIN}"
-      traefik.http.routers.jellyfin-family.tls.domains[0].sans: "${IMMICH_SUBDOMAIN}.${DOMAIN},${RADARR_SUBDOMAIN}.${DOMAIN},${SONARR_SUBDOMAIN}.${DOMAIN},${PLEX_SUBDOMAIN}.${DOMAIN},${NAVIDROME_SUBDOMAIN}.${DOMAIN},${KAVITA_SUBDOMAIN}.${DOMAIN},${AUDIOBOOKSHELF_SUBDOMAIN}.${DOMAIN},${YTPTUBE_SUBDOMAIN}.${DOMAIN},${QBIT_TORRENT_SUBDOMAIN}.${DOMAIN}"
+      traefik.http.routers.jellyfin-family.tls.domains[0].sans: "${IMMICH_SUBDOMAIN}.${DOMAIN},${RADARR_SUBDOMAIN}.${DOMAIN},${SONARR_SUBDOMAIN}.${DOMAIN},${PLEX_SUBDOMAIN}.${DOMAIN},${NAVIDROME_SUBDOMAIN}.${DOMAIN},${KAVITA_SUBDOMAIN}.${DOMAIN},${AUDIOBOOKSHELF_SUBDOMAIN}.${DOMAIN},${YTPTUBE_SUBDOMAIN}.${DOMAIN},${QBIT_TORRENT_SUBDOMAIN}.${DOMAIN},${QBIT_TORRENT_TAILSCALE_SUBDOMAIN}.${DOMAIN}"
       traefik.http.routers.jellyfin-family.rule: "Host(`${JELLYFIN_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.jellyfin-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
       traefik.http.routers.jellyfin-family.tls: "true"

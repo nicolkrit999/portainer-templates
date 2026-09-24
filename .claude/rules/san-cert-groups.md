@@ -58,7 +58,7 @@ requested by one "anchor" router per group.
 | Group | Anchor service (router) | Members |
 |---|---|---|
 | **budgeting** | `actual-budget/actual-server_actual-https-api` (`actual-budget`) | budget, budget-ical, budget-api, budget-tap |
-| **media** | `jellyfin` (`jellyfin-family`) | jellyfin, foto (immich), radarr, sonarr, plex, navidrome, kavita, audiobookshelf, ytptube, qbit-torrent |
+| **media** | `jellyfin` (`jellyfin-family`) | jellyfin, foto (immich), radarr, sonarr, plex, navidrome, kavita, audiobookshelf, ytptube, qbit-torrent, qbit-torrent-tailscale (added 2026-09-24, Mullvad-routed qBittorrent instance, separate hostname from `qbit-torrent`) |
 | **household-travel** | `vikunja` (`vikunja-private`) | vikunja (promemoria), grocy, homebox, casa (homehub), ricette (mealie), sparkyfitness, appuntamenti (easy-appointments), appuntamenti-pma/-swagger/-baikal (easy-appointments' sub-services, added 2026-08-23), home-assistant, viaggi (surmai), trek |
 | **infra-ops** | `glances` (`glances`) | glances, portainer, coolify, soketi-coolify, gitea, tugtainer, dockpeek, harborguard, beszel, uptime-kuma, glance, gocron, n8n, pocket-id, adguard, upsnap, apprise-api, gotify, web-check, traefik (dashboard), mailpit, phpldapadmin, grafana (private-tier + tailnet-admin only, no Cloudflare - added 2026-09-02) |
 | **utilities** | `duplicati` (`duplicati`) | duplicati, it-tools, omnitools, convertx, stirling-pdf, change-detection, filebrowser, snapotter, moocup, withoutbg, cardyo, datetime, termix, snappyemail, owncloud, miniqr, privatebin, bytestash, openresume, sosse, openspeedtest (added 2026-08-25), opencloud (added 2026-09-17) |
