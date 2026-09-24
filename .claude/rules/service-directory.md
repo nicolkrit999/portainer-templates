@@ -173,7 +173,6 @@ every relying app - never add a direct port back for this service.
 | `navidrome` | 4533 | |
 | `plex` | 32400 | not currently deployed |
 | `portainer` | 9000 (http), 9444 (https) | |
-| `qbit-torrent` | 9865 | host-networked (`network_mode: host`) |
 | `stirling-pdf` | 8085 | moved from the conventional 8080 - that port is already used live by `easy-appointments`' phpMyAdmin sidecar container |
 | `upsnap` | 8090 | not currently deployed |
 | `vikunja` | 3456 | |
