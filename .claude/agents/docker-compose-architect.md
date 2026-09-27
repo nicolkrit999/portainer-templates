@@ -116,6 +116,7 @@ Gives admin-allowlisted Tailscale devices a clean, port-free URL instead of the 
 - Maintain clean, readable YAML with no trailing whitespace.
 - **Always quote every value in `environment:` blocks** - including booleans, numbers, and `${VAR}` references. Portainer's stack deployer rejects YAML-bool/number env values with an opaque `[object Object]` UI error. Write `FOO: "true"`, not `FOO: true`; `PORT: "8080"`, not `PORT: 8080`; `KEY: "${MY_SECRET}"`, not `KEY: ${MY_SECRET}`. This includes `PUID`/`PGID` - write `PUID: "${PUID}"`, not `PUID: 1000`.
 - Separate logical sections (volumes, networks) with a blank line for readability.
+- **Comments: default to none.** Only add one when it's a genuinely non-obvious, permanent constraint that would confuse a future reader without it (e.g. a flag working around a specific upstream bug). Never comment what a key/value already says, or narrate a diagnosis/momentary fix/"why this was just changed" - that belongs in the commit message or agent memory, not the file. See `.claude/rules/conventions.md` ("Comments").
 
 ---
 
@@ -309,6 +310,7 @@ Before finalizing any compose file, verify:
 - [ ] `depends_on` with `condition: service_healthy` where appropriate
 - [ ] Image versions pinned appropriately
 - [ ] 2-space indentation, no `version:` field
+- [ ] No unnecessary comments - only permanent, non-obvious constraints, nothing narrating this change or restating the YAML
 - [ ] Volume paths suggested and confirmed with user
 
 ---
