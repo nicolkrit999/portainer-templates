@@ -56,6 +56,11 @@ belongs in the commit message or agent memory, not the file - a
 compose file a future session reads should look like it was always this
 way, not like a change log. If in doubt, leave it out.
 
+This applies to `docker-compose.yml` only. `<service>/.env.example` is a
+different, documentation-oriented file and keeps its own separate
+requirement (a one-line comment above any non-obvious `${VAR}`, per
+`docker-compose-architect.md` Rule 1) - do not remove those.
+
 ## Default username & UID/GID
 - **Never hardcode a username in a compose file.** Use `${ADMIN_USER}` for
   `DEFAULT_USERNAME`, `ADMIN_USER`, `INITIAL_USER`, and similar fields,
