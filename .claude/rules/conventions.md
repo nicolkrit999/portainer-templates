@@ -44,6 +44,18 @@ file.** The `TZ` variable is provided via the `.env` / Portainer stack env and
 defaults to `Europe/Zurich`. Every service that accepts a `TZ` env var must
 reference it as `"${TZ}"`.
 
+## Comments
+**Default to no comments.** Only add one when it survives asking "does this
+deserve to be here": a genuinely non-obvious, permanent constraint (e.g. a
+flag required to work around a specific upstream bug, an ordering
+requirement that isn't visible from the YAML alone). Never write a comment
+that states the what (the key/value already says that), that explains a
+one-off diagnosis or momentary fix, or that exists only to narrate the
+change just made ("added for X", "fixed Y here"). That kind of context
+belongs in the commit message or agent memory, not the file - a
+compose file a future session reads should look like it was always this
+way, not like a change log. If in doubt, leave it out.
+
 ## Default username & UID/GID
 - **Never hardcode a username in a compose file.** Use `${ADMIN_USER}` for
   `DEFAULT_USERNAME`, `ADMIN_USER`, `INITIAL_USER`, and similar fields,
