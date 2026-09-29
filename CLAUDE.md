@@ -23,6 +23,17 @@ The three read-only agents fan out across the ~70 service dirs in their own cont
 
 The canonical compose conventions live in `.claude/rules/` and are referenced by every agent: `secrets.md` (no hardcoded secrets, use `${VAR}`), `networking.md` (Cloudflare Tunnel block, `<svc>.${DOMAIN}` hostnames, connector handoff), `volumes.md` (`${VOLUME_CONFIG}` fast/SSD-class vs `${VOLUME_DATA}` bulk/HDD-class bind-mounts - parameterized, real paths in .env), `conventions.md` (2-space indent, no `version:`, quote-all-env incl. PUID/PGID, `TZ: "${TZ}"`, `${ADMIN_USER}`/`${PUID}`/`${PGID}`), `portainer-instance.md` (instance-specific operational rules - Portainer MCP tools and migration workflow). A non-blocking PostToolUse hook (`.claude/hooks/validate-compose.sh`) warns on `version:`, unquoted env values, and hardcoded-secret patterns when a `docker-compose.yml` is edited.
 
+## Known gotchas (`.claude/rules/gotchas/`)
+
+Non-obvious pitfalls discovered the hard way. Each is a one-liner here so a
+session only pays to read the full writeup when it's actually relevant:
+
+- **macvlan networking** → `gotchas/macvlan-parent-bridge0.md` - any macvlan `parent`/`LAN_INTERFACE` on this NAS must be `bridge0`, not `eth0` (Virtual Network Bridging enslaves the physical NIC underneath it).
+- **`icorsi-sync` redeploys** → `gotchas/icorsi-sync-stackgitredeploy-endpoint.md` - `StackGitRedeploy` 404s on this one stack unless `endpointId: 3` is passed explicitly.
+- **SAN-bundle anchor `.env` scoping** → `gotchas/san-bundle-anchor-env-scoping.md` - an anchor's `.env` only needs its OWN group's subdomain vars; a missing one silently drops that hostname from the cert instead of erroring.
+- **CPU scheduling priority pattern** → `gotchas/cpu-priority-tuning.md` - the `cpu_shares`/`cpus` convention from the 2026-09-07 repo-wide pass, plus its rollback tag (`v4.0.9-pre-performance-tweaks`).
+- **Jellyfin `LibraryMonitor` permission errors** → `gotchas/jellyfin-librarymonitor-quirk.md` - a specific folder's cosmetic watcher error was chased to exhaustion and is a confirmed dead end; don't re-diagnose it without new evidence.
+
 ## Token optimization (RTK)
 
 RTK is installed and a Claude Code hook auto-rewrites Bash tool calls - `git status` becomes `rtk git status` transparently. This covers all git and `docker`/`docker compose` commands.
