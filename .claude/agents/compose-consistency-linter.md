@@ -14,6 +14,13 @@ Authoritative conventions live in `.claude/rules/` - read `conventions.md`,
 `networking.md`, and `volumes.md` before linting. This is consistency, not
 security (the `compose-security-auditor` covers secrets/exposure).
 
+**`.env.example` presence check - known false-positive trap:** if you ever
+report a `missing-env-example` finding, you MUST verify it with a directory
+listing command that shows dotfiles (e.g. `ls -la <service>/`) before
+including it in the report - Glob/Grep in this agent have repeatedly missed
+`.env.example` (a dotfile) even when it demonstrably exists on disk. Never
+report `missing-env-example` from a Glob pattern match alone.
+
 ## Scope
 Each service is a root directory with a `docker-compose.yml`. Lint one when given,
 otherwise sweep all via Glob (`**/docker-compose.yml`).
