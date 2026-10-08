@@ -73,15 +73,17 @@ services:
       - SETGID
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=256m,mode=1777   # HOME + Chromium's throwaway profile; /dev/shm is not used (--disable-dev-shm-usage)
+    mem_limit: 768m                 # headless Chromium; the tmpfs /tmp counts against it
     environment:
       TZ: "${TZ}"
       PUID: "${PUID:-1000}"
       PGID: "${PGID:-1000}"
       AUTH_HANDOFF_DIR: "/auth"
       AUTH_STATE_DIR: "/state"
-      ICORSI_LOGIN_USERNAME: "${ICORSI_LOGIN_USERNAME:-}"   # your iCorsi login e-mail
-      ICORSI_LOGIN_PASSWORD: "${ICORSI_LOGIN_PASSWORD:-}"   # secret: your iCorsi password (NOT edu-ID / Microsoft)
+      ICORSI_MS_USERNAME: "${ICORSI_MS_USERNAME:-}"         # your SUPSI Microsoft e-mail
+      ICORSI_MS_PASSWORD: "${ICORSI_MS_PASSWORD:-}"         # secret: your SUPSI Microsoft password
+      ICORSI_MS_TOTP_SECRET: "${ICORSI_MS_TOTP_SECRET:-}"   # secret: base32 seed of your authenticator-app TOTP (spaces/lowercase OK)
     volumes:
       - ${VOLUME_CONFIG}/icorsi-sync/auth:/auth
       - ${VOLUME_CONFIG}/icorsi-sync/auth-state:/state

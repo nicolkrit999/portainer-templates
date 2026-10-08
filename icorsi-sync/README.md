@@ -99,8 +99,9 @@ is actually about downtime:**
   this is what actually happened on 2026-07-10/11: the container had been running continuously
   for days, `keep_alive()` was renewing every 6h without issue, and then both the token and the
   underlying Moodle session died within the same ~6h window. Nothing client-side causes or
-  prevents this - it needs a fresh manual credential capture regardless of how long the
-  container has been up. See Troubleshooting below.
+  prevents this - it is now handled automatically by the `icorsi-auth` sidecar (see "Automatic
+  re-login" below); a fresh manual credential capture is only the fallback if that fails. See
+  Troubleshooting below.
 
 > **Harmless log warning you can ignore:**
 > `keep_alive refresh failed: ... autologinkeygenerationlockout - ... wait 6 minutes between requests`
@@ -118,50 +119,129 @@ is actually about downtime:**
 **3 days**, regardless of uptime (observed: a token renewed at 13:38 was `invalidtoken - token not
 found` six hours later, with its session dead too). Nothing the tool holds survives that, so it used to
 need a manual token capture each time. The `icorsi-auth` sidecar removes that: when renewal fails,
-`icorsi-sync` asks it for a **fresh login**, and it logs in on iCorsi's native login form and returns a
-new token.
+`icorsi-sync` asks it for a **fresh login** and it returns a new token.
 
-**Security boundary (what the sidecar can and cannot do).**
-- Only `icorsi-auth` has `ICORSI_LOGIN_USERNAME` / `ICORSI_LOGIN_PASSWORD`. `icorsi-sync` never sees them.
-- Every request it makes is checked by a hard guard: host `www.icorsi.ch`, https only, path exactly
-  `/login/index.php` (GET, POST) or `/admin/tool/mobile/launch.php` (GET). Every redirect hop is
-  re-checked; the final `moodlemobile://` redirect is read, never followed. An edu-ID / SSO / Microsoft
-  redirect is refused, so it can't be tricked into using another login.
+**Your login path.** The account only logs in through iCorsi's **"SUPSI login"** button
+(Moodle `auth_oidc`), not the plain e-mail/password form. The sidecar automates exactly that, in
+headless Chromium (a fresh browser per attempt, nothing persisted):
+
+1. `launch.php` while logged out (Moodle remembers it as the page to return to), then `/auth/oidc/`
+   which redirects to **Microsoft Entra ID** (`login.microsoftonline.com`, SUPSI tenant).
+2. Microsoft: e-mail, password, then the **TOTP code** computed from your secret (RFC 6238, SHA1, 6
+   digits). If Microsoft's default is an Authenticator push it clicks "Sign in another way" and picks the
+   verification-code option (you may see one stray push notification on your phone: just ignore it).
+   "Stay signed in?" is answered **No**.
+3. Microsoft posts back to iCorsi, Moodle lands on `launch.php`, which redirects to
+   `moodlemobile://token=...`. Chromium can't open that scheme, so the redirect is read from the network
+   layer and parsed into `wstoken` + `privatetoken` (expects `parts=3`).
+
+**What the sidecar can and cannot reach.**
+- Network allowlist, enforced three ways (Chromium's own DNS rules, a per-request route filter, and a
+  redirect-hop check that aborts the attempt): only `www.icorsi.ch` (and there only `launch.php`,
+  `/login/index.php`, and the OIDC entry point / redirect URI `/auth/oidc/` + `/auth/oidc/index.php`;
+  other `auth_oidc` endpoints such as `ucp.php` or `logout.php` are refused) and the Microsoft login hosts `login.microsoftonline.com`,
+  `aadcdn.msftauth.net`, `aadcdn.msauth.net`. Everything else is refused (e.g. `login.live.com`,
+  Microsoft telemetry, branding images, `analytics.usi.ch`, all Office/Outlook/Teams/mysignins/account
+  pages). `--probe` prints the aborted hosts so you can see the allowlist at work.
+  **Exception:** redirect targets cannot be intercepted, so if Moodle redirects to another iCorsi page
+  after login (e.g. `/my/`) that one document is loaded with the live session; its scripts and
+  subresources are still blocked and the flow immediately re-requests `launch.php`
+  (`relaunched_launch_php=True`).
+- Any unexpected Microsoft page ("More information required", consent, password change, account setup)
+  is never clicked through: the attempt fails with `interstitial:<page-id>` and the sidecar halts.
 - It never calls Moodle web services, never logs out, never touches courses, files or OpenCloud.
-- Separate container: no `/data`, not on the `cloudflare-web` network, no ports, read-only filesystem,
-  all capabilities dropped (except those needed to chown `/auth` and drop privileges), `no-new-privileges`.
-- Credentials are never logged, never in error text, never written to disk. The two containers share
-  only `${VOLUME_CONFIG}/icorsi-sync/auth` (`/auth`, mode 0700): `request.json` / `result.json` (the
-  token, deleted by `icorsi-sync` once read), and a `heartbeat` timestamp. Its rate-limit state (`sidecar.json`, no secrets) lives in a second,
-  sidecar-only dir `${VOLUME_CONFIG}/icorsi-sync/auth-state` (`/state`) that `icorsi-sync` cannot write to.
+- Credentials, TOTP codes, tokens and page content are never logged, screenshotted or traced; failures
+  log only a short error code and the host/path where the browser stopped. The TOTP secret is never
+  written to disk, and the three secrets are removed from the process environment right after start
+  (`os.environ`) and the process is made non-dumpable (`PR_SET_DUMPABLE=0`) so the same-uid Chromium
+  processes cannot read them back from `/proc/1/environ` or `/proc/1/mem`.
+- Separate container: no `/data`, not on the `cloudflare-web` network (own default network), no ports,
+  read-only filesystem (tmpfs `/tmp` for the browser profile), all capabilities dropped except those
+  needed to chown `/auth` and drop privileges, `no-new-privileges`, runs as `PUID`/`PGID`,
+  `mem_limit: 768m` (Chromium can balloon). The two containers share only
+  `${VOLUME_CONFIG}/icorsi-sync/auth` (`/auth`, mode 0700): `request.json` / `result.json` (the token,
+  deleted by `icorsi-sync` once read) and a `heartbeat` timestamp. Rate-limit state (`sidecar.json`, no
+  secrets) lives in the sidecar-only `${VOLUME_CONFIG}/icorsi-sync/auth-state` (`/state`).
+- **Chromium's own sandbox is off (`--no-sandbox`).** Docker's default seccomp profile blocks the
+  user-namespace calls it needs; the alternative is `seccomp=unconfined` for the whole container, which
+  weakens the container boundary more than dropping the in-browser sandbox does. The browser only loads
+  the allowlisted login pages (plus the one-document redirect exception above), in a read-only,
+  capability-less, non-root container.
 
-**Set in Portainer:** `ICORSI_LOGIN_USERNAME` = your iCorsi e-mail, `ICORSI_LOGIN_PASSWORD` = your
-**iCorsi** password - the ones you type on the plain icorsi.ch login form. Not your edu-ID password,
-not Microsoft/SUPSI; the sidecar only ever contacts `www.icorsi.ch`. Without them the sidecar idles and answers
-requests with an error, and the old manual procedure still applies.
+**Security trade-off, in plain words.** The Microsoft password **and** the TOTP secret together are a
+full SUPSI Microsoft sign-in, defeating the point of 2FA: if the NAS (or Portainer, or its env) is
+compromised, whoever gets them *is* you for everything on that SUPSI account (mail, Teams, OneDrive...),
+not just iCorsi. Mitigations: the sidecar is isolated as above, and you can cut it off at any time by
+removing that authenticator method in <https://mysignins.microsoft.com> (Security info) and/or changing
+your password.
 
-**Test it** (the first command never submits anything):
+**How to get the TOTP secret** (do this once; keep your normal phone login working):
+1. <https://mysignins.microsoft.com> -> **Security info** -> **Add sign-in method** -> **Authenticator app**.
+2. Click **"I want to use a different authenticator app"** (not the Microsoft Authenticator download
+   prompt) -> Next -> **"Can't scan image?"** -> copy the **Secret key**.
+3. Add that key to **your phone's authenticator app too** (so the phone and the NAS generate the same
+   codes), enter the 6-digit code Microsoft asks for to finish adding the method.
+4. Put the key in Portainer as `ICORSI_MS_TOTP_SECRET` (spaces / lowercase are fine).
+5. Make it the **default** sign-in method, or at least make sure Microsoft offers **"Use a verification
+   code"** when you pick "Sign in another way", otherwise you get `mfa_method_unavailable`.
+
+**Set in Portainer** (read only by `icorsi-auth`; without all three it idles and answers requests with
+an error, and the manual procedure below still applies):
+`ICORSI_MS_USERNAME` (your SUPSI Microsoft e-mail), `ICORSI_MS_PASSWORD`, `ICORSI_MS_TOTP_SECRET`.
+
+**Test it** (the first command types nothing and needs no credentials):
 ```
-docker exec icorsi-auth python /app/icorsi_auth.py --probe   # logged-out launch.php -> login form present? OK/FAIL
+docker exec icorsi-auth python /app/icorsi_auth.py --probe   # reaches the Microsoft e-mail page through the allowlist? OK/FAIL
 docker exec icorsi-auth python /app/icorsi_auth.py --once    # one real login now; prints a redacted summary only
 ```
-`--once` expects `parts=3` (wstoken + privatetoken). `parts=2` still works but gives no privatetoken.
-It respects the rate limits below; `--once --force` skips the spacing (not the daily cap).
+`--once` (and the daemon) take an exclusive lock on `/state/login.lock`, so they never log in at the same
+time; `--once` prints `REFUSED: login in progress` if the lock is held. `--once` expects `parts=3` (wstoken + privatetoken); `relaunched_launch_php=True` means Moodle lost the
+return page through OIDC and `launch.php` had to be requested a second time. `parts=2` still works but
+gives no privatetoken. It respects the rate limits below; `--once --force` skips the spacing (not the
+daily cap). The image is ~890 MB (Chromium headless shell + Debian libraries).
 
-**Rate limiting** (protects the iCorsi account from lockout):
+**Rate limiting** (protects the Microsoft account from lockout):
 - at least **30 min** between logins, doubling up to 6 h after consecutive failures;
-- at most **6 logins per rolling 24 h** (state persisted in `sidecar.json`, so restarts don't bypass it);
-- after an **invalid login** the sidecar **stops trying** until restarted - a wrong password is never hammered.
-  Fix `ICORSI_LOGIN_PASSWORD` in Portainer, redeploy, then `docker exec icorsi-auth python /app/icorsi_auth.py --once --force`;
-- when it refuses, it answers `icorsi-sync` immediately (`rate-limited ... in Ns`, `halted: invalid login ...`), and
-  the Discord alert includes that reason.
+- at most **6 logins per rolling 24 h** (persisted in `sidecar.json`, so restarts don't bypass it);
+- a wrong TOTP code is retried **once** with the next 30 s window's code, then fails;
+- on `bad_username`, `bad_password`, `bad_totp`, `account_locked`, `mfa_method_unavailable`,
+  `oidc_rejected`, `interstitial:*` and `blocked_required_host:*` the sidecar **halts**, and it also
+  halts after **2 consecutive failures of any kind once the credentials were submitted**
+  (`repeated_failures:<code>`). The halt is **persisted** in `sidecar.json`, so a NAS reboot, OOM kill or
+  redeploy does not resume submitting bad credentials. It is lifted automatically when any of the three
+  `ICORSI_MS_*` values changes (a short, non-reversible fingerprint is stored to notice this), or manually
+  with `docker exec icorsi-auth python /app/icorsi_auth.py --clear-halt` (use this when you fixed something
+  on the Microsoft side). Then test with `... --once --force`;
+- a password or code rejected by Microsoft is detected even if the error banner is not recognised: still
+  being on the same step 5 s after Microsoft answered counts as a rejection;
+- before typing the TOTP the code page is checked: if it is an SMS / voice code box the sidecar switches to
+  "Sign in another way" and fails with `mfa_method_unavailable` rather than typing a TOTP into it;
+- when it refuses, it answers `icorsi-sync` immediately and the Discord alert includes that reason.
+
+**What the failure alerts mean** (Discord / `docker logs icorsi-auth`):
+
+| Code | Meaning / fix |
+|---|---|
+| `bad_username` | Microsoft doesn't know `ICORSI_MS_USERNAME` (use the full SUPSI e-mail). Halts. |
+| `bad_password` | Wrong `ICORSI_MS_PASSWORD` (or it was changed). Halts. |
+| `bad_totp` | Code rejected twice: wrong `ICORSI_MS_TOTP_SECRET`, or the NAS clock is off. Halts. |
+| `account_locked` | Microsoft smart-lockout. Wait / unlock, then `--clear-halt`. Halts. |
+| `mfa_method_unavailable` | No "verification code" option offered; see step 5 above. Halts. |
+| `interstitial:<page-id>` | Microsoft wants something (MFA registration, password change, consent). Sign in once in a browser, then `--clear-halt`. Halts. |
+| `oidc_rejected` | Microsoft accepted, iCorsi bounced back to its login form. Halts. |
+| `blocked_required_host:<host>` | The allowlist blocked a host the login needs; the sidecar's host list needs an update. Halts. |
+| `repeated_failures:<code>` | Two consecutive failures after the credentials were sent (e.g. `timeout`); halted to protect the account. Check `docker logs icorsi-auth`, then `--clear-halt`. |
+| `nav_off_allowlist` | A redirect left the allowlist; attempt aborted (no halt, backs off). |
+| `timeout`, `no_login_redirect`, `no_token_redirect`, `unparseable_token_blob`, `network_error`, `browser_error`, `unexpected_session` (`launch.php` answered without a login), `unexpected_page` (stuck on an unexpected host/path), `playwright_missing` | Transient / site changed; retried with backoff (halts if it happens twice in a row after the credentials were sent). Persistent `no_token_redirect` means `launch.php` no longer returns the app redirect. |
+| `internal error: <ExceptionName>` | Unexpected exception inside the sidecar; counted as a submitted attempt. The details are in `docker logs icorsi-auth`. |
 
 **How to tell it worked:** `docker logs icorsi-sync` shows `requested fresh login from icorsi-auth sidecar`
 followed by `fresh login obtained via icorsi-auth` and `authenticated (userid=...)`. With the sidecar in
 place `ICORSI_TOKEN` / `ICORSI_PRIVATETOKEN` / `ICORSI_SESSION_COOKIE` are no longer needed: if there is
 no token at all, `icorsi-sync` bootstraps straight from the sidecar.
 
-The manual capture below is now only a **fallback** (e.g. login form changed, 2FA enabled, wrong password).
+The manual capture below is now only a **fallback** (e.g. Microsoft changed its login pages, an
+`interstitial`, lost authenticator).
 
 ---
 
@@ -242,7 +322,7 @@ Set these where you run the container (e.g. Portainer stack env). Secrets stay h
 | `OPENCLOUD_USER` / `OPENCLOUD_APP_PASSWORD` | OpenCloud login - use an **app password** (secret) |
 | `OPENCLOUD_HOST_HEADER` | optional trusted domain to send as `Host` when hitting the container directly, e.g. `opencloud.nicolkrit.ch` - only needed if direct requests are rejected |
 | `OPENCLOUD_BASE_PATH` | base folder (relative to the space root) the `courses.json` paths are relative to |
-| `ICORSI_LOGIN_USERNAME` / `ICORSI_LOGIN_PASSWORD` | iCorsi native login (e-mail + iCorsi password) for automatic re-login - secret, read **only** by the `icorsi-auth` container; optional but strongly recommended |
+| `ICORSI_MS_USERNAME` / `ICORSI_MS_PASSWORD` / `ICORSI_MS_TOTP_SECRET` | SUPSI Microsoft e-mail, password and authenticator TOTP secret for automatic re-login - secrets, read **only** by the `icorsi-auth` container; optional but strongly recommended (see the security trade-off above) |
 | `PUID` / `PGID` | host user/group the container drops to; must own the mounted `/data` dir (default `1000`/`1000`) |
 | `DISCORD_WEBHOOK_URL` | optional - get notified of new files / new courses / renewal trouble / problems |
 | `HEARTBEAT_URL` | optional - GET after each successful run (uptime-kuma / healthchecks.io push URL) |
@@ -285,10 +365,15 @@ describing something already fixed if you changed something since:
 `ICORSI_TOKEN` isn't set either. Set `ICORSI_TOKEN` (+ `ICORSI_PRIVATETOKEN` or
 `ICORSI_SESSION_COOKIE`, + `ICORSI_USERID`) in Portainer and restart.
 
-**Discord alert: `the Moodle token expired and automatic renewal failed`** - both the wstoken and
-the stored session are dead; recovery must be a fresh manual credential capture (see below), no
-env var already in place will fix this on its own even if they look correct - the *values* are
-dead, not just missing.
+**Discord alert: `the Moodle token expired and automatic renewal failed`** - the no-sidecar case
+(`/auth` not mounted): both the wstoken and the stored session are dead; recovery must be a fresh
+manual credential capture (see below), no env var already in place will fix this on its own even if
+they look correct - the *values* are dead, not just missing.
+
+**Discord alert: `automatic renewal AND automatic re-login (icorsi-auth) failed: <why>`** - the sidecar
+was asked for a fresh login and could not deliver one. `<why>` is a code from the failure table in
+"Automatic re-login" (e.g. `halted after bad_password: ...`); fix that cause first, and use the manual
+capture below only if the sidecar cannot be fixed.
 
 **Discord alert: `Moodle rejected the site_info check (<errorcode>)`** - something other than a
 dead token (e.g. `accessexception`) is rejecting the pre-flight API call. Usually transient/

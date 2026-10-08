@@ -775,8 +775,8 @@ class TokenManager:
                 why = self.last_renew_error or "no detail"
                 self._alert(notify_fn,
                             "⚠️ icorsi-sync: no Moodle token available and the automatic login "
-                            f"(icorsi-auth) failed: {why}. Check ICORSI_LOGIN_USERNAME / "
-                            "ICORSI_LOGIN_PASSWORD in Portainer (and `docker logs icorsi-auth`).")
+                            f"(icorsi-auth) failed: {why}. Check ICORSI_MS_USERNAME / "
+                            "ICORSI_MS_PASSWORD / ICORSI_MS_TOTP_SECRET in Portainer (and `docker logs icorsi-auth`).")
                 return False
             self._alert(notify_fn,
                         "⚠️ icorsi-sync: no Moodle token available (token.json missing/corrupt "
@@ -804,7 +804,7 @@ class TokenManager:
                     self._alert(notify_fn,
                                 "⚠️ icorsi-sync: the Moodle token expired; automatic renewal AND "
                                 f"automatic re-login (icorsi-auth) failed: {why}. Check "
-                                "ICORSI_LOGIN_USERNAME / ICORSI_LOGIN_PASSWORD in Portainer "
+                                "ICORSI_MS_USERNAME / ICORSI_MS_PASSWORD / ICORSI_MS_TOTP_SECRET in Portainer "
                                 "(and `docker logs icorsi-auth`); as a fallback re-seed "
                                 "ICORSI_TOKEN + ICORSI_PRIVATETOKEN (+ ICORSI_USERID), then restart.")
                 else:
