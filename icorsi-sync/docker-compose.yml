@@ -29,6 +29,7 @@ services:
       SAVE_FORUMS: "${SAVE_FORUMS:-true}"                  # forums/announcements -> .md (read-only)
       EXCLUDE_MODULES: "${EXCLUDE_MODULES:-}"              # optional opt-out filter; empty = fetch from all types
       PRUNE_ORPHANS: "${PRUNE_ORPHANS:-false}"            # delete files no longer in the course (one current copy; to trash)
+      PRUNE_MAX_ORPHAN_FRACTION: "${PRUNE_MAX_ORPHAN_FRACTION:-0.8}"   # refuse a course's prune if more than this share of its files would be deleted
       RECON_MAX_PASSES: "${RECON_MAX_PASSES:-5}"          # reconcile passes that retry still-missing files
       ICORSI_CONCURRENCY: "${ICORSI_CONCURRENCY:-4}"      # parallel per-file transfers within a course
       SYNC_INTERVAL_SECONDS: "${SYNC_INTERVAL_SECONDS:-21600}"   # 6h

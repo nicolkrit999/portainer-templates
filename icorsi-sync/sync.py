@@ -69,6 +69,9 @@ EXCLUDE_MODULES   = set(m.strip().lower() for m in env("EXCLUDE_MODULES", "").sp
 SAVE_SECTION_INFO = env_bool("SAVE_SECTION_INFO", True)
 SAVE_FORUMS       = env_bool("SAVE_FORUMS", True)
 PRUNE_ORPHANS     = env_bool("PRUNE_ORPHANS", False)
+# Prune safety valve: refuse to prune a course when more than this share of its listed entries
+# would be deleted (a path-handling bug looks exactly like "everything is an orphan").
+PRUNE_MAX_ORPHAN_FRACTION = float(env("PRUNE_MAX_ORPHAN_FRACTION", "0.8"))
 RECON_MAX_PASSES  = int(env("RECON_MAX_PASSES", "5"))
 INTERVAL          = int(env("SYNC_INTERVAL_SECONDS", "21600"))
 LOOP              = INTERVAL > 0
@@ -280,11 +283,11 @@ class MoodleError(Exception):
 
 
 class TransientDownloadError(RuntimeError):
-    """A download came back text/html (login page) despite a token that's otherwise valid.
-    Observed cause: fetching several chapters of the same mod_book/mod_page concurrently
-    trips something server-side (session-locking under Moodle's webservice layer) that
-    resolves on its own a moment later - confirmed by re-fetching the exact same URL
-    standalone right after a run failed on it, repeatedly, with no auth change at all.
+    """A download came back text/html (login/error page) where a real file was expected.
+    NOTE: the Moodle-generated mod_page/mod_book "index.html" is legitimately text/html (the
+    real content, served by page_pluginfile/book_pluginfile as a bare fragment) and is accepted
+    by download() unless it matches the login/error-page markers - its text/html content type
+    is NOT a concurrency artefact, as an earlier version of this docstring assumed.
     Kept as its own type (not a bare RuntimeError) so retrying() treats it as transient
     instead of do_file() marking it permanently hard_failed after zero retries."""
 
@@ -838,9 +841,21 @@ class WebDav:
         self.hdr = basic_auth_header(user, pw)
         if host_header:
             self.hdr["Host"] = host_header
-        self.root_path = urllib.parse.urlsplit(self.base).path.rstrip("/")
+        # The WebDAV root as canonical path COMPONENTS (each unquoted + NFC), compared against
+        # each PROPFIND href's components the same way. Never compare raw strings: OpenCloud
+        # space ids contain a '$' that the configured URL carries as %24 while hrefs may use a
+        # literal '$' (or any other legal encoding). The old raw-prefix compare never matched,
+        # so every listed path came back as 'dav/spaces/<id>$<id>/...' -> all files "new",
+        # reconcile "missing" right after upload, and prune treating everything as an orphan.
+        self.root_parts = self._canon_parts(urllib.parse.urlsplit(self.base).path)
         self._ensured = set()
         self._lock = threading.Lock()      # guards _ensured under the parallel file pass
+
+    @staticmethod
+    def _canon_parts(url_path):
+        """Split a URL path into unquoted, NFC-normalised components (empty segments dropped).
+        Split BEFORE unquoting, so an encoded '/' inside a name can't fake a path boundary."""
+        return [nfc(urllib.parse.unquote(seg)) for seg in url_path.split("/") if seg]
 
     def _abs(self, logical_path):
         enc = urllib.parse.quote(logical_path, safe="/")
@@ -873,11 +888,15 @@ class WebDav:
         """Recursively walk logical_dir. Returns ({file_path: size}, {dir_path})."""
         out, dirs = {}, set()
         stack = [logical_dir.strip("/")]
+        seen = set()      # never PROPFIND the same collection twice (guards a loop on odd hrefs)
         body = ('<?xml version="1.0"?>'
                 '<d:propfind xmlns:d="DAV:"><d:prop>'
                 '<d:resourcetype/><d:getcontentlength/></d:prop></d:propfind>')
         while stack:
             d = stack.pop()
+            if d in seen:
+                continue
+            seen.add(d)
             hdr = {**self.hdr, "Depth": "1", "Content-Type": "application/xml"}
             status, raw, _ = http_retry(self._abs(d), method="PROPFIND",
                                         data=body.encode(), headers=hdr)
@@ -904,10 +923,20 @@ class WebDav:
             href_el = resp.find("d:href", ns)
             if href_el is None or not href_el.text:
                 continue
-            path = urllib.parse.unquote(urllib.parse.urlsplit(href_el.text).path)
-            if path.startswith(self.root_path):
-                path = path[len(self.root_path):]
-            path = nfc(path.strip("/"))
+            parts = self._canon_parts(urllib.parse.urlsplit(href_el.text.strip()).path)
+            n = len(self.root_parts)
+            if parts[:n] != self.root_parts:
+                # Never hand back a path outside the WebDAV root: callers treat these as
+                # logical paths, and prune would DELETE whatever comes out of here.
+                log.warning("PROPFIND href outside WebDAV root, ignored: %s", href_el.text)
+                continue
+            rel_parts = parts[n:]
+            if any(p in (".", "..") or "/" in p or "\\" in p for p in rel_parts):
+                # An encoded '/', a backslash or a dot segment would re-join into a traversal that _abs()
+                # turns into a real '../' - and prune DELETEs what comes out of here.
+                log.warning("PROPFIND href with unsafe path segment, ignored: %s", href_el.text)
+                continue
+            path = "/".join(rel_parts)
             is_col = resp.find(".//d:resourcetype/d:collection", ns) is not None
             size_el = resp.find(".//d:getcontentlength", ns)
             size = int(size_el.text) if (size_el is not None and size_el.text and size_el.text.isdigit()) else 0
@@ -1093,8 +1122,11 @@ def build_section_info(sections):
 
 
 def fetch_forums(course_id):
-    """Forums/announcements -> .md. Uses only listing functions, so it does NOT mark posts read."""
+    """Forums/announcements -> .md. Uses only listing functions, so it does NOT mark posts read.
+    Returns (texts, files, complete); complete is False when any forum's discussions could not
+    be listed - its items are then missing from the expected set, so prune must not run."""
     texts, files = [], []
+    complete = True
     forums = ws("mod_forum_get_forums_by_courses", **{"courseids[0]": course_id})
     for f in forums:
         fname = clean_name(f.get("name"), "forum")
@@ -1104,6 +1136,7 @@ def fetch_forums(course_id):
             discs = ws("mod_forum_get_forum_discussions", forumid=f["id"]).get("discussions", [])
         except MoodleError as e:
             log.warning("forum %s discussions failed: %s", f.get("id"), e)
+            complete = False
             continue
         for d in discs:
             ts = int(d.get("timemodified") or d.get("created") or 0)
@@ -1125,20 +1158,55 @@ def fetch_forums(course_id):
                                   "fileurl": a.get("fileurl"),
                                   "tm": int(a.get("timemodified", 0) or 0),
                                   "size": int(a.get("filesize", 0) or 0)})
-    return texts, files
+    return texts, files, complete
+
+
+# mod_page content and mod_book chapters are exported by core_course_get_contents as an
+# "index.html" that Moodle renders from the module text and serves AS text/html - the real
+# content, not an error page. Rejecting every text/html made these fail 100% of the time.
+_GENERATED_HTML_RE = re.compile(
+    r"/mod_page/content/(?:\d+/)?index\.html?$|/mod_book/chapter/\d+/index\.html?$")
+# Markers of Moodle's login form / error page; any of them means "not the real content".
+# The real generated content is a bare fragment (page_pluginfile/book_pluginfile send only the
+# module text), so ANY themed Moodle page (every one has <body ... id="page-<pagetype>">: login,
+# maintenance, errorbox/dml error, "course not available", ...) is an error, not content.
+_MOODLE_ERROR_MARKERS = (b'name="logintoken"', b'id="login"', b'class="errormessage"',
+                         b'id="page-login-index"', b'class="errorbox')
+_MOODLE_THEMED_PAGE_RE = re.compile(rb'<body\b[^>]*\bid="page-', re.I)
+_PASSWORD_FORM_RE = re.compile(rb'<form\b.*?type=["\']?password', re.I | re.S)
+
+
+def _is_generated_html(url):
+    return bool(_GENERATED_HTML_RE.search(urllib.parse.urlsplit(url).path))
+
+
+def _looks_like_moodle_error(request_url, final_url, first_bytes):
+    """True unless this generated-HTML response is plausibly the real module content: it must
+    not have been redirected anywhere (urllib follows redirects to any host, and an SSO/edu-ID
+    or notice page would otherwise be stored as content forever - its manifest size is 0, so
+    no size check catches it), and the body must not be a themed Moodle page or a login form."""
+    req, fin = urllib.parse.urlsplit(request_url), urllib.parse.urlsplit(final_url or "")
+    if fin.netloc.lower() != req.netloc.lower() or fin.path != req.path:
+        return True
+    if "/login/" in fin.path:
+        return True
+    if any(m in first_bytes for m in _MOODLE_ERROR_MARKERS):
+        return True
+    return bool(_MOODLE_THEMED_PAGE_RE.search(first_bytes) or _PASSWORD_FORM_RE.search(first_bytes))
 
 
 def download(fileurl, expected_size=0):
     """Download a pluginfile to a temp file (with retries). Returns (path, size).
     Rejects HTML/error-page bodies and (when the manifest gives a size) short reads,
-    so a 200 error page is never stored and marked up-to-date forever.
+    so a 200 error page is never stored and marked up-to-date forever. Exception: the
+    Moodle-rendered mod_page/mod_book index.html (see _GENERATED_HTML_RE) and any file with a
+    known manifest size (e.g. a teacher-uploaded .html) are accepted as text/html unless they
+    look like a login/error page - the exact-size check then catches anything else.
 
-    A text/html response raises TransientDownloadError (not a bare RuntimeError) so
-    retrying()'s normal backoff applies to it. Confirmed transient, not an auth gap:
-    firing several concurrent requests at chapters of the SAME mod_book/mod_page (this
-    tool's per-course concurrency) reliably reproduces it, while re-fetching the exact
-    same URL standalone moments later - same wstoken, no cookie - succeeds every time.
-    Also tries the stored MoodleSession cookie as a second angle of attack before
+    Any other text/html response raises TransientDownloadError (not a bare RuntimeError) so
+    retrying()'s normal backoff applies to it. (The mod_page/mod_book index.html failures
+    once attributed to concurrency were really this rejection firing on legitimately
+    text/html generated content.) Also tries the stored MoodleSession cookie as a second angle of attack before
     giving up on a given attempt, in case a real dead-token case ever looks the same."""
     url = file_download_url(fileurl)
     _assert_icorsi_get(url, "GET")
@@ -1156,7 +1224,12 @@ def download(fileurl, expected_size=0):
             with ctx as r:
                 ctype = (r.headers.get("Content-Type") or "").lower()
                 first = r.read(1 << 16)
-                if ctype.startswith("text/html"):
+                # text/html is accepted for the generated mod_page/mod_book index.html, and for any
+                # file whose exact manifest size is known (a teacher-uploaded .html resource): the
+                # exact-size check below then rejects a login/error page that slipped through.
+                html_ok = (_is_generated_html(url) or expected_size > 0) and \
+                    not _looks_like_moodle_error(url, r.geturl(), first)
+                if ctype.startswith("text/html") and not html_ok:
                     raise TransientDownloadError(
                         "download returned text/html (error/login page); refusing to store")
                 if first[:1] in (b"{", b"[") and ("json" in ctype or b'"exception"' in first[:1024]):
@@ -1231,20 +1304,70 @@ def _parallel(logicals, worker, lock):
     return ok
 
 
+# (course_id, reason) for every course whose prune was refused this run; run_once reports them.
+PRUNE_REFUSALS = []
+
+
+def course_base(rel_folder):
+    """Canonical logical base of a course's mirror: empty segments dropped and each segment NFC,
+    exactly like WebDav listing paths are canonicalised - so a config typo such as an inner
+    '//' can't make every expected key miss every listed key (all "new" + prune never runs)."""
+    raw = "/".join(p for p in [BASE_PATH, rel_folder, SUBFOLDER] if p)
+    return "/".join(nfc(seg) for seg in raw.split("/") if seg)
+
+
+def _prune_refusal(base, expected, actual_files, actual_dirs, orphan_files, orphan_dirs):
+    """Sanity-check a prune plan BEFORE deleting anything. Returns a reason string to refuse,
+    or "" if the listing looks consistent. Refuses when: base is empty (would mean the whole
+    space), any listed path is not strictly inside base (so base itself and anything outside
+    it can never be deleted), an expected item the reconcile pass just verified is absent from
+    the listing (the listing is wrong, not the course), or orphans are an implausibly large
+    share of what's there (PRUNE_MAX_ORPHAN_FRACTION) - a real course rename/cleanup leaves a
+    few strays, a path-handling bug makes EVERYTHING look orphaned."""
+    if not base:
+        return "empty course base path"
+    sub = "/".join(nfc(seg) for seg in SUBFOLDER.split("/") if seg)
+    if not sub or not (base == sub or base.endswith("/" + sub)):
+        # SUBFOLDER set but empty would make base the user's own course folder.
+        return "course base is not a SUBFOLDER sandbox (SUBFOLDER empty?)"
+    prefix = f"{base}/"
+    outside = [p for p in list(actual_files) + list(actual_dirs) if not p.startswith(prefix)]
+    if outside:
+        return f"{len(outside)} listed path(s) not under the course folder, e.g. {outside[0]!r}"
+    absent = [lg for lg in expected if lg not in actual_files]
+    if absent:
+        return f"{len(absent)} expected file(s) missing from the listing, e.g. {absent[0]!r}"
+    # Files only: a removed folder module lists every nested subfolder separately, and removing a
+    # module renumbers the "NNN - " prefixes after it (old + new copies), so counting directories
+    # refused ordinary course edits. A path bug still shows ~100% orphans (and trips "absent" above).
+    total = len(actual_files)
+    orphans = len(orphan_files)
+    if total and orphans / total > PRUNE_MAX_ORPHAN_FRACTION:
+        return (f"{orphans}/{total} files would be pruned (> {PRUNE_MAX_ORPHAN_FRACTION:.0%}); "
+                "delete them by hand or raise PRUNE_MAX_ORPHAN_FRACTION if this is real")
+    return ""
+
+
 def sync_course(dav, course_id, rel_folder, state):
     """Sync one course. Returns (uploaded, skipped, errors, pruned);
     'errors' is the count of expected files still missing after the reconcile loop."""
-    base = nfc("/".join(p for p in [BASE_PATH, rel_folder, SUBFOLDER] if p).strip("/"))
+    base = course_base(rel_folder)
     sections = ws("core_course_get_contents", courseid=course_id)
     files, links = build_expected(course_id, sections)
 
+    # Anything that silently drops items from `expected` (here: a failed forum listing) must
+    # also block prune, or those items' existing copies would be deleted as orphans.
+    incomplete = ""
     texts = build_section_info(sections) if SAVE_SECTION_INFO else []
     if SAVE_FORUMS:
         try:
-            ftexts, ffiles = fetch_forums(course_id)
+            ftexts, ffiles, fcomplete = fetch_forums(course_id)
             texts += ftexts
             files += ffiles
+            if not fcomplete:
+                incomplete = "forum listing incomplete"
         except Exception as e:
+            incomplete = "forum listing incomplete"
             log.warning("forums for course %s skipped: %s", course_id, _redact(str(e)))
 
     fstate = state.setdefault("files", {})
@@ -1434,23 +1557,34 @@ def sync_course(dav, course_id, rel_folder, state):
     # old/renamed/removed files and their folders - so exactly one current copy remains.
     # Only when the course fetched OK with 0 errors. Deletes go to OpenCloud trash.
     pruned = 0
-    if PRUNE_ORPHANS and expected and errors == 0:
+    if PRUNE_ORPHANS and expected and errors == 0 and incomplete:
+        log.warning("prune SKIPPED for %s (%s): %s", course_id, base, incomplete)
+        PRUNE_REFUSALS.append((course_id, incomplete))
+    elif PRUNE_ORPHANS and expected and errors == 0:
         actual_files, actual_dirs = dav._list(base)
         expected_dirs = set()
         for lg in expected:
             segs = lg[len(base) + 1:].split("/")
             for i in range(1, len(segs)):
                 expected_dirs.add(f"{base}/" + "/".join(segs[:i]))
-        for lg in sorted(actual_files):
-            if lg not in expected:
-                try:
-                    dav.delete(lg); fstate.pop(lg, None); pruned += 1
-                    log.info("pruned file %s", lg)
-                except Exception as e:
-                    log.error("prune file failed %s: %s", lg, _redact(str(e)))
+        orphan_files = sorted(lg for lg in actual_files if lg not in expected)
+        orphan_dirs = sorted(actual_dirs - expected_dirs, key=lambda p: p.count("/"))
+        why = _prune_refusal(base, expected, actual_files, actual_dirs, orphan_files, orphan_dirs)
+        if why:
+            # A prune bug once marked an entire mirror (incl. the _icorsi roots) as orphans.
+            # Deleting on a listing we can't trust is never worth it: skip, keep everything.
+            log.warning("prune SKIPPED for %s (%s): %s", course_id, base, why)
+            PRUNE_REFUSALS.append((course_id, why))
+            orphan_files, orphan_dirs = [], []
+        for lg in orphan_files:
+            try:
+                dav.delete(lg); fstate.pop(lg, None); pruned += 1
+                log.info("pruned file %s", lg)
+            except Exception as e:
+                log.error("prune file failed %s: %s", lg, _redact(str(e)))
         # shallowest first: deleting a collection removes its subtree, so nested orphans below
         # it just 404 (ignored by delete()).
-        for d in sorted(actual_dirs - expected_dirs, key=lambda p: p.count("/")):
+        for d in orphan_dirs:
             try:
                 dav.delete(d); pruned += 1
                 log.info("pruned folder %s", d)
@@ -1532,14 +1666,19 @@ def run_once(dav, state, tm):
                 ws("core_enrol_get_users_courses", userid=userid)}
     mapped, skipped = load_courses()
 
-    # Two courses pointing at the same folder would prune each other's files - refuse both.
-    by_target = {}
-    for cid, rel in mapped.items():
-        by_target.setdefault(rel, []).append(cid)
-    dup_targets = {rel for rel, cids in by_target.items() if len(cids) > 1}
-    if dup_targets:
-        notify("⚠️ icorsi-sync: multiple courses map to the same folder "
-               f"({', '.join(sorted(dup_targets))}); skipping them - give each a unique folder.")
+    # Two courses whose mirrors are the same folder, or one nested inside the other, would
+    # prune each other's files - refuse all of them. Compared on the canonical base (NFC, empty
+    # segments dropped), so different spellings of one folder are caught too.
+    bases = {cid: course_base(rel) for cid, rel in mapped.items()}
+    conflicting = set()
+    for a, ba in bases.items():
+        for b, bb in bases.items():
+            if a != b and (ba == bb or bb.startswith(ba + "/")):
+                conflicting.update((a, b))
+    if conflicting:
+        notify("⚠️ icorsi-sync: courses map to the same or nested folders "
+               f"({', '.join(sorted(f'{c}->{mapped[c]}' for c in conflicting))}); "
+               "skipping them - give each a unique, non-nested folder.")
 
     archived = set(state.get("archived_courses", []))
     known_unmapped = set(state.get("known_unmapped", []))
@@ -1557,8 +1696,9 @@ def run_once(dav, state, tm):
     total_dl = total_sk = total_err = total_pr = 0
     changed_courses = []
 
+    PRUNE_REFUSALS.clear()
     for cid, rel in mapped.items():
-        if rel in dup_targets:
+        if cid in conflicting:
             continue
         if cid not in enrolled:
             if cid not in archived:
@@ -1604,6 +1744,18 @@ def run_once(dav, state, tm):
     log.info("=== run done%s: %d %s, %d skipped, %d missing, %d pruned ===",
              " (DRY RUN - nothing written)" if DRY_RUN else "",
              total_dl, verb, total_sk, total_err, total_pr)
+    if PRUNE_ORPHANS and not DRY_RUN:
+        if PRUNE_REFUSALS:
+            if _due_for_alert(state.get("prune_refusal_alerted", False),
+                              state.get("prune_refusal_alert_last_ts", 0)):
+                notify(f"⚠️ icorsi-sync: prune skipped for {len(PRUNE_REFUSALS)} course(s):\n"
+                       + "\n".join(f"{c}: {why}" for c, why in PRUNE_REFUSALS[:10]))
+                state["prune_refusal_alerted"] = True
+                state["prune_refusal_alert_last_ts"] = time.time()
+                save_state(state)
+        elif state.get("prune_refusal_alerted"):
+            state["prune_refusal_alerted"] = False
+            save_state(state)
     if not DRY_RUN and (total_dl or total_err or total_pr):
         summary = (f"✅ icorsi-sync: {total_dl} new, {total_pr} pruned, {total_err} missing.\n"
                    + "\n".join(changed_courses[:20]))
