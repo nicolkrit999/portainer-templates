@@ -68,8 +68,9 @@ LAUNCH_QUERY_KEYS = {"service", "passport", "urlscheme"}
 # Microsoft hosts the converged login actually needs (discovered live 2026-10-08). Everything else
 # (login.live.com, autologon.microsoftazuread-sso.com, *.events.data.microsoft.com, branding
 # images, footer links, analytics.usi.ch ...) is refused.
-MS_HOSTS = frozenset({"login.microsoftonline.com", "aadcdn.msftauth.net", "aadcdn.msauth.net"})
-MS_LOGIN_HOST = "login.microsoftonline.com"
+# login.microsoft.com is the same Entra sign-in service; the real SUPSI flow redirects through it.
+MS_LOGIN_HOSTS = frozenset({"login.microsoftonline.com", "login.microsoft.com"})
+MS_HOSTS = MS_LOGIN_HOSTS | {"aadcdn.msftauth.net", "aadcdn.msauth.net"}
 HOST_RULES = "MAP * ~NOTFOUND, " + ", ".join("EXCLUDE " + h for h in sorted(MS_HOSTS | {BASE_HOST}))
 # Hosts whose being aborted would break the login (vs. cosmetic ones such as branding images).
 _SUSPECT_SUFFIXES = (".msauth.net", ".msftauth.net", "microsoftonline.com", "login.microsoft.com")
@@ -251,7 +252,7 @@ def _attach(ctx, page, S):
         u, host, _ = _split(req.url)
         if req.url.lower().startswith("moodlemobile:"):
             return
-        if host == MS_LOGIN_HOST:
+        if host in MS_LOGIN_HOSTS:
             S.ms_seen = True
         if host == BASE_HOST and u is not None and u.path.startswith(OIDC_PREFIX) and req.method == "POST":
             S.callback = True
@@ -266,7 +267,7 @@ def _attach(ctx, page, S):
 
     def on_response(resp):
         try:
-            if resp.request.method == "POST" and _split(resp.url)[1] == MS_LOGIN_HOST:
+            if resp.request.method == "POST" and _split(resp.url)[1] in MS_LOGIN_HOSTS:
                 S.ms_posts += 1
         except PWError:
             pass
@@ -394,6 +395,7 @@ def _drive(S, page, ctx, creds, probe):
     st = types.SimpleNamespace(email=False, pw=False, otc=0, otc_counter=-1, marker=0, another=False,
                                proof=False, kmsi=False, fb=False, since={}, seen=_Seen())
     probe_end = time.monotonic() + 45
+    st_last = [None]
 
     def next_code():
         while True:
@@ -431,7 +433,7 @@ def _drive(S, page, ctx, creds, probe):
             _wait(S, page)
             continue
 
-        if host != MS_LOGIN_HOST:
+        if host not in MS_LOGIN_HOSTS:
             if st.seen.hold("foreign", True, 12):
                 raise LoginFailure("unexpected_page")
             _wait(S, page)
@@ -454,6 +456,9 @@ def _drive(S, page, ctx, creds, probe):
             step = "another"
         elif _vis(page, "#idBtn_Back") and "stay signed in" in _text(page, "body"):
             step = "kmsi"
+        if step and step != st_last[0]:
+            st_last[0] = step
+            log.info("login step: %s", step)
 
         # Probe mode stops here, before any branch that could type or click.
         if probe:
