@@ -88,6 +88,11 @@ TOTAL_TIMEOUT = 150              # whole attempt; icorsi-sync waits AUTH_WAIT_SE
 NAV_TIMEOUT_MS = 30_000
 ACTION_TIMEOUT_MS = 15_000
 IDLE_INTERSTITIAL = 15           # seconds on a Microsoft page matching no known step => interstitial
+_NO_WEBAUTHN_JS = """
+try { delete window.PublicKeyCredential; } catch (e) {}
+try { Object.defineProperty(window, 'PublicKeyCredential', {value: undefined, configurable: false}); } catch (e) {}
+try { Object.defineProperty(navigator, 'credentials', {value: undefined, configurable: false}); } catch (e) {}
+"""
 TOTP_MIN_REMAIN = 6              # don't submit a code that would expire within this many seconds
 MIN_SPACING = 30 * 60            # between credential submissions
 MAX_BACKOFF = 6 * 3600           # cap for the doubling backoff after repeated failures
@@ -105,6 +110,7 @@ _ADVICE = {
     "bad_password": "Microsoft rejected ICORSI_MS_PASSWORD - fix it in Portainer and run --clear-halt (or change the credential)",
     "bad_totp": "Microsoft rejected the TOTP code twice - check ICORSI_MS_TOTP_SECRET (and the NAS clock), "
                 "then run --clear-halt (or change the credential)",
+    "passkey_prompt": "Microsoft sent the browser to a passkey (FIDO) prompt instead of the password page - the sidecar needs an update",
     "account_locked": "the Microsoft account is locked - wait / unlock it in a browser, then run --clear-halt (or change the credential)",
     "mfa_method_unavailable": "Microsoft offers no authenticator-code option - add an Authenticator app method "
                               "with this TOTP secret in Security info, then run --clear-halt (or change the credential)",
@@ -536,6 +542,8 @@ def _drive(S, page, ctx, creds, probe):
             st.kmsi = True
             _click(page, "#idBtn_Back")     # "Stay signed in?" -> No
         elif step is None:
+            if "/bridge/fido" in page.url:
+                raise LoginFailure("passkey_prompt")
             if st.pw and st.another and not st.proof and _vis(page, "[data-value]"):
                 raise LoginFailure("mfa_method_unavailable")        # proof list without authenticator code
             if st.pw and "proofup" in _pgid(page).lower():
@@ -589,6 +597,9 @@ def do_login(creds, probe=False):
                 try:
                     ctx.set_default_timeout(ACTION_TIMEOUT_MS)
                     ctx.set_default_navigation_timeout(NAV_TIMEOUT_MS)
+                    # Report "no WebAuthn": the account has passkeys, and Entra sends a WebAuthn-capable
+                    # browser to a FIDO/passkey prompt (/bridge/fido) instead of the password page.
+                    ctx.add_init_script(_NO_WEBAUTHN_JS)
                     page = ctx.new_page()
                     _attach(ctx, page, S)
                     try:
@@ -685,7 +696,7 @@ def _record(state, now, outcome, posted):
 
 
 def _should_halt(code):
-    return code in HALT_CODES or code.startswith(("interstitial:", "blocked_required_host:"))
+    return code in HALT_CODES or code == "passkey_prompt" or code.startswith(("interstitial:", "blocked_required_host:"))
 
 
 def _apply_failure(state, creds, code, posted):
