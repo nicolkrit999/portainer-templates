@@ -338,6 +338,10 @@ Optional toggles (sensible defaults, see `.env.example`): `SUBFOLDER` (`_icorsi`
   always have exactly **one current copy**. Strictly limited to `_icorsi/`, and only runs for a
   course that fetched successfully with **0 missing files**. Deletions go to OpenCloud's **trash**
   (recoverable), so they still use quota until you empty it.
+- **`PRUNE_MAX_ORPHAN_FRACTION`** (default `0.8`) - safety valve for `PRUNE_ORPHANS`: a course's
+  prune is skipped (and reported) when more than this share of its `_icorsi/` files would be
+  deleted, or when the listing looks inconsistent. Raise it only for a genuine large cleanup
+  (e.g. a course whose sections were all renamed).
 
 **Reliability:** each file download/upload is retried on transient errors, and after uploading
 the tool re-checks what's actually in OpenCloud and re-fetches anything still missing - looping
