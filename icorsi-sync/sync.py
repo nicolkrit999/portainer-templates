@@ -21,6 +21,7 @@ import json
 import time
 import html
 import base64
+import secrets
 import hashlib
 import logging
 import tempfile
@@ -80,6 +81,10 @@ ALERT_REPEAT_SECONDS = 24 * 3600
 CONCURRENCY       = max(1, int(env("ICORSI_CONCURRENCY", "4")))
 HTTP_TIMEOUT      = int(env("HTTP_TIMEOUT", "60"))
 HTTP_RETRIES      = int(env("HTTP_RETRIES", "3"))
+# Handoff dir shared with the icorsi-auth sidecar (the only holder of the iCorsi login). If it
+# is not mounted, the automatic re-login step in TokenManager.renew() is skipped entirely.
+AUTH_DIR          = env("AUTH_HANDOFF_DIR", "/auth")
+AUTH_WAIT_SECONDS = int(env("AUTH_WAIT_SECONDS", "180"))
 
 STATE_DIR     = env("STATE_DIR", "/data")
 STATE_FILE    = os.path.join(STATE_DIR, "state.json")
@@ -386,6 +391,7 @@ class TokenManager:
         self.token_alerted = False
         self.token_alert_last_ts = 0
         self._fullname = ""
+        self.last_renew_error = ""
         self._lock = threading.Lock()
         self._load()
 
@@ -429,7 +435,9 @@ class TokenManager:
             name, sep, value = sc.partition("=")
             self.session_cookie = {"name": name.strip(), "value": value.strip()} if sep \
                 else {"name": "MoodleSession", "value": sc.strip()}
-        if not self.wstoken:
+        if not self.wstoken and os.path.isdir(AUTH_DIR):
+            log.warning("no token in token.json or ICORSI_TOKEN; will request a login from icorsi-auth")
+        elif not self.wstoken:
             log.error("no token available (token.json missing/corrupt and ICORSI_TOKEN unset); "
                       "runs will be skipped until it is re-seeded")
         else:
@@ -599,7 +607,87 @@ class TokenManager:
                         return True
             except Exception as e:
                 log.warning("renew via autologin chain failed: %s", _redact(str(e)))
+            # (c) Both the token and the session are dead (server-side revocation). Ask the
+            # icorsi-auth sidecar to do a fresh login. Inert if /auth is not mounted.
+            if os.path.isdir(AUTH_DIR):
+                try:
+                    res = self._request_fresh_login("wstoken invalid; stored session + autologin dead")
+                    if res and res.get("ok") and res.get("wstoken"):
+                        sc = res.get("session_cookie") or {}
+                        if str(sc.get("name", "")).startswith("MoodleSession") and sc.get("value"):
+                            self.session_cookie = {"name": sc["name"], "value": sc["value"]}
+                        self._adopt({"wstoken": res["wstoken"], "privatetoken": res.get("privatetoken")},
+                                    self._jar_from_stored())
+                        if res.get("warning"):
+                            log.warning("auto-login: %s", _redact(str(res["warning"]))[:200])
+                        log.info("fresh login obtained via icorsi-auth")
+                        self.last_renew_error = ""
+                        return True
+                    self.last_renew_error = _redact(
+                        str((res or {}).get("error") or "icorsi-auth did not respond"))[:300]
+                except Exception as e:
+                    self.last_renew_error = _redact(f"{type(e).__name__}: {e}")[:300]
+                log.error("automatic re-login failed: %s", self.last_renew_error)
             return False
+
+    # ---- automatic re-login via the icorsi-auth sidecar ----
+    def _request_fresh_login(self, reason):
+        """Ask the icorsi-auth sidecar (which alone holds the login) for a fresh token via the
+        shared handoff dir and wait for its answer. Returns the result dict or None. Called with
+        self._lock held. Never sees credentials; result.json is deleted after reading."""
+        req_f = os.path.join(AUTH_DIR, "request.json")
+        res_f = os.path.join(AUTH_DIR, "result.json")
+
+        def read_result(rid):
+            try:
+                with open(res_f) as f:
+                    r = json.load(f)
+            except Exception:
+                return None
+            return r if isinstance(r, dict) and r.get("request_id") == rid else None
+
+        def cleanup():
+            for p in (res_f, req_f):
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+
+        # A result for the still-pending previous request may have arrived after we stopped waiting.
+        try:
+            with open(req_f) as f:
+                old = json.load(f).get("request_id")
+        except Exception:
+            old = None
+        if old:
+            late = read_result(old)
+            if late is not None:
+                cleanup()
+                return late
+        # Don't block the run (holding the lock) for AUTH_WAIT_SECONDS if the sidecar isn't running.
+        try:
+            with open(os.path.join(AUTH_DIR, "heartbeat")) as f:
+                hb_age = time.time() - int(f.read().strip())
+        except Exception:
+            hb_age = None
+        if hb_age is None or hb_age > 120:
+            return {"ok": False, "error": "icorsi-auth sidecar is not running (no fresh heartbeat)"}
+        rid = secrets.token_hex(16)
+        tmp = req_f + ".tmp"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            json.dump({"request_id": rid, "requested_at": time.time(), "reason": reason}, f)
+        os.replace(tmp, req_f)
+        log.info("requested fresh login from icorsi-auth sidecar")
+        deadline = time.time() + AUTH_WAIT_SECONDS
+        while time.time() < deadline:
+            res = read_result(rid)
+            if res is not None:
+                cleanup()
+                return res
+            time.sleep(3)
+        log.warning("icorsi-auth did not answer within %ss", AUTH_WAIT_SECONDS)
+        return None
 
     def keep_alive(self):
         """Proactively re-mint the token and refresh the MoodleSession BEFORE expiry.
@@ -676,8 +764,20 @@ class TokenManager:
         is usable, False (after a deduped, periodically-repeated alert) if it is dead/
         unrenewable or iCorsi is otherwise rejecting the account."""
         self.last_checked = time.time()
+        if not self.wstoken and os.path.isdir(AUTH_DIR):
+            # No token at all (fresh install, or token.json lost and no ICORSI_TOKEN): bootstrap
+            # straight from the icorsi-auth sidecar instead of requiring a manual capture.
+            log.warning("no Moodle token available; requesting a fresh login from icorsi-auth")
+            self.renew()
         if not self.wstoken:
             # token.json missing/corrupt and no bootstrap env - skip the run rather than crash.
+            if os.path.isdir(AUTH_DIR):
+                why = self.last_renew_error or "no detail"
+                self._alert(notify_fn,
+                            "⚠️ icorsi-sync: no Moodle token available and the automatic login "
+                            f"(icorsi-auth) failed: {why}. Check ICORSI_LOGIN_USERNAME / "
+                            "ICORSI_LOGIN_PASSWORD in Portainer (and `docker logs icorsi-auth`).")
+                return False
             self._alert(notify_fn,
                         "⚠️ icorsi-sync: no Moodle token available (token.json missing/corrupt "
                         "and ICORSI_TOKEN not set). Re-seed ICORSI_TOKEN + ICORSI_PRIVATETOKEN "
@@ -699,10 +799,19 @@ class TokenManager:
                     self.token_alert_last_ts = 0
                     self._save()
                     return True
-                self._alert(notify_fn,
-                            "⚠️ icorsi-sync: the Moodle token expired and automatic renewal "
-                            "failed. Re-bootstrap by re-seeding ICORSI_TOKEN + "
-                            "ICORSI_PRIVATETOKEN (+ ICORSI_USERID) in Portainer, then restart.")
+                if os.path.isdir(AUTH_DIR):
+                    why = self.last_renew_error or "no detail"
+                    self._alert(notify_fn,
+                                "⚠️ icorsi-sync: the Moodle token expired; automatic renewal AND "
+                                f"automatic re-login (icorsi-auth) failed: {why}. Check "
+                                "ICORSI_LOGIN_USERNAME / ICORSI_LOGIN_PASSWORD in Portainer "
+                                "(and `docker logs icorsi-auth`); as a fallback re-seed "
+                                "ICORSI_TOKEN + ICORSI_PRIVATETOKEN (+ ICORSI_USERID), then restart.")
+                else:
+                    self._alert(notify_fn,
+                                "⚠️ icorsi-sync: the Moodle token expired and automatic renewal "
+                                "failed. Re-bootstrap by re-seeding ICORSI_TOKEN + "
+                                "ICORSI_PRIVATETOKEN (+ ICORSI_USERID) in Portainer, then restart.")
                 log.error("token invalid and renewal failed")
                 return False
             # Any other Moodle-side rejection (e.g. accessexception - the mobile web service
@@ -1504,6 +1613,11 @@ def run_once(dav, state, tm):
     # chain is failing WHILE the token still works, warn early (deduped, after 2 consecutive
     # failures) instead of only discovering it at expiry. Then ping the positive heartbeat.
     ka_result = tm.keep_alive()
+    if ka_result[0] is False:
+        # A server-side revocation would otherwise only be noticed at the next run's pre-flight
+        # (up to SYNC_INTERVAL_SECONDS later). ensure_valid is a cheap site_info check and only
+        # goes through renew() (and the auto-login sidecar) when the token is really invalid.
+        tm.ensure_valid(notify)
     if not DRY_RUN and _process_keepalive(state, ka_result, notify):
         save_state(state)
     if not DRY_RUN and HEARTBEAT_URL:

@@ -112,6 +112,59 @@ is actually about downtime:**
 > run, and the next run renews cleanly. (This single blip also won't trigger the Discord early
 > warning, which needs two consecutive failures.)
 
+## Automatic re-login (icorsi-auth)
+
+**Why.** iCorsi's Moodle revokes the mobile token *and* the session server-side roughly every
+**3 days**, regardless of uptime (observed: a token renewed at 13:38 was `invalidtoken - token not
+found` six hours later, with its session dead too). Nothing the tool holds survives that, so it used to
+need a manual token capture each time. The `icorsi-auth` sidecar removes that: when renewal fails,
+`icorsi-sync` asks it for a **fresh login**, and it logs in on iCorsi's native login form and returns a
+new token.
+
+**Security boundary (what the sidecar can and cannot do).**
+- Only `icorsi-auth` has `ICORSI_LOGIN_USERNAME` / `ICORSI_LOGIN_PASSWORD`. `icorsi-sync` never sees them.
+- Every request it makes is checked by a hard guard: host `www.icorsi.ch`, https only, path exactly
+  `/login/index.php` (GET, POST) or `/admin/tool/mobile/launch.php` (GET). Every redirect hop is
+  re-checked; the final `moodlemobile://` redirect is read, never followed. An edu-ID / SSO / Microsoft
+  redirect is refused, so it can't be tricked into using another login.
+- It never calls Moodle web services, never logs out, never touches courses, files or OpenCloud.
+- Separate container: no `/data`, not on the `cloudflare-web` network, no ports, read-only filesystem,
+  all capabilities dropped (except those needed to chown `/auth` and drop privileges), `no-new-privileges`.
+- Credentials are never logged, never in error text, never written to disk. The two containers share
+  only `${VOLUME_CONFIG}/icorsi-sync/auth` (`/auth`, mode 0700): `request.json` / `result.json` (the
+  token, deleted by `icorsi-sync` once read), and a `heartbeat` timestamp. Its rate-limit state (`sidecar.json`, no secrets) lives in a second,
+  sidecar-only dir `${VOLUME_CONFIG}/icorsi-sync/auth-state` (`/state`) that `icorsi-sync` cannot write to.
+
+**Set in Portainer:** `ICORSI_LOGIN_USERNAME` = your iCorsi e-mail, `ICORSI_LOGIN_PASSWORD` = your
+**iCorsi** password - the ones you type on the plain icorsi.ch login form. Not your edu-ID password,
+not Microsoft/SUPSI; the sidecar only ever contacts `www.icorsi.ch`. Without them the sidecar idles and answers
+requests with an error, and the old manual procedure still applies.
+
+**Test it** (the first command never submits anything):
+```
+docker exec icorsi-auth python /app/icorsi_auth.py --probe   # logged-out launch.php -> login form present? OK/FAIL
+docker exec icorsi-auth python /app/icorsi_auth.py --once    # one real login now; prints a redacted summary only
+```
+`--once` expects `parts=3` (wstoken + privatetoken). `parts=2` still works but gives no privatetoken.
+It respects the rate limits below; `--once --force` skips the spacing (not the daily cap).
+
+**Rate limiting** (protects the iCorsi account from lockout):
+- at least **30 min** between logins, doubling up to 6 h after consecutive failures;
+- at most **6 logins per rolling 24 h** (state persisted in `sidecar.json`, so restarts don't bypass it);
+- after an **invalid login** the sidecar **stops trying** until restarted - a wrong password is never hammered.
+  Fix `ICORSI_LOGIN_PASSWORD` in Portainer, redeploy, then `docker exec icorsi-auth python /app/icorsi_auth.py --once --force`;
+- when it refuses, it answers `icorsi-sync` immediately (`rate-limited ... in Ns`, `halted: invalid login ...`), and
+  the Discord alert includes that reason.
+
+**How to tell it worked:** `docker logs icorsi-sync` shows `requested fresh login from icorsi-auth sidecar`
+followed by `fresh login obtained via icorsi-auth` and `authenticated (userid=...)`. With the sidecar in
+place `ICORSI_TOKEN` / `ICORSI_PRIVATETOKEN` / `ICORSI_SESSION_COOKIE` are no longer needed: if there is
+no token at all, `icorsi-sync` bootstraps straight from the sidecar.
+
+The manual capture below is now only a **fallback** (e.g. login form changed, 2FA enabled, wrong password).
+
+---
+
 ## Get your Moodle credentials (once)
 
 You need three things, and you can grab all of them in one go from the `launch.php` redirect.
@@ -189,10 +242,11 @@ Set these where you run the container (e.g. Portainer stack env). Secrets stay h
 | `OPENCLOUD_USER` / `OPENCLOUD_APP_PASSWORD` | OpenCloud login - use an **app password** (secret) |
 | `OPENCLOUD_HOST_HEADER` | optional trusted domain to send as `Host` when hitting the container directly, e.g. `opencloud.nicolkrit.ch` - only needed if direct requests are rejected |
 | `OPENCLOUD_BASE_PATH` | base folder (relative to the space root) the `courses.json` paths are relative to |
+| `ICORSI_LOGIN_USERNAME` / `ICORSI_LOGIN_PASSWORD` | iCorsi native login (e-mail + iCorsi password) for automatic re-login - secret, read **only** by the `icorsi-auth` container; optional but strongly recommended |
 | `PUID` / `PGID` | host user/group the container drops to; must own the mounted `/data` dir (default `1000`/`1000`) |
 | `DISCORD_WEBHOOK_URL` | optional - get notified of new files / new courses / renewal trouble / problems |
 | `HEARTBEAT_URL` | optional - GET after each successful run (uptime-kuma / healthchecks.io push URL) |
-| `VOLUME_CONFIG` | host storage base for the data bind-mount; data lives at `${VOLUME_CONFIG}/icorsi-sync/data` (e.g. `/volume2/docker`) |
+| `VOLUME_CONFIG` | host storage base for the bind-mounts; data at `${VOLUME_CONFIG}/icorsi-sync/data`, sync/auth handoff at `${VOLUME_CONFIG}/icorsi-sync/auth` (e.g. `/volume2/docker`) |
 
 Optional toggles (sensible defaults, see `.env.example`): `SUBFOLDER` (`_icorsi`),
 `INCLUDE_URL_LINKS`, `SAVE_SECTION_INFO`, `SAVE_FORUMS`, `EXCLUDE_MODULES`,
@@ -247,7 +301,7 @@ still running fine) but the *renewal* mechanism itself is broken - fix it before
 actually expires (~2 days out) to avoid a hard stop. Check the same recovery steps below at your
 convenience, not urgently.
 
-### Full manual recovery procedure (dead token / dead renewal)
+### Full manual recovery procedure (dead token / dead renewal) - fallback when automatic re-login fails
 
 1. **Capture fresh credentials - get the order exactly right, this is the part most likely to go
    wrong:**
