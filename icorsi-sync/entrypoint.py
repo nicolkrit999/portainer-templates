@@ -24,6 +24,7 @@ PUID = _int_env("PUID", 1000)
 PGID = _int_env("PGID", 1000)
 DATA = os.environ.get("STATE_DIR", "/data")
 TMPDIR = os.environ.get("TMPDIR", os.path.join(DATA, "tmp"))
+AUTH = os.environ.get("AUTH_HANDOFF_DIR", "/auth")
 APP_DIR = os.path.dirname(os.path.abspath(__file__)) or "/app"
 
 
@@ -70,6 +71,13 @@ def main():
     os.makedirs(TMPDIR, exist_ok=True)
     if os.geteuid() == 0:
         _chown_tree(DATA)
+        # Handoff dir shared with icorsi-auth: only touched if mounted (absent = feature off).
+        if os.path.isdir(AUTH):
+            _chown_tree(AUTH)
+            try:
+                os.chmod(AUTH, 0o700)
+            except OSError:
+                pass
         _ensure_readable(APP_DIR)
         # Drop root's supplementary groups BEFORE setgid/setuid, while still privileged -
         # otherwise the process would keep root's group memberships after dropping.

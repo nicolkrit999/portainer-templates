@@ -14,7 +14,7 @@ services:
       PUID: "${PUID:-1000}"                                # host uid the container drops to (owns /data)
       PGID: "${PGID:-1000}"
       ICORSI_BASE_URL: "https://www.icorsi.ch"
-      ICORSI_TOKEN: "${ICORSI_TOKEN}"                       # secret: Moodle WS token (bootstrap only)
+      ICORSI_TOKEN: "${ICORSI_TOKEN:-}"                     # secret: Moodle WS token (bootstrap only)
       ICORSI_PRIVATETOKEN: "${ICORSI_PRIVATETOKEN:-}"       # secret: enables headless auto-renewal (bootstrap only)
       ICORSI_SESSION_COOKIE: "${ICORSI_SESSION_COOKIE:-}"   # secret: session-based renewal fallback (bootstrap only)
       ICORSI_USERID: "${ICORSI_USERID:-}"                   # your Moodle userid (auto-discovered if empty)
@@ -36,8 +36,10 @@ services:
       DRY_RUN: "${DRY_RUN:-false}"
       DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"       # secret, optional
       HEARTBEAT_URL: "${HEARTBEAT_URL:-}"                   # optional: GET after each successful run (uptime-kuma/healthchecks.io)
+      AUTH_HANDOFF_DIR: "/auth"                             # request/result handoff with icorsi-auth (automatic re-login)
     volumes:
       - ${VOLUME_CONFIG}/icorsi-sync/data:/data
+      - ${VOLUME_CONFIG}/icorsi-sync/auth:/auth
     networks:
       - cloudflare_web_network
     healthcheck:
@@ -47,6 +49,48 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # automatic re-login sidecar - security boundary documented in README "Automatic re-login"
+  icorsi-auth:
+    build: ./auth
+    image: icorsi-auth:local
+    pull_policy: build
+    container_name: icorsi-auth
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      TZ: "${TZ}"
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      AUTH_HANDOFF_DIR: "/auth"
+      AUTH_STATE_DIR: "/state"
+      ICORSI_LOGIN_USERNAME: "${ICORSI_LOGIN_USERNAME:-}"   # your iCorsi login e-mail
+      ICORSI_LOGIN_PASSWORD: "${ICORSI_LOGIN_PASSWORD:-}"   # secret: your iCorsi password (NOT edu-ID / Microsoft)
+    volumes:
+      - ${VOLUME_CONFIG}/icorsi-sync/auth:/auth
+      - ${VOLUME_CONFIG}/icorsi-sync/auth-state:/state
+    healthcheck:
+      test: ["CMD", "python", "-c", "import time,sys; sys.exit(0 if time.time()-int(open('/auth/heartbeat').read())<60 else 1)"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 1m
     logging:
       options:
         max-size: "10m"
