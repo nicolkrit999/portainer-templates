@@ -139,7 +139,7 @@ headless Chromium (a fresh browser per attempt, nothing persisted):
 - Network allowlist, enforced three ways (Chromium's own DNS rules, a per-request route filter, and a
   redirect-hop check that aborts the attempt): only `www.icorsi.ch` (and there only `launch.php`,
   `/login/index.php`, and the OIDC entry point / redirect URI `/auth/oidc/` + `/auth/oidc/index.php`;
-  other `auth_oidc` endpoints such as `ucp.php` or `logout.php` are refused) and the Microsoft login hosts `login.microsoftonline.com`,
+  other `auth_oidc` endpoints such as `ucp.php` or `logout.php` are refused) and the Microsoft login hosts `login.microsoftonline.com`, `login.microsoft.com`,
   `aadcdn.msftauth.net`, `aadcdn.msauth.net`. Everything else is refused (e.g. `login.live.com`,
   Microsoft telemetry, branding images, `analytics.usi.ch`, all Office/Outlook/Teams/mysignins/account
   pages). `--probe` prints the aborted hosts so you can see the allowlist at work.
