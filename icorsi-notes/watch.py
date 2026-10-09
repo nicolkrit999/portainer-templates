@@ -639,7 +639,7 @@ def run_claude(cwd, notes_dir, format_, language_, time_budget_secs):
         "--output-format", "json",
         # Explicit allowlist: limits claude to the tools cs-* agents actually need.
         # Keeps network tools (WebFetch, etc.) out of scope.
-        "--allowedTools", "Read,Write,Bash,Grep,Glob,Agent,mcp__bgpt__search_papers",
+        "--allowedTools", "Read,Write,Edit,Bash,Grep,Glob,Agent,mcp__bgpt__search_papers",
     ]
     if CLAUDE_MODEL:
         cmd += ["--model", CLAUDE_MODEL]
