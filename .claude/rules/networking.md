@@ -165,6 +165,8 @@ the stacks that implement this path (`tailscale-admin_traefik-tailnet-forwarder`
 and `dnsmasq-tailnet`'s admin override list), though adding this router
 block to an ordinary new service needs none of that caution.
 
+Note: the opposite case - a hostname that is Cloudflare-Tunnel-only and must NOT be Traefik-routed - needs a `--server=` exclusion in both dnsmasq files, or the wildcard DNS override breaks it; see `.claude/rules/gotchas/cloudflare-only-hostnames-dns-override.md`.
+
 ## Host references (NAS)
 Never hardcode host IPs in a committed compose file - reference them as
 variables, with the real values in `.env` / Portainer stack env:
