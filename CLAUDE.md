@@ -33,6 +33,7 @@ session only pays to read the full writeup when it's actually relevant:
 - **SAN-bundle anchor `.env` scoping** → `gotchas/san-bundle-anchor-env-scoping.md` - an anchor's `.env` only needs its OWN group's subdomain vars; a missing one silently drops that hostname from the cert instead of erroring.
 - **CPU scheduling priority pattern** → `gotchas/cpu-priority-tuning.md` - the `cpu_shares`/`cpus` convention from the 2026-09-07 repo-wide pass, plus its rollback tag (`v4.0.9-pre-performance-tweaks`).
 - **Jellyfin `LibraryMonitor` permission errors** → `gotchas/jellyfin-librarymonitor-quirk.md` - a specific folder's cosmetic watcher error was chased to exhaustion and is a confirmed dead end; don't re-diagnose it without new evidence.
+- **Cloudflare-only hostnames vs. wildcard DNS override** → `gotchas/cloudflare-only-hostnames-dns-override.md` - the `*.${DNS_WILDCARD_DOMAIN}` override in `dnsmasq`/`dnsmasq-tailnet` silently breaks hostnames that are Cloudflare-Tunnel-only (never Traefik-routed); each needs a `--server=/<host>.${DNS_WILDCARD_DOMAIN}/1.1.1.1` exclusion in BOTH files.
 
 ## Token optimization (RTK)
 
