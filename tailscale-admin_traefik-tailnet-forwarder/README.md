@@ -6,7 +6,7 @@ Gives admin-gated services a clean, no-port `hostname:443` URL over Tailscale, w
 
 - **`tailscale-admin`** - a second, independent Tailscale identity (not the household's primary node in `../tailscale/`), using ordinary (non-host) Docker networking so it gets its own genuinely isolated network namespace.
 - **`traefik-tailnet-forwarder`** - an HAProxy TCP-passthrough sidecar that joins `tailscale-admin`'s network namespace (`network_mode: container:tailscale-admin`) and binds `tailscale-admin`'s tailnet IP on ports 443/80, forwarding into Traefik's `tailnet-admin` entrypoint with the PROXY protocol (`send-proxy-v2`).
-- **`haproxy-config-init`** - a one-shot init container that writes `haproxy.cfg` to disk the first time it's missing (HAProxy config doesn't support `${VAR}` interpolation, so this substitutes the real values once at first deploy).
+- **`haproxy-config-init`** - a one-shot init container that rewrites `haproxy.cfg` on every deploy (HAProxy config doesn't support `${VAR}` interpolation, so this substitutes the real values from the stack env).
 - **`tailscale-admin-watcher`** - a self-heal sidecar; see "The residual-risk watcher" below.
 
 ## Why this exists (the problem it solves)
@@ -56,7 +56,7 @@ Verified live, 2026-09-08: a fresh deploy of this stack restarted `tailscale-adm
 
 ## Deployment gotchas
 
-- **`haproxy.cfg` is write-once.** `haproxy-config-init` only writes it if missing - it will NOT self-correct if `TAILSCALE_IP` (or anything else baked into it) changes later. Delete `${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg` manually before the next redeploy if any of its baked-in values need to change.
+- **`haproxy.cfg` is generated, never hand-edited.** `haproxy-config-init` overwrites it on every deploy from this compose file. HAProxy only re-reads it when `traefik-tailnet-forwarder` is restarted, so a config-only change needs that container restarted after the deploy.
 - **This stack's Portainer `AutoUpdate.ForceUpdate` must stay `true`.** It's not expressible in this compose file - it's a Portainer stack setting, set directly via the Portainer API/UI.
 - **`PORTAINER_STACK_ID` must be re-verified** if this stack is ever deleted and recreated (a new stack gets a new ID) - the watcher's compose-file mount depends on it.
 - **`tailscale-admin` needs manual approval** in the Tailscale admin console the first time it's deployed (a new device), same as any new tailnet node.
