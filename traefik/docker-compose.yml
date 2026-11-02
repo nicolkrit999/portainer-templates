@@ -51,6 +51,11 @@ services:
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.http.tls.certresolver=cf_dns"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.http.tls.domains[0].main=${DOMAIN}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.http.tls.domains[0].sans=*.${DOMAIN}"
+      # Traefik v3 defaults readTimeout to 60s, which cuts single-request large
+      # uploads (e.g. WebDAV PUT) mid-body; disabled on the tailnet-only tiers.
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.readTimeout=0s"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.writeTimeout=0s"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.idleTimeout=1h"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.address=:${TRAEFIK_PORT_4}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.http.tls.certresolver=cf_dns"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.http.tls.domains[0].main=${DOMAIN}"
@@ -93,6 +98,9 @@ services:
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.domains[0].main=${DOMAIN}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.domains[0].sans=*.${DOMAIN}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.proxyProtocol.trustedIPs=${TAILSCALE_ADMIN_INTERNAL_IP}/32"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.transport.respondingTimeouts.readTimeout=0s"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.transport.respondingTimeouts.writeTimeout=0s"
+      - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.transport.respondingTimeouts.idleTimeout=1h"
       - "--api.dashboard=true"
       - "--api.insecure=false"
       - "--ping=true"
