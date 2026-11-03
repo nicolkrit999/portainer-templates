@@ -16,8 +16,6 @@ The simple "every hostname resolves to the same tailnet IP" description above no
 
 dnsmasq's `--address` syntax natively supports multiple domains in one directive (`--address=/<domain>[/<domain>...]/[<ipaddr>]`) - this repo keeps every admin-gated hostname in one shared rule rather than one rule per hostname, for a single easy-to-audit place as the list grows.
 
-Same `--server=/domain/ip` exceptions as the LAN-facing sibling for Cloudflare-Tunnel-only hostnames (`gitea-ssh`, `ssh`) - keep both files in sync if another such exception is ever needed.
-
 `--log-queries` is on permanently (added 2026-08-23 to diagnose a remote tailnet client's queries never reaching this interface at all) - one line per query per tailnet client, acceptable at this household's scale, avoids a redeploy-just-to-debug round trip.
 
 ## Environment variables

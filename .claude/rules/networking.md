@@ -165,8 +165,6 @@ the stacks that implement this path (`tailscale-admin_traefik-tailnet-forwarder`
 and `dnsmasq-tailnet`'s admin override list), though adding this router
 block to an ordinary new service needs none of that caution.
 
-Note: the opposite case - a hostname that is Cloudflare-Tunnel-only and must NOT be Traefik-routed - needs a `--server=` exclusion in both dnsmasq files, or the wildcard DNS override breaks it; see `.claude/rules/gotchas/cloudflare-only-hostnames-dns-override.md`.
-
 ## Host references (NAS)
 Never hardcode host IPs in a committed compose file - reference them as
 variables, with the real values in `.env` / Portainer stack env:
@@ -269,4 +267,4 @@ e.g. Portainer itself, or composes that only expose ports to localhost):
 > Cloudflare Tunnel target: `http://host.docker.internal:<host_port>`
 
 Use the host-mapped port from `ports:`, not the internal container port. Example:
-NAS web UI (`nas.${DOMAIN}`) on host port 9443 → `https://host.docker.internal:9443`.
+a web UI published on host port 9443 → `https://host.docker.internal:9443`.
