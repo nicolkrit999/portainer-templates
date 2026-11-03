@@ -8,6 +8,9 @@ services:
       USER_GID: "${PGID}"
       GITEA__server__ROOT_URL: "${GITEA_ROOT_URL}"
       GITEA__server__DOMAIN: "${GITEA_DOMAIN}"
+      # Explicit false: the image persists env settings into app.ini, so merely removing the
+      # old DISABLE_SSH=true leaves SSH disabled.
+      GITEA__server__DISABLE_SSH: "false"
       # Git over SSH is private only: published on the NAS as ${GITEA_SSH_HOST_PORT:-2222}
       # (port 22 is the NAS's own sshd), reached at gitea-ssh.${DOMAIN}, which the LAN and
       # tailnet resolvers point at the NAS. The UniFi gateway never forwards it to the internet.
