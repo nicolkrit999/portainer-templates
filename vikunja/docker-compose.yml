@@ -98,6 +98,11 @@ services:
       traefik.http.routers.vikunja-private.service: "vikunja-private"
       traefik.http.routers.vikunja-private.middlewares: "hsts-headers@docker"
       traefik.http.services.vikunja-private.loadbalancer.server.port: "3456"
+      traefik.http.routers.vikunja-tailnet.rule: "Host(`${VIKUNJA_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.vikunja-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.vikunja-tailnet.tls: "true"
+      traefik.http.routers.vikunja-tailnet.service: "vikunja-private"
+      traefik.http.routers.vikunja-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.docker.network: "traefik-proxy"
     depends_on:
       - db
