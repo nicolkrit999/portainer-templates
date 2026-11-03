@@ -33,6 +33,7 @@ services:
     networks:
       - cloudflare_web_network
       - traefik_proxy_network
+      - public_apps_network
     labels:
       traefik.enable: "true"
       traefik.http.routers.immich-family.rule: "Host(`${IMMICH_SUBDOMAIN}.${DOMAIN}`)"
@@ -142,4 +143,8 @@ networks:
     external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_apps_network:
+    name: public-apps
     external: true
