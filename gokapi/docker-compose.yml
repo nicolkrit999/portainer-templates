@@ -1,10 +1,26 @@
 services:
+  gokapi-init:
+    image: alpine
+    container_name: gokapi-init
+    restart: "no"
+    user: "0"
+    volumes:
+      - ${VOLUME_CONFIG}/gokapi:/data
+    # chmod after chown: the NAS volume's `ugacl` layer overrides POSIX mode
+    # bits and is only reset by an explicit chmod on each object. Recursive
+    # only on config/ (small); data/ holds the uploaded files, so only its
+    # top-level directory is touched to keep a redeploy from walking them all.
+    command: sh -c "mkdir -p /data/data /data/config && chown -R ${PUID}:${PGID} /data/config && chown ${PUID}:${PGID} /data /data/data && chmod -R 0700 /data/config && chmod 0700 /data /data/data"
+
   gokapi:
     image: f0rc3/gokapi:v2.2.4
     container_name: gokapi
     cpu_shares: 2048
     user: "${PUID}:${PGID}"
     restart: unless-stopped
+    depends_on:
+      gokapi-init:
+        condition: service_completed_successfully
     environment:
       TZ: "${TZ}"
       GOKAPI_LOG_STDOUT: "true"
