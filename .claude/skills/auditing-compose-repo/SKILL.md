@@ -1,45 +1,24 @@
 ---
 name: auditing-compose-repo
-description: Use this skill when the user wants a repo-wide check across services that already exist in this Portainer homelab repo. Trigger phrases include 'audit my composes', 'security check the repo', 'are my composes consistent', 'sweep all services', 'check the whole repo for violations'. It runs compose-security-auditor and compose-consistency-linter across all ~95 service directories in parallel, triages the combined findings by severity with the user, dispatches docker-compose-architect to apply exact fixes, and re-runs only the affected reviewer(s) on the changed services. It does NOT cover onboarding a brand-new service (use adding-compose-services for that, which includes its own scoped review loop) and it does NOT edit files itself - all fixes are applied by docker-compose-architect.
+description: Use this skill whenever the user wants a repo-wide check across services that already exist in this Portainer homelab repo - 'audit my composes', 'security check the repo', 'are my composes consistent', 'sweep all services', 'check the whole repo for violations', 'lint everything', or after a large refactor to confirm nothing drifted. It runs compose-security-auditor and compose-consistency-linter across all ~95 compose files in parallel, merges and triages the findings by severity with the user, has docker-compose-architect apply exact fixes, and re-runs only the affected reviewer on the changed services. NOT for onboarding a new service (adding-compose-services has its own scoped review loop); it never edits files itself, all fixes go through the architect.
 ---
 
-# Auditing the Compose Repo
+# Auditing the compose repo
 
-Orchestrated in the main chat. You (the orchestrator) dispatch each agent below
-in order and loop the fix step - agents cannot call each other.
+You (the orchestrator, in the main chat) dispatch the agents in order and loop the fix step. Agents cannot call each other. The two reviewers are read-only and fan out over every compose file in their own context, which keeps a ~95-file scan out of the main token budget; what each one checks is defined in its own agent file and in `.claude/rules/`, so it is not repeated here.
 
-## Agent loop
+## Loop
 
-1. **SWEEP** - dispatch `compose-security-auditor` and
-   `compose-consistency-linter` repo-wide, in parallel. Each fans out over all
-   service directories (`**/docker-compose.yml`) in its own context and returns
-   a compact report - this keeps the scan itself out of the main token budget.
+1. **Sweep.** Dispatch `compose-security-auditor` and `compose-consistency-linter` repo-wide, in parallel (`**/docker-compose.yml`, including `actual-budget/*/`). Tell each the objective: a repo-wide check against the current access model (two routers per service, bare TLS, wildcard certificate, `traefik-public` as the only public path).
 
-2. **TRIAGE** - merge both reports into one findings table, ordered by
-   severity (CRITICAL, HIGH, MEDIUM, LOW). If the list is large, ask the user
-   which findings to fix; CRITICAL secrets findings are always fixed first,
-   without waiting for the user to prioritize.
+2. **Triage.** Merge both reports into one table ordered CRITICAL, HIGH, MEDIUM, LOW. Fix CRITICAL secrets findings first without waiting for the user. For a long list, ask the user which of the rest to fix. Separate real deviations from deliberate leftovers (stacks kept in the repo but not deployed still follow the rules; the core stacks are exempt from the router checklist).
 
-3. **FIX** - dispatch `docker-compose-architect` with the exact findings to
-   address (file, finding, required fix). Reviewers never edit files
-   themselves - all changes go through the architect.
+3. **Fix.** Dispatch `docker-compose-architect` with the exact findings (file, finding, required fix). It also lists any `${VAR}` that the live Portainer env must gain or lose. Reviewers never edit, because a reviewer that fixes its own findings stops being independent.
 
-4. **RE-CHECK** - re-run only the reviewer(s) whose findings were just
-   addressed (don't re-run the linter if only security findings were fixed,
-   and vice versa), scoped to the changed services rather than the whole repo
-   when possible.
+4. **Re-check.** Re-run only the reviewer whose findings were addressed, scoped to the changed services when possible.
 
-5. Repeat steps 3→4 up to 3 cycles total. If findings remain open after cycle
-   3, stop looping and report them to the user instead of continuing.
+5. Repeat fix and re-check up to 3 cycles in total; then report what is still open instead of iterating further.
 
-## Exit condition
+## Done when
 
-No open CRITICAL or HIGH findings remain. MEDIUM/LOW findings may remain open
-only if the user has explicitly accepted them - do not treat silence as
-acceptance.
-
-## Out of scope
-
-- Bringing a new service into the repo - that's `adding-compose-services`,
-  which runs its own research → build → scoped review loop for the one new
-  file instead of a repo-wide sweep.
+No CRITICAL or HIGH finding is open. MEDIUM and LOW may stay open only if the user explicitly accepted them; silence is not acceptance. Remind the user that fixed compose files reach Portainer through a redeploy with the stack's full `Env` re-supplied (`.claude/rules/portainer-instance.md`).

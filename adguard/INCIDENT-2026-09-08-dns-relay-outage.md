@@ -9,9 +9,11 @@ container's file-descriptor limit was raised (Docker default 1024 ->
 65536), and its healthcheck was fixed through several real bugs (see
 below) to a genuinely authenticated check, confirmed live returning the
 real `dnsdist 2.0.9` version string, not a false-positive pass. Step 1
-(static IP) also done. Steps 3-6 (deleting the `macvlan-host-shim` relay,
-`oom_score_adj`, tugtainer TZ, cpuset) **not yet started** - this is the
-next real work remaining, not just polish. This file is the durable,
+(static IP) also done. Steps 3-6, state checked against the repo
+2026-11-04: the `macvlan-host-shim` relay is gone (`dnsmasq` binds the shim
+IP itself), `adguard` has `oom_score_adj: -800`, and `duplicati` has its
+`cpuset`; the `tugtainer` `TZ` fix is NOT in `tugtainer/docker-compose.yml`
+(open). This file is the durable,
 git-tracked record - read this before re-investigating any
 AdGuard/Tailscale DNS outage, so the same investigation doesn't have to
 happen twice.
@@ -99,9 +101,9 @@ container, `docker_proxy` inspect): `state: running`, `health: healthy`,
 (`172.27.255.247:53`) marked `up`. The still-live `socat` `dns-relay` on
 `:53` was never touched or interrupted by any of this.
 
-**Not yet done**: the actual burst/stress validation against the canary
+**At the time of this entry, not yet done**: the actual burst/stress validation against the canary
 (per the "Deployment sequence" section below) before considering step 2
-ready for cutover, and steps 3-6.
+ready for cutover, and steps 3-6. Both are done since (see the status at the top).
 
 ## The problem
 
@@ -310,7 +312,7 @@ The actual root-cause fix - this is the relay that caused both incidents.
   - **Commit B** (only after A is verified): add
     `--listen-address=${MACVLAN_SHIM_IP}`, swap `--bind-interfaces` →
     `--bind-dynamic`, add `--except-interface=lo`, on `dnsmasq`. Verify
-    BOTH `dig @${DNS_TARGET_IP} <a private-tier host>` AND
+    BOTH `dig @${DNS_TARGET_IP} <any service hostname>` AND
     `dig @${MACVLAN_SHIM_IP}` answer correctly before considering this
     done.
   - Pre-check before commit B: with `--listen-address` given and no

@@ -7,4 +7,4 @@ Findings from long jobs are kept in files that the coordinator and every subagen
 - **While working:** append dated entries (`## YYYY-MM-DD HH:MM <who>: <title>`) marked VERIFIED (with how) or UNVERIFIED. Do not rewrite history; corrections are new entries.
 - **When reporting back:** at most about 15 lines (what changed, which file has the details, what is open). Long text goes into the findings file.
 - **Subnets:** every new backend network takes an explicit /28 from `findings/subnets.md`; add it to the registry before editing the compose.
-- **Decisions and user preferences** go into the project memory plan file (`public-access-no-cloudflare-plan-2026-11-03.md`), kept short.
+- **Decisions and user preferences** go into the project memory plan file (`public-access-state-2026-11.md`), kept short.

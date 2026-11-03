@@ -21,8 +21,8 @@ any more - never put them in a spec.
 
 ## Workflow
 1. Identify the **official/recommended image** (prefer the project's own docs /
-   GitHub / Docker Hub over third-party blogs). Note the maintainer and a
-   sensible pinned tag (not just `:latest`).
+   GitHub / Docker Hub over third-party blogs). Note the maintainer and the
+   current stable tag (the architect decides pinning vs `:latest` per `rules/conventions.md`).
 2. Gather **required + commonly-used env vars**, **volumes** (which need
    persistence and what they hold → map to `${VOLUME_CONFIG}` (config/fast) vs
    `${VOLUME_DATA}` (bulk) per `rules/volumes.md`),
@@ -45,7 +45,7 @@ any more - never put them in a spec.
 ```markdown
 ## Service Spec: <name>
 
-- **Image**: `org/image:tag` (maintainer) - why this tag
+- **Image**: `org/image:tag` (maintainer) - current stable tag, any pinning advice
 - **Depends on**: <db/redis/none>
 
 ### Environment

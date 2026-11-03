@@ -28,6 +28,8 @@ services:
       - "--storage.tsdb.retention.time=30d"
     volumes:
       - ${VOLUME_CONFIG}/prometheus:/prometheus
+      # The container reads this host copy, not ./prometheus.yml from the repo:
+      # editing the repo file changes nothing until it is copied here by hand.
       - ${VOLUME_CONFIG}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
@@ -39,9 +41,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    # Internal-only backing service: no Cloudflare/Traefik network, no
-    # public hostname, no labels, no SAN-bundle group. Reached only by
-    # grafana over monitoring_network.
+    # Internal-only backing service: no Traefik network, no hostname, no
+    # labels. Reached only by grafana over monitoring_network.
     networks:
       - monitoring_network
 

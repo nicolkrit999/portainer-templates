@@ -17,12 +17,12 @@ bridge.
 device or resource busy`. Switching `LAN_INTERFACE` to `bridge0` in that
 stack's env resolved it.
 
-**Where this still bites:** `adguard/docker-compose.yml` has its own,
-still-deferred macvlan plan (`adguard_net`, static IP
-`${ADGUARD_STATIC_IP}`) written before Virtual Network Bridging existed -
-its `.env.example` still says `LAN_INTERFACE=eth0`. When that networking
-redesign is revisited, set `LAN_INTERFACE=bridge0` or it will hit the same
-"device or resource busy" failure.
+**Where `LAN_INTERFACE` is set:** `traefik-private-forwarder` (it creates the
+one macvlan network, `traefik-private-forwarder_traefik_forwarder_net`) and
+`macvlan-host-shim`; both `.env.example` files say `bridge0`. Every other
+macvlan user (`adguard`, `traefik-public`) joins that existing network as an
+`external` network and defines no `parent` of its own. Docker allows only one
+macvlan per parent/subnet, so never define a second one.
 
 **How to apply:** before deploying or debugging any macvlan-networked
 service on this NAS, check `LAN_INTERFACE`/`parent` is `bridge0`. If a

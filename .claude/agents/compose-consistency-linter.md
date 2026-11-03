@@ -14,12 +14,7 @@ Authoritative conventions live in `.claude/rules/` - read `conventions.md`,
 `networking.md`, `volumes.md` and `gotchas/portainer-relative-bind-mounts.md` before linting. This is consistency, not
 security (the `compose-security-auditor` covers secrets/exposure).
 
-**`.env.example` presence check - known false-positive trap:** if you ever
-report a `missing-env-example` finding, you MUST verify it with a directory
-listing command that shows dotfiles (e.g. `ls -la <service>/`) before
-including it in the report - Glob/Grep in this agent have repeatedly missed
-`.env.example` (a dotfile) even when it demonstrably exists on disk. Never
-report `missing-env-example` from a Glob pattern match alone.
+**`.env.example` presence check - known false-positive trap:** Glob/Grep have repeatedly missed `.env.example` (a dotfile) even when it exists. Before reporting `missing-env-example`, confirm it with the Read tool on `<service>/.env.example` (Read opens dotfiles; only a "file does not exist" error counts as absent). You have no shell, so do not try `ls`. Never report it from a Glob miss alone.
 
 ## Current model (what "consistent" means now)
 Cloudflare Tunnel, the `cloudflare-web` network, the family/guest/friends
@@ -60,8 +55,8 @@ Formatting and general conventions:
 - [ ] Comments in the compose file describe a permanent constraint, never a change history or a removed feature (flag any comment mentioning Cloudflare, the tunnel, tiers, SAN groups, or "now/just/fixed").
 
 Routing (application services with a web UI):
-- [ ] A private router with `entrypoints: "${TRAEFIK_ENTRYPOINT_3}"` and `middlewares` containing `hsts-headers@docker`. New stacks name it `<svc>-private`; older stacks name it plain `<svc>` - accept both, do not report the name.
-- [ ] Router `<svc>-tailnet` exists with `entrypoints: "${TRAEFIK_ENTRYPOINT_7}"` (a `:-tailnet-admin` default is tolerated) and `middlewares: "hsts-headers@docker,tailnet-admin-only@docker"` (HSTS first).
+- [ ] A private router with `entrypoints: "${TRAEFIK_ENTRYPOINT_3}"` and `middlewares` containing `hsts-headers@docker`. Both names are valid, do not report the name: new stacks use `<svc>-private`, older ones plain `<svc>` (2026-11-04: 63 plain, 22 `-private`; `.claude/rules/networking.md` and the architect say to keep an older name when editing).
+- [ ] Router `<svc>-tailnet` exists (this name is universal: all 85 stacks use it) with `entrypoints: "${TRAEFIK_ENTRYPOINT_7}"` - no `:-default` suffix, none exists any more, report one - and `middlewares: "hsts-headers@docker,tailnet-admin-only@docker"` (HSTS first).
 - [ ] Both routers use the same `Host()` rule on `${<SERVICE>_SUBDOMAIN}.${DOMAIN}` (dedicated `_SUBDOMAIN` variable, not a hardcoded segment) and the same explicit `service:`; one `loadbalancer.server.port`; `traefik.docker.network: "traefik-proxy"`.
 - [ ] `tls: "true"` is bare. **No `tls.certresolver` and no `tls.domains`** on any service router (only `traefik-dashboard` in `traefik/` may carry them).
 - [ ] No comma-separated multi-entrypoint value in a single router.

@@ -11,6 +11,7 @@ const apiKey = "example-api-key"
 const encryptionPassword = "example-encryption-password"
 
 // 🌐 Base URL of your actual-http-api instance (no trailing slash)
+// In this repo's setup the API (budget-api) has no public hostname: the phone must be on the LAN or the tailnet.
 const apiBaseUrl = "https://actual-http-api.example.com"
 
 // 📁 Names of the category groups to display (comma separated)

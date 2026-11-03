@@ -17,8 +17,8 @@ services:
       # hardcoded secret to fix - household decision, 2026-08-24. Both this
       # and harborguard-db's POSTGRES_PASSWORD below are intentionally left
       # as a literal, matching value; harborguard-db has no Traefik router
-      # and no public Cloudflare Tunnel hostname pointed at it, so port 5432
-      # is not reachable from outside this compose's own internal network.
+      # and sits only on the internal harborguard-backend network, so port
+      # 5432 is not reachable from outside this compose.
       - DATABASE_URL=postgresql://harborguard:securepass@harborguard-db:5432/harborguard?schema=public
 
       # Scanner configuration
@@ -47,7 +47,6 @@ services:
       - BATCH_SUMMARY_UPDATE_SIZE=10
 
     volumes:
-      # Removed the DB volume from here
       - ${DOCKER_CONFIG_DIR}/harborguard/trivy-cache:/opt/trivy-cache
       - ${DOCKER_CONFIG_DIR}/harborguard/grype-cache:/opt/grype-cache
       - ${DOCKER_CONFIG_DIR}/harborguard/syft-cache:/opt/syft-cache
@@ -72,7 +71,7 @@ services:
     depends_on:
       - harborguard-db
     healthcheck:
-      # Fixed: Use curl and 127.0.0.1
+      # curl against 127.0.0.1 (not localhost)
       test: ["CMD", "curl", "-f", "http://127.0.0.1:3000"]
       interval: 30s
       timeout: 10s

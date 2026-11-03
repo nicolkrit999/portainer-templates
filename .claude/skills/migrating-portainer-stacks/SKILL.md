@@ -1,73 +1,30 @@
 ---
 name: migrating-portainer-stacks
-description: Use this skill when bringing a stack that is currently only running in Portainer under git management in this repo, extracting its live configuration, and templating it per repo conventions. Triggers include 'migrate <stack> to git', 'extract this stack from Portainer', 'bring <service> under git management', 'import the running stack', 'convert my Portainer stack to a template'. Does NOT cover brand-new services that have never been deployed (use adding-compose-services) and does NOT cover repo-wide audits of already-migrated stacks (use auditing-compose-repo).
+description: Use this skill whenever a stack currently runs only inside Portainer (not in this repo) and the user wants it under git management - 'migrate <stack> to git', 'extract this stack from Portainer', 'bring <service> under git management', 'import the running stack', 'convert my Portainer stack to a template', 'it's only in Portainer'. It reads the live stack through the Portainer MCP, saves every real secret to a private .env BEFORE templating (once the old stack is deleted, uncaptured secrets are gone), has docker-compose-architect write the parameterized compose and .env.example, runs the security and consistency reviewers, and hands off the env diff and reach-test. NOT for brand-new services (adding-compose-services) or repo-wide audits (auditing-compose-repo).
 ---
 
 # Migrating Portainer stacks
 
-Brings a stack that only exists live in Portainer into this repo as a fully
-parameterized compose template, while capturing every secret before it can
-be lost.
+Brings a stack that exists only live in Portainer into this repo as a parameterized template without losing a secret. You run the loop in the main chat; agents cannot call each other.
 
-## Repo conventions the output must follow
+The output must follow `.claude/rules/` (the architect applies it): everything parameterized, the two routers with bare TLS, `traefik-proxy` plus a registered backend /28, no relative bind mounts, and an `.env.example` listing only referenced variables. Any Cloudflare Tunnel, `cloudflare-web`, tier or SAN-group configuration in the live stack is dropped, not carried over.
 
-Everything parameterized: `${VOLUME_CONFIG}` / `${VOLUME_DATA}`,
-`${ADMIN_USER}` / `${PUID}` / `${PGID}` (quoted), `<svc>.${DOMAIN}`,
-`TZ: "${TZ}"`. The routing follows the current model: a `<svc>-private` and a
-`<svc>-tailnet` router with bare `tls: "true"`, `traefik-proxy` attached, a
-`<stack>-backend` network with an explicit /28 (subnet registry) for databases and
-helpers, no relative bind mounts, and an `.env.example` that lists only the
-variables the compose references. Any Cloudflare Tunnel / `cloudflare-web` / tier /
-SAN-group configuration found in the live stack is dropped, not carried over. See
-`.claude/rules/` for the full conventions.
+## Portainer access
 
-## MCP usage (mandatory)
+Follow `.claude/rules/portainer-instance.md` (environment ID `3`, `StackList` with `select`, `StackInspect` for env, `StackFileInspect` for the compose, `docker_proxy` for containers). Env values are not redacted on this server: never print them and never select `Config.Env` from a container inspect. Do not use `StackUpdate` on a git-tracked stack (it detaches it from git), and never call `StackGitRedeploy` without re-supplying the full `Env`.
 
-Per `.claude/rules/portainer-instance.md`: environment ID is `3`. List stacks with
-`mcp__portainer__StackList` (project with `select`), read a stack's live env with
-`mcp__portainer__StackInspect` (`select: Env`) and its compose file with
-`mcp__portainer__StackFileInspect`, inspect containers through
-`mcp__portainer__docker_proxy`. Never select `Config.Env` from a container inspect and
-never print secret values in chat. Do NOT use `StackUpdate` on a git-tracked stack (it
-detaches it from git) and never `StackGitRedeploy` without re-supplying the full `Env`.
+## Loop
 
-## Loop (orchestrator runs this in the main chat; agents cannot call each other)
+1. **Extract.** `StackList` to find the stack (names are not unique, use the id), `StackInspect` and `StackFileInspect` for env and compose, `docker_proxy` `GET /containers/json` for the running image, volumes, ports and networks. A bind source under `/data/compose/...` is the relative-mount trap in `.claude/rules/gotchas/portainer-relative-bind-mounts.md`.
 
-1. **EXTRACT** (main chat) - `mcp__portainer__StackList` to find the target stack
-   (names are not unique; use the id), `StackInspect`/`StackFileInspect` for its env
-   and compose, and `mcp__portainer__docker_proxy` with `GET /containers/json`
-   (environmentId 3) to capture the running config: image+tag, volumes, ports,
-   networks. For a relative-path bind source in the live file (`/data/compose/...`),
-   see `.claude/rules/gotchas/portainer-relative-bind-mounts.md`.
-2. **CAPTURE SECRETS FIRST** (main chat, before templating) - write all real
-   values to `/home/krit/momentary/portainer-env/<service>/.env`. This must
-   happen before step 3 because once the original stack is deleted,
-   uncaptured secrets are permanently lost. Verify the file is non-empty and
-   every secret has a real value, not a placeholder.
-3. **TEMPLATE** - dispatch `docker-compose-architect` (sonnet) with the
-   extracted config. It writes `<service>/docker-compose.yml` fully
-   parameterized per repo rules, plus `.env.example` with placeholder values
-   (e.g. `your-password-here`) matching every `${VAR}` it introduced.
-4. **REVIEW** - dispatch `compose-security-auditor` (opus, read-only) and
-   `compose-consistency-linter` (haiku, read-only) on the new file in
-   parallel. The auditor's focus here is specifically that no real value
-   leaked into the committed compose or `.env.example`. Send findings back
-   to `docker-compose-architect` to fix; repeat step 3→4 up to 3 cycles.
-5. **HANDOFF** - report: the compose file path, the two `.env` file paths
-   (momentary real values + repo `.env.example`), the variables to keep in or remove
-   from the live stack env (only variables the new compose references), the
-   `reach-test.sh` command for the hostname (`/home/krit/momentary/proxy-research/tools/reach-test.sh`,
-   `tailnet` and `lan`), and a reminder that the old Portainer stack can now be
-   re-pointed or deleted (re-pointing a stack to git needs the full `Env` re-supplied).
+2. **Capture secrets first.** Write the real values to `/home/krit/momentary/portainer-env/<service>/.env` (create the directory if missing; private, never committed) before templating, because the old stack may be deleted afterwards and uncaptured secrets are then permanently lost. Check the file is non-empty and every secret is real, not a placeholder.
 
-## Exit condition
+3. **Template.** Dispatch `docker-compose-architect` with the extracted config. It writes `<service>/docker-compose.yml` and `<service>/.env.example` (placeholders such as `your-password-here` for every `${VAR}` it introduced, nothing unreferenced).
 
-Both reviewers report clean, secrets are confirmed captured in the momentary
-`.env`, and `.env.example` contains placeholder values only (no real
-secrets, no empty required values).
+4. **Review.** Dispatch `compose-security-auditor` and `compose-consistency-linter` in parallel on the new file. Tell the auditor the focus: no real value may leak into the compose or `.env.example`. Send findings to the architect and repeat template and review up to 3 cycles.
 
-## Out of scope
+5. **Handoff.** Report the compose path, the two env file paths (private real values, repo `.env.example`), the variables to keep or remove in the live stack env (only those the new compose references), and the check `/home/krit/momentary/proxy-research/tools/reach-test.sh <hostfile> tailnet|lan`. Re-pointing the old Portainer stack to git, or deleting it, is the user's step and needs the full `Env` re-supplied.
 
-- Brand-new services never deployed anywhere: use `adding-compose-services`.
-- Repo-wide consistency audits across already-migrated stacks: use
-  `auditing-compose-repo`.
+## Done when
+
+Both reviewers are clean, the secrets are confirmed in the private `.env`, and `.env.example` holds placeholders only (no real secret, no blank required value).

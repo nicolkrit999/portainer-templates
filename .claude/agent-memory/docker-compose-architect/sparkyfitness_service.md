@@ -1,39 +1,17 @@
 ---
 name: sparkyfitness-service
-description: SparkyFitness (fitness/nutrition tracker) - 3-service compose, volume paths, and version pins confirmed 2026-07-09
+description: SparkyFitness (fitness/nutrition tracker) - 4-service compose, db-init chown, Postgres 18 mount quirk, volume paths, no server healthcheck
 metadata:
   type: project
 ---
 
-> **2026-11-03: superseded in part. The frontend is no longer on `cloudflare_web_network` and there is no Cloudflare Tunnel target; the frontend carries a private router and a `-tailnet` router on `traefik-proxy` (db and server stay on the stack's default network; a per-stack `sparkyfitness-backend` network with an explicit /28 has not been added). Image pins, volumes and the healthcheck reasoning remain accurate.**
+`sparkyfitness/docker-compose.yml`: `sparkyfitness-db-init` (one-shot alpine chown), `sparkyfitness-db` (`postgres:18.3-alpine`), `sparkyfitness-server` and `sparkyfitness-frontend` (`codewithcj/*:latest`).
 
-Added `sparkyfitness/docker-compose.yml`: sparkyfitness-db (postgres:18.3-alpine),
-sparkyfitness-server (codewithcj/sparkyfitness_server:v0.17.3), sparkyfitness-frontend
-(codewithcj/sparkyfitness:v0.17.3). Fresh deploy, no data migration.
+- **Networks:** only the frontend is on `traefik-proxy` (routers `sparkyfitness` + `sparkyfitness-tailnet`, backend port 80). db and server sit on the stack's own `sparkyfitness-internal` network. It still has the older name, not the `<stack>-backend` /28 convention from `.claude/rules/networking.md`; bring it to that convention only with a subnet from the registry.
+- **Volumes:** db at `${VOLUME_CONFIG}/sparkyfitness/db` (mounted at the PARENT `/var/lib/postgresql`, because Postgres 18+ images use a version-specific subdirectory and refuse to start if `.../data` is occupied); backups and uploads at `${VOLUME_DATA}/sparkyfitness/{backups,uploads}`.
+- **db-init:** the postgres alpine image runs as uid/gid 70 and does not read PUID/PGID, so a root-owned fresh bind dir blocks it; the init container runs `chown -R 70:70 /data` once.
+- **Healthchecks:** db `pg_isready`, frontend `curl -f http://localhost:80/` (tests nginx only). The server has none on purpose: no verified HTTP health endpoint exists (an earlier research pass guessed `/api/health` without confirming it; do not trust that).
+- **Version pins:** the compose now uses `latest` for server and frontend. An earlier pass pinned v0.17.3 after a researcher's claimed v0.16.9 proved wrong; if pinning again, verify the tag on Docker Hub directly rather than trusting remembered numbers.
+- **Deliberately omitted:** the optional `SPARKY_FITNESS_EMAIL_*` and OIDC variables.
 
-**Why the version pin matters:** a prior service-researcher pass in this session
-claimed v0.16.9 was current; the user independently verified v0.17.3 is the correct
-current tag on Docker Hub for both `codewithcj/sparkyfitness_server` and
-`codewithcj/sparkyfitness`. Don't trust cached/remembered version numbers for this
-image without reverifying against Docker Hub directly.
-
-**Volume paths used** (proposed, pending final user confirmation in `.env`):
-- `${VOLUME_DATA}/sparkyfitness/db` - postgres data (bulk, not config-class, per volumes.md)
-- `${VOLUME_DATA}/sparkyfitness/backups`
-- `${VOLUME_DATA}/sparkyfitness/uploads`
-
-**Networking:** frontend is the only service on `cloudflare_web_network`; db+server
-sit on a private `sparkyfitness_internal` (docker name `sparkyfitness-internal`)
-bridge network, non-external. Cloudflare Tunnel target: `http://sparkyfitness-frontend:80`.
-
-**Healthcheck judgment call:** upstream has no verified HTTP health endpoint on the
-server container (a prior research pass speculated `/api/health` without confirming
-it exists - do not trust that). Omitted server healthcheck entirely with an explanatory
-YAML comment rather than guessing at `curl`/`nc` availability in that image. DB uses
-`pg_isready`, frontend (nginx) uses `curl -f http://localhost:80/` since that only
-tests nginx itself, not an unverified app route.
-
-**Env vars deliberately left out of compose:** SPARKY_FITNESS_EMAIL_* and OIDC vars -
-optional and out of scope for first deploy, no stubs added to keep the compose lean.
-
-See [[docker-compose-conventions]] for repo-wide rules this followed.
+See `.claude/rules/conventions.md` for the repo-wide rules.

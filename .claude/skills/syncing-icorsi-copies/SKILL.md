@@ -5,12 +5,12 @@ description: Use this skill when checking whether the manual copies of the icors
 
 # Syncing icorsi copies
 
-`icorsi-notes/claude-home/` in this repo holds manual copies of 4 agents
-(`cs-material-researcher.md`, `cs-notes-auditor.md`, `cs-notes-author.md`,
-`cs-notes-formatter.md`, sourced from
-`~/dotfiles-private/claude/school/.claude/agents/`) and one skill directory
+`icorsi-notes/claude-home/` in this repo (tracked in git) holds manual copies of four agents
+(`cs-material-researcher`, `cs-notes-auditor`, `cs-notes-author`, `cs-notes-formatter`, all `.md`,
+sourced from `~/dotfiles-private/claude/school/.claude/agents/`) and one skill directory
 (`skills/authoring-course-notes/`, sourced from
-`~/dotfiles-private/claude/parked/authoring-course-notes/`).
+`~/dotfiles-private/claude/parked/authoring-course-notes/`). The daemon reads the copies, so a
+stale copy silently changes its behaviour.
 
 The authoritative command list - both the diff commands and the re-copy
 commands - lives in `icorsi-notes/claude-home/README.md`. Always read that

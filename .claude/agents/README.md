@@ -1,6 +1,6 @@
 # Subagent roster - portainer-templates
 
-This repo is a flat collection of ~95 Docker-Compose service directories deployed
+This repo is a flat collection of ~95 Docker Compose files (one per service directory) deployed
 via Portainer. The agents below are scoped, least-privilege helpers. Three are
 read-only reviewers/researchers that **run in their own context and return only a
 compact report** - that is the point: they keep large fan-out work (scanning the
@@ -19,7 +19,7 @@ source of truth.
 |-------|------|-------|-------|---------------|
 | [`docker-compose-architect`](docker-compose-architect.md) | Create / modify / review compose files. The anchor agent - owns all the conventions (two Traefik routers, per-stack backend network, `traefik-public` exposure) and the deploy/verify handoff. | Read, Write, Edit, … | sonnet | **Yes** |
 | [`service-researcher`](service-researcher.md) | Research a new service's official image, env, volumes, ports, healthcheck → compact spec. | Read, WebFetch, WebSearch | haiku | No |
-| [`compose-security-auditor`](compose-security-auditor.md) | Read-only security scan: hardcoded secrets, exposed ports and publish bypasses, privileged, tailnet allowlist, public exposure outside `traefik-public`, backing services on shared networks, unpinned images, default-volume leaks → severity table. | Read, Grep, Glob | opus | No |
+| [`compose-security-auditor`](compose-security-auditor.md) | Read-only security scan: hardcoded secrets, exposed ports and publish bypasses, privileged, tailnet allowlist, public exposure outside `traefik-public`, backing services on shared networks, unpinned images, default-volume leaks → severity table. | Read, Grep, Glob | sonnet | No |
 | [`compose-consistency-linter`](compose-consistency-linter.md) | Read-only convention check: TZ, restart, no `version:`, quoting, volume pools, hostname, private + tailnet routers with bare TLS, backend network, no relative bind mounts, `.env.example` minimalism → compliance report. | Read, Grep, Glob | haiku | No |
 
 ## When to use which (by trigger)
@@ -48,15 +48,15 @@ service-researcher ─▶ docker-compose-architect ─▶ compose-security-audit
 - One clear input → one clear output per agent. Reviewers never edit - they hand
   findings back to the architect to apply.
 
-## Current access model (all agents assume this)
+## Current access model
 
-Every service gets a `<svc>-private` router (core Traefik entrypoint `${TRAEFIK_ENTRYPOINT_3}`)
-and a `<svc>-tailnet` router (`${TRAEFIK_ENTRYPOINT_7}`), bare `tls: "true"`, one wildcard
-certificate issued by the `traefik-dashboard` router. Multi-container stacks use one
-`<stack>-backend` network with an explicit /28 from the subnet registry. Public exposure
-is an additive router and `public-<app>` network in `traefik-public`. The Cloudflare
-Tunnel, `cloudflare-web`, the family/guest/friends tiers, SAN groups and per-service DNS
-steps no longer exist (retired 2026-11-03); see `../rules/networking.md`.
+All agents assume the model in `../rules/networking.md` (two routers per service, bare TLS, per-stack
+backend network with a registered /28, public exposure only in `traefik-public`). Router naming:
+the tailnet router is always `<svc>-tailnet`; the private one is `<svc>-private` in new stacks and
+plain `<svc>` in most older ones (63 of 85 on 2026-11-04) - the architect keeps an existing name and
+the linter accepts both. Redeploys always use `StackGitRedeploy` with the full `Env`
+(`../rules/portainer-instance.md`). Retired concepts (Cloudflare Tunnel, `cloudflare-web`, tiers, SAN
+groups, per-service DNS) are findings if they reappear, never requirements.
 
 ## Adding more agents
 

@@ -1,51 +1,25 @@
 services:
   # ============================================================================
-  # MERGED STACK (2026-09-08) - was previously two independent top-level
-  # directories / two independent Portainer git stacks: ../tailscale-admin/
-  # and ../traefik-tailnet-forwarder/. Merged into one compose file/one
-  # Portainer stack after a real production incident: the forwarder's
-  # `network_mode: container:tailscale-admin` is a HARD runtime coupling
-  # (Docker resolves and pins tailscale-admin's raw container ID at creation
-  # time), but the two services' independent 5-minute git-auto-poll redeploy
-  # timers could (and did) recreate tailscale-admin without simultaneously
-  # recreating the forwarder. That left the forwarder bound inside a stale,
-  # orphaned network namespace - its haproxy process looked "listening"
-  # locally, but the live tailscaled (now in a fresh container/namespace) had
-  # nothing listening on port 443 in ITS namespace, so real Tailscale-sourced
-  # connections got an instant "Connection refused". Root cause: a repo-wide
-  # commit touched both files' `cpu_shares` in one shot, and Portainer
-  # redeployed each stack on its own independent timer.
-  #
-  # ⚠️ THIS MERGE ALONE IS NOT SUFFICIENT. Compose only recreates a service
-  # whose OWN config changed - it does NOT recreate a service just because
-  # another service in the same file (that it shares a network namespace
-  # with via network_mode) got recreated. The full fix also requires this
-  # Portainer STACK's `AutoUpdate.ForceUpdate` be set to `true`, so every
-  # git-poll redeploy force-recreates BOTH services together regardless of
-  # which one's own config actually changed. That is a Portainer stack
-  # setting, not something expressible in this compose file - it must be
-  # set directly in Portainer (see this incident's notes, 2026-09-08).
-  # Without it, this exact stale-namespace bug can still recur even from a
-  # single merged stack, just less often (only when something touches BOTH
-  # services' config at once, instead of either one's independently).
-  #
-  # ADDED 2026-09-08 (SAME DAY, permanent fix for the residual gap): neither
-  # the merge nor AutoUpdate.ForceUpdate protects against a NARROWER trigger
-  # - any change that touches only tailscale-admin's own config (a
-  # TS_AUTHKEY_ADMIN rotation, an image bump, a Portainer-UI-only env edit)
-  # without also touching traefik-tailnet-forwarder's block in that same
-  # deploy. Compose only recreates a service whose own config changed, and
-  # there's no vanilla-Compose mechanism to cascade-recreate a
-  # `network_mode: container:X` dependent when X gets recreated (see
-  # `.claude/rules/core-infra-topology.md`'s "This pair's residual risk"
-  # section for the full verified writeup). `tailscale-admin-watcher` below
-  # closes this gap structurally: it watches `docker events` for tailscale-
-  # admin restarts and force-recreates traefik-tailnet-forwarder in response
-  # every time, so staleness can no longer depend on remembering to touch
-  # both services' config by hand.
+  # One stack for tailscale-admin + traefik-tailnet-forwarder (merged
+  # 2026-09-08 from two stacks). The forwarder's
+  # `network_mode: container:tailscale-admin` pins tailscale-admin's raw
+  # container ID at creation time. If tailscale-admin is recreated alone (an
+  # independent redeploy timer, a TS_AUTHKEY_ADMIN rotation, an image bump, a
+  # Portainer-UI env edit) the forwarder stays bound inside a stale, orphaned
+  # namespace: haproxy looks "listening" but real tailnet connections get an
+  # instant "Connection refused" (happened in production 2026-09-08). Compose
+  # recreates only services whose OWN config changed and has no cascade for
+  # network_mode dependents, so three things guard against it:
+  #   1. both services live in this one stack;
+  #   2. the Portainer stack setting AutoUpdate.ForceUpdate = true (not
+  #      expressible in this file, set in Portainer, verified 2026-11-04) so
+  #      every git-poll redeploy force-recreates both;
+  #   3. tailscale-admin-watcher below force-recreates the forwarder after
+  #      every tailscale-admin start event, which covers changes that touch
+  #      only tailscale-admin.
+  # See `.claude/rules/core-infra-topology.md` ("This pair's residual risk").
   # ============================================================================
 
-  # --- from ../tailscale-admin/docker-compose.yml -----------------------------
   # SECOND, INDEPENDENT Tailscale identity - deliberately NOT a reuse of the
   # primary node in ../tailscale/docker-compose.yml. Two reasons this has to
   # be a separate container with its own tailnet device entry rather than
@@ -54,29 +28,24 @@ services:
   #   1. tailscale0 is a TUN device, not a real L2 NIC - it cannot be
   #      macvlan'd or otherwise shared/split across multiple containers the
   #      way a physical interface can.
-  #   2. The primary node (../tailscale/docker-compose.yml) runs
-  #      network_mode: host. The traefik-tailnet-forwarder service below
-  #      previously also used network_mode: host to bind directly to that
-  #      same host network namespace, which put it in direct conflict with
-  #      Traefik's own docker-proxy already wildcard-binding 0.0.0.0:443 for
-  #      the family entrypoint (retired 2026-11-03) in that same namespace (confirmed live -
-  #      a wildcard bind and a specific-IP bind cannot coexist on the same
-  #      port in one network namespace). That attempt was reverted.
+  #   2. The primary node runs network_mode: host. A forwarder in the host
+  #      namespace would share it with every host-published port (Traefik's
+  #      docker-proxy binds on the host wildcard), and a wildcard bind and a
+  #      specific-IP bind cannot coexist on one port in one namespace (tried
+  #      and reverted 2026-08-22; Traefik has since stopped publishing 443,
+  #      but the isolation is still what makes this stack robust).
   #
-  # This container fixes it by using ORDINARY (non-host) Docker networking
-  # instead, per Tailscale's own documented sidecar pattern
+  # This container therefore uses ORDINARY (non-host) Docker networking, per
+  # Tailscale's documented sidecar pattern
   # (https://tailscale.com/blog/docker-tailscale-guide). The
   # traefik-tailnet-forwarder service (haproxy) below joins THIS container's
   # network namespace via `network_mode: container:tailscale-admin` rather
-  # than communicating with it over the network. That gives the forwarder a
-  # real, isolated namespace of its own (separate from the host and separate
-  # from Traefik's namespace), with zero risk of a bind collision against
-  # Traefik's wildcard listener.
+  # than communicating with it over the network, which gives the forwarder a
+  # real, isolated namespace of its own.
   #
-  # This node will appear as its own distinct device in the Tailscale admin
-  # console (its TS_HOSTNAME is set below for a clear name) and, depending
-  # on tailnet device-approval settings, may require manual approval there
-  # before it can communicate.
+  # This node appears as its own device in the Tailscale admin console (its
+  # TS_HOSTNAME is set below) and, depending on tailnet device-approval
+  # settings, may require manual approval there before it can communicate.
   #
   # Deliberately does NOT advertise any subnet routes (no TS_EXTRA_ARGS /
   # --advertise-routes here, unlike the primary node) - this node is not
@@ -155,113 +124,54 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # --- from ../traefik-tailnet-forwarder/docker-compose.yml -------------------
   # TAILNET-FACING SIBLING of ../traefik-private-forwarder/docker-compose.yml -
-  # same overall purpose (a narrow TCP-passthrough sidecar so a client reaches
-  # Traefik's private tier at a clean `hostname:443` URL without Traefik's own
-  # container needing a second network bind), but this instance exists to
-  # solve a DIFFERENT problem than the LAN macvlan sidecar: Tailscale's
-  # `tailscale0` interface is a TUN device, not a real L2 NIC, so macvlan
-  # (which requires attaching to a physical/bridge parent interface) cannot
-  # be used here at all. This sidecar instead uses network_mode: host so it
-  # can bind directly to the Tailscale node's own IP.
+  # a narrow TCP-passthrough sidecar so a tailnet client reaches Traefik at a
+  # clean `hostname:443` URL (every *.${DOMAIN} name resolves to this
+  # forwarder's tailnet IP via dnsmasq-tailnet), without Traefik's own
+  # container needing a second network bind. It solves a DIFFERENT problem
+  # than the LAN macvlan sidecar: tailscale0 is a TUN device, not a real L2
+  # NIC, so macvlan cannot be used here at all.
   #
-  # Root cause this fixes (confirmed 2026-08-22): Traefik's tailnet-admin-only
-  # ipallowlist middleware rejects legitimate Tailscale-sourced requests
-  # because Docker's userland-proxy (docker-proxy) rewrites the connection's
-  # source IP to a Docker bridge gateway address before Traefik ever sees it
-  # - this affects every published port on Traefik's own container, including
-  # the tailnet-admin entrypoint (7) that the admin-only tailnet routers use.
-  # Routing tailnet traffic through this host-networked sidecar instead
-  # means the real client IP never passes through docker-proxy's NAT at all;
-  # it is preserved end-to-end via the PROXY protocol (see the send-proxy-v2
-  # directive in haproxy.cfg, and the matching
+  # Why it exists: Traefik's tailnet-admin-only ipallowlist middleware
+  # rejected legitimate Tailscale-sourced requests because Docker's
+  # userland-proxy (docker-proxy) rewrites the connection's source IP to a
+  # Docker bridge gateway address before Traefik sees it (confirmed
+  # 2026-08-22) - this affects every published port on Traefik's own
+  # container. Routing tailnet traffic through this sidecar means the real
+  # client IP never passes through docker-proxy's NAT; it is preserved
+  # end-to-end via the PROXY protocol (send-proxy-v2 in the generated
+  # haproxy.cfg, plus the matching
   # --entryPoints.${TRAEFIK_ENTRYPOINT_7}.proxyProtocol.trustedIPs flag in
-  # ../traefik/docker-compose.yml) instead of being inferred from the raw TCP
-  # source.
+  # ../traefik/docker-compose.yml).
   #
-  # UPDATED 2026-08-22: this stack no longer uses network_mode: host at all.
-  # host mode put this container in the SAME network namespace as the host
-  # itself - which is also where Traefik's own docker-proxy already
-  # wildcard-binds 0.0.0.0:443 (then for the family entrypoint, retired 2026-11-03) - so a wildcard
-  # bind and this sidecar's specific-IP bind collided on the same port in
-  # that shared namespace (confirmed live). Host mode never gave real
-  # isolation; it just happened to reach the Tailscale interface.
+  # Network: this service joins tailscale-admin's network namespace via
+  # `network_mode: container:tailscale-admin` (see that service above) - a
+  # real, isolated namespace, separate from both the host's and Traefik's. A
+  # service using network_mode: container:X cannot also declare its own
+  # `networks:` block, so traefik-proxy attachment lives on tailscale-admin
+  # and this service reaches Traefik via its STATIC IP
+  # (${TRAEFIK_INTERNAL_IP}, set on Traefik's own container in
+  # ../traefik/docker-compose.yml) since it has no DNS resolution of its own
+  # in a shared, non-default-bridge namespace.
   #
-  # The actual fix: tailscale-admin (above) is a SECOND, independent
-  # Tailscale identity/node (not the primary one in ../tailscale/) using
-  # ORDINARY (non-host) Docker networking. This service now joins THAT
-  # container's network namespace via `network_mode: container:tailscale-admin`
-  # instead of network_mode: host - a real, isolated namespace, separate
-  # from both the host's and Traefik's, with zero collision risk against
-  # Traefik's wildcard listener. A service using network_mode: service:X
-  # cannot also declare its own `networks:` block - traefik-proxy attachment
-  # lives on tailscale-admin instead, and this service reaches Traefik's
-  # container via the same STATIC IP as before (${TRAEFIK_INTERNAL_IP}, set
-  # on Traefik's own container in ../traefik/docker-compose.yml) since it
-  # has no DNS resolution of its own in a shared, non-default-bridge
-  # namespace.
+  # NOTE: TAILSCALE_IP below is tailscale-admin's own tailnet IP (assigned
+  # once tailscale-admin is deployed and approved in the admin console) - NOT
+  # the primary node's IP.
   #
-  # NOTE: the TAILSCALE_IP env var below refers to tailscale-admin's own
-  # tailnet IP (assigned once tailscale-admin is deployed and approved in
-  # the admin console) - NOT the primary node's IP.
-  #
-  # Unlike socat (used by the LAN sidecar), HAProxy cannot be driven by a
-  # bare command: one-liner for this job - PROXY protocol injection needs a
-  # real config file. haproxy.cfg (bind-mounted below) must contain:
-  #
-  #   global
-  #       log stdout format raw local0
-  #
-  #   defaults
-  #       mode tcp
-  #       timeout connect 5s
-  #       timeout client 1h
-  #       timeout server 1h
-  #       log global
-  #
-  #   frontend tailnet_admin_in
-  #       bind ${TAILSCALE_IP}:443
-  #       default_backend traefik_admin
-  #
-  #   backend traefik_admin
-  #       server traefik ${TRAEFIK_INTERNAL_IP}:${TRAEFIK_PORT_7} send-proxy-v2
-  #
-  #   frontend tailnet_web_in
-  #       bind ${TAILSCALE_IP}:80
-  #       default_backend traefik_web
-  #
-  #   backend traefik_web
-  #       server traefik ${TRAEFIK_INTERNAL_IP}:80
-  #
-  # BUG FIXED 2026-08-22 (confirmed live): this file originally had no
-  # listener on port 80 at all, so `curl http://traefik.${DOMAIN}/` (which
-  # now resolves to THIS forwarder's tailnet IP via the dnsmasq-tailnet split)
-  # got connection-refused instead of the expected redirect to HTTPS - the
-  # exact same bare-HTTP-request bug already fixed once earlier the same day
-  # for the shared `web` entrypoint, just regressed for this one
-  # hostname because it's now routed through this forwarder instead of
-  # hitting Traefik's wildcard bind directly. The tailnet_web_in/traefik_web
-  # pair above is a plain TCP passthrough (no send-proxy-v2) that forwards
-  # straight to Traefik's own `web` entrypoint (../traefik/docker-compose.yml,
-  # hardcoded `--entryPoints.web.address=:80`, not parameterized by port
-  # number anywhere in this repo), which already does the bare-HTTP->HTTPS
-  # redirect correctly for every other hostname. PROXY protocol is
-  # unnecessary here for two reasons: (1) this hop is plain container-to-
-  # container traffic on the traefik-proxy bridge network, which never goes
-  # through Docker's host-port-publish/docker-proxy NAT path (that path is
-  # what caused the ORIGINAL source-IP-rewrite bug this whole stack exists to
-  # fix - it only affects HOST-published ports, not container-to-container
-  # traffic), so there's no source-IP corruption risk to correct for; and
-  # (2) the redirect itself isn't gated by the tailnet-admin-only
-  # ipallowlist or any other check that needs the real client IP - it's just
-  # an unconditional redirect to HTTPS.
+  # The generated haproxy.cfg has two TCP passthrough pairs: tailnet IP :443
+  # -> Traefik ${TRAEFIK_PORT_7} with send-proxy-v2, and tailnet IP :80 ->
+  # Traefik's `web` entrypoint (:80, hardcoded in ../traefik, no PROXY
+  # protocol). The :80 pair makes a bare-HTTP request to any hostname get
+  # Traefik's HTTP->HTTPS redirect instead of connection-refused. PROXY
+  # protocol is unnecessary on it: the hop is plain container-to-container
+  # traffic on the traefik-proxy bridge (it never goes through docker-proxy's
+  # host-port NAT, which is what corrupts source IPs), and the redirect is
+  # not gated by any IP check.
   #
   # HAProxy config files do NOT support ${VAR} shell-style interpolation at
-  # runtime - the placeholders above are real, literal values. Substitution
-  # is handled by the haproxy-config-init service below (a one-shot init
-  # container, same pattern as ../traefik/docker-compose.yml's fix-permissions
-  # service), which rewrites haproxy.cfg at
+  # runtime. The haproxy-config-init service below (a one-shot init
+  # container, same pattern as ../traefik/docker-compose.yml's
+  # fix-permissions service) writes the real values into
   # ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg on EVERY deploy, so
   # the compose file is the only source of truth - never hand-edit that file.
   # haproxy itself only re-reads it when its container is restarted.
@@ -287,56 +197,27 @@ services:
     image: haproxy:alpine
     container_name: traefik-tailnet-forwarder
     cpu_shares: 4096
-    # Joins tailscale-admin's network namespace (see the top-of-file comment
-    # block for the full rationale) instead of binding to the host's own
-    # namespace directly - tailscale0 is a TUN device, not a
-    # macvlan-attachable L2 NIC, so the LAN sidecar's macvlan approach still
-    # cannot be used here, but this gets a genuinely isolated namespace
-    # rather than sharing the host's.
-    #
-    # PRESERVED AS-IS DURING THE 2026-09-08 MERGE: this still uses the raw
-    # Docker `container:<name>` form (not Compose's `service:<name>` sugar),
-    # even though tailscale-admin now lives in this SAME compose file/project
-    # (it didn't when this line was first written - tailscale-admin was a
-    # separate stack then, which is why `container:` was required over
-    # `service:`). Deliberately left unchanged rather than switched to
-    # `service:tailscale-admin` as part of this merge, per the explicit
-    # scope of this change (a structural relocation, not a redesign) - both
-    # forms resolve to the same container at runtime as long as
-    # tailscale-admin's container_name stays exactly "tailscale-admin", so
-    # behavior is identical either way. The actual fix for the
-    # stale-namespace bug this merge addresses is the Portainer
-    # AutoUpdate.ForceUpdate setting noted at the top of this file, not this
-    # network_mode syntax choice.
+    # Joins tailscale-admin's network namespace (see the comment above the
+    # haproxy-config-init service and the top-of-file block for the full
+    # rationale). Uses the raw `container:<name>` form (not Compose's
+    # `service:<name>`); both resolve to the same container as long as
+    # tailscale-admin's container_name stays exactly "tailscale-admin".
     network_mode: "container:tailscale-admin"
-    # user: "0:0" (running haproxy as root) is no longer needed: haproxy's
-    # su-exec-based drop to a non-root user previously failed to bind port
-    # 443 even with cap_add: NET_BIND_SERVICE (confirmed live - that
-    # capability doesn't reliably survive haproxy:alpine's internal user
-    # switch). Now that this container shares tailscale-admin's namespace,
-    # which sets net.ipv4.ip_unprivileged_port_start=0 on that namespace,
-    # any non-root process here can bind port 443 without elevated
-    # privileges or capabilities - the clean fix instead of the workaround.
+    # No `user: "0:0"`: haproxy's su-exec drop to a non-root user failed to
+    # bind port 443 even with cap_add: NET_BIND_SERVICE (confirmed live). This
+    # container shares tailscale-admin's namespace, which sets
+    # net.ipv4.ip_unprivileged_port_start=0, so a non-root process can bind
+    # port 443 without elevated privileges or capabilities.
     volumes:
       - ${VOLUME_CONFIG}/traefik-tailnet-forwarder/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     # Critical-path for all tailnet admin access (same criticality tier as
     # Traefik itself, which also uses restart: always) - must come back
     # after a host reboot unconditionally, not just after a crash.
     restart: always
-    # tailscale-admin is now declared in this SAME compose file (as of the
-    # 2026-09-08 merge), so it COULD technically be added to depends_on here
-    # (Compose only rejects depends_on references to services undeclared in
-    # the same file - that restriction no longer applies post-merge).
-    # Deliberately NOT added, to keep this merge a pure structural
-    # relocation rather than a behavior change - see the top-of-file note on
-    # why Compose depends_on wouldn't fully solve the underlying problem
-    # anyway (it governs start ORDER, not forced recreation of an already-
-    # running, unrelated-on-paper service). The real fix is the Portainer
-    # AutoUpdate.ForceUpdate setting noted above. The original historical
-    # constraint this comment used to describe (tailscale-admin as a
-    # separate Portainer stack, making a depends_on reference a hard
-    # Compose validation error) no longer applies now that both services
-    # are in one file - kept here only as history, not as current fact.
+    # Deliberately NO depends_on on tailscale-admin: it would only govern
+    # start ORDER, not forced recreation of an already-running service (see
+    # the top-of-file block). The real guards are the Portainer
+    # AutoUpdate.ForceUpdate setting and tailscale-admin-watcher.
     depends_on:
       haproxy-config-init:
         condition: service_completed_successfully
@@ -354,10 +235,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # PERMANENT FIX for this pair's residual staleness risk (added 2026-09-08,
-  # same day as the merge - see the top-of-file comment block and
-  # `.claude/rules/core-infra-topology.md`'s "This pair's residual risk"
-  # section). Two off-the-shelf watcher images were evaluated and rejected:
+  # Closes this pair's residual staleness risk (added 2026-09-08 - see the
+  # top-of-file comment block and `.claude/rules/core-infra-topology.md`'s
+  # "This pair's residual risk" section). Two off-the-shelf watcher images
+  # were evaluated and rejected:
   # `buxxdev/containernetwork-autofix` (hard-requires Unraid plugin host
   # paths this NAS doesn't have) and `treyturner/whalewatcher` (no
   # verifiable public source repo - a supply-chain concern for an image that
@@ -375,9 +256,9 @@ services:
     # Official Docker CLI image bundling the Compose v2 plugin (`docker
     # compose`, not the standalone `docker-compose` v1 binary) - needed
     # because this container issues `docker compose up --force-recreate`,
-    # not just `docker` commands. NOTE: bundling of the compose plugin in
-    # this exact tag should be confirmed with `docker compose version` on
-    # first deploy - it cannot be 100% verified without a live check.
+    # not just `docker` commands. The plugin is bundled in this tag
+    # (verified live 2026-11-04: the watcher's logs show a successful
+    # `docker compose` recreate of the forwarder).
     image: docker:27-cli
     container_name: tailscale-admin-watcher
     restart: unless-stopped
@@ -423,9 +304,9 @@ services:
       # Read-only mount of THIS stack's own compose file, at the exact host
       # path Portainer stores git-stack files at:
       # <portainer-data-dir>/compose/<stack-id>/<stack-directory-name>/docker-compose.yml
-      # - confirmed today (2026-09-08) via live container inspection that
-      # Portainer's own /data maps to ${VOLUME_CONFIG}/portainer on this
-      # host. Mounting the real file (rather than reconstructing the
+      # (Portainer's own /data maps to ${VOLUME_CONFIG}/portainer on this host,
+      # confirmed 2026-09-08; see
+      # .claude/rules/gotchas/portainer-relative-bind-mounts.md). Mounting the real file (rather than reconstructing the
       # `docker compose up` command by hand) means the recreate always
       # carries full fidelity - every env var, volume, and the
       # network_mode: container:tailscale-admin reference itself - with

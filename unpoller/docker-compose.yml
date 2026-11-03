@@ -4,10 +4,9 @@ services:
     container_name: unpoller
     cpus: 4.0
     restart: always
-    # Internal-only backing service: no Cloudflare/Traefik network, no
-    # public hostname, no labels. Reached only by prometheus over
-    # monitoring_network. See .claude/rules/networking.md's internal-only
-    # exception to Rule 2.
+    # Internal-only backing service: no Traefik network, no hostname, no
+    # labels. Reached only by prometheus over monitoring_network (see
+    # .claude/rules/networking.md on backing dependencies).
     environment:
       UP_UNIFI_CONTROLLER_0_URL: "${UNIFI_CONTROLLER_URL}"
       UP_UNIFI_CONTROLLER_0_USER: "${UNIFI_POLLER_USER}"

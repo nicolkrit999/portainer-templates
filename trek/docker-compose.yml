@@ -38,11 +38,6 @@ services:
       ALLOWED_ORIGINS: "${TREK_APP_URL}"
       TRUST_PROXY: "1"
       APP_URL: "${TREK_APP_URL}"
-      #OIDC_ISSUER: "${TREK_OIDC_ISSUER}"
-      #OIDC_CLIENT_ID: "trek"
-      #OIDC_CLIENT_SECRET: "${TREK_OIDC_CLIENT_SECRET}"
-      #OIDC_DISPLAY_NAME: "SSO"
-      #OIDC_ONLY: "false"
     networks:
       - traefik_proxy_network
       - public_trek_network

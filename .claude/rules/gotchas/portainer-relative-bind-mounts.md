@@ -78,36 +78,29 @@ use inline `configs: ... content:`, or have an init container write it into
   `/data/compose/` means the bug is live. For a suspicious file mount, exec
   `ls -ld <dest>` in the container (first character `d` means the auto-created directory).
 
-## Scan result, 2026-11-03
+## Scan result
 
-97 compose files scanned (94 stack dirs plus the 3 `actual-budget/*` sub-stacks; 75
-are deployed in Portainer on environment 3).
+**Repo, re-run 2026-11-04** (the command above, 95 compose files, 74 stacks deployed
+on environment 3): no output. No relative bind mounts, `configs`/`secrets` `file:`,
+`env_file:`, `extends:` or `include:` anywhere. Relative `build:` contexts (safe):
+`icorsi-notes` (302) `build: .`; `icorsi-sync` (265) `build: .` and `build: ./auth`.
+Stacks that mount from the checkout correctly: `privatebin` (237) and
+`tailscale-admin_traefik-tailnet-forwarder` (350). The `easy-appointments` MySQL data
+mount is an absolute long-syntax bind (`${DOCKER_CONFIG_DIR}/easyappointments-mysql`,
+`create_host_path: false`), so a missing host directory fails the start instead of
+creating an empty database.
 
-- Relative bind mounts (short or long), `configs`/`secrets` `file:`, `env_file:`,
-  `extends:`, `include:`, and `driver_opts.device`: **none** in the repo. PrivateBin
-  was the only one and is already fixed.
-- Relative `build:` contexts (safe, listed for completeness): `icorsi-notes` (302)
-  `build: .`; `icorsi-sync` (265) `build: .` and `build: ./auth`. Images built and
-  containers up and healthy.
-- Live NAS: no container has any bind source under `/data/compose/`. Exactly two
-  containers mount from the Portainer checkout path, both correctly: `privatebin`
-  (stack 237, `conf.php`, 12985 bytes regular file) and `tailscale-admin-watcher`
-  (stack 350, `docker-compose.yml`, regular file).
-- Same-symptom sweep on absolute single-file mounts (host file missing makes Docker
-  create a directory too): 13 file mounts across 12 running containers (traefik,
-  traefik-public, traefik-tailnet-forwarder, homehub, tailscale-adguard-dns-relay x2,
-  atticd, prometheus, easy-appointments nginx / php-fpm / swagger-ui, plus the two
-  above) were checked with `ls -ld`; all are regular files, none is an auto-created
-  directory. `Traefik-init` (exited one-shot, `acme.json`) was not checked.
-- Not this bug, but the same family: `prometheus/prometheus.yml` and
-  `grafana/provisioning/` exist in the repo but the containers read host copies under
-  `${VOLUME_CONFIG}/...`, so repo edits do not reach them until the host copy is updated
-  by hand. The live `prometheus.yml` is 208 bytes, same size as the repo file (content
-  not compared).
-- False positives ignored: `PAPERLESS_EMPTY_TRASH_DIR: ../trash` (paperlessngx) and
-  `./scripts/self-host-predeploy.js` (affine `command`) are container-internal paths;
-  `../adguard/INCIDENT-...` in `tailscale-adguard` is inside a comment in a heredoc.
+**Live NAS, checked 2026-11-03 (not re-checked 2026-11-04):** no container had a bind
+source under `/data/compose/` except the two correct ones above (regular files). 13
+absolute single-file mounts across 12 containers were checked with `ls -ld`: all
+regular files. `Traefik-init` (one-shot, `acme.json`) was not checked.
 
-**Result: no stack is currently running without its config because of this bug.**
+Not this bug, but the same family: `prometheus/prometheus.yml` and
+`grafana/provisioning/` exist in the repo but the containers read host copies under
+`${VOLUME_CONFIG}/...`, so repo edits do not reach them until the host copy is updated
+by hand.
 
-Discovered 2026-11-03 (PrivateBin HTTP 500); repo-wide scan the same day.
+False positives to ignore: `PAPERLESS_EMPTY_TRASH_DIR: ../trash` (paperlessngx) and
+`./scripts/self-host-predeploy.js` (affine `command`) are container-internal paths.
+
+History: found 2026-11-03 (PrivateBin HTTP 500, fixed in commit `3aa1303`).

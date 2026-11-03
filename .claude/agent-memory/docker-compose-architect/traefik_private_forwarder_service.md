@@ -1,50 +1,15 @@
 ---
 name: traefik-private-forwarder-service
-description: traefik-private-forwarder sidecar - socat TCP-passthrough, macvlan+traefik-proxy only, no Cloudflare/router-on-self, dnsmasq-style deliberate-exception pattern
+description: traefik-private-forwarder - socat TCP passthrough on a macvlan LAN IP forwarding to Traefik entrypoint 3; owns the one live macvlan network
 metadata:
   type: project
 ---
 
-> **2026-11-03: superseded in part. 'NOT the usual Cloudflare+Traefik-private pattern' and 'Deliberately NOT on `cloudflare_web_network`' are moot (the network no longer exists), and its forward now serves all hostnames via the wildcard in `dnsmasq`. The socat passthrough design, macvlan + `traefik-proxy` attachment and restart policy remain accurate; see `.claude/rules/gotchas/macvlan-parent-bridge0.md` for the `bridge0` parent rule.**
+`traefik-private-forwarder/docker-compose.yml` (+ `README.md`, authoritative). It is the LAN path: `dnsmasq` answers every `*.${DOMAIN}` name with this container's macvlan IP `${TRAEFIK_PRIVATE_IP}` (`.99` on this LAN), and it forwards raw TCP to Traefik's private entrypoint. See `.claude/rules/core-infra-topology.md` for the whole picture.
 
-## traefik-private-forwarder/docker-compose.yml (added 2026-08-21)
-
-Narrow, single-purpose infra sidecar, same "deliberately breaks the usual
-pattern" category as [[dnsmasq-service]]. Gives the household member's own
-private-tier Traefik access a clean `hostname:443` URL with no port number,
-without touching Traefik's own container (avoided giving Traefik itself a
-second macvlan bind - confirmed risk of wildcard-vs-specific-bind conflict
-on the same container, per household-member decision 2026-08-21).
-
-- **Image**: `alpine/socat:1.8.0.3` - Docker Hub sponsored OSS, actively
-  maintained (verified via web search, updated within days at time of
-  writing). ENTRYPOINT is `socat` itself, so `command:` is just the socat
-  args directly, no wrapper needed: `command: "TCP-LISTEN:443,fork,reuseaddr
-  TCP:traefik:${TRAEFIK_PORT_3}"`.
-- **Pure TCP passthrough** - no TLS termination/inspection here at all;
-  Traefik on the other end still owns 100% of TLS/cert work. This is
-  SNI-passthrough by construction (socat has zero protocol awareness).
-- **Networking**: dual-attached, NOT the usual Cloudflare+Traefik-private
-  pattern:
-  - `traefik_forwarder_net` - new macvlan network, static IP via
-    `${TRAEFIK_PRIVATE_IP}` (real value `192.168.1.99`), same
-    `${LAN_INTERFACE}`/`${LAN_SUBNET}`/`${LAN_GATEWAY}` var names as
-    `adguard/docker-compose.yml` (read that file for exact macvlan syntax
-    precedent) - reused deliberately for consistency, not redefined.
-  - `traefik_proxy_network` (external, name `traefik-proxy`) - the SAME
-    network Traefik's own container is on, so `traefik:${TRAEFIK_PORT_3}` is
-    reachable by container name for the forward target.
-  - Deliberately NOT on `cloudflare_web_network` - not meant to be reached
-    via tunnel, only via its own dedicated LAN IP.
-  - Deliberately NO Traefik router labels on itself - it's infrastructure
-    exposing an IP, not a routed application; Traefik downstream already
-    owns routing for whatever traffic gets forwarded to it. No Cloudflare
-    connector handoff applies either (not on that network).
-- **`restart: unless-stopped`** (NOT `restart: "no"` like dnsmasq) - this one
-  is meant to be always-on infra once working, explicit instruction from the
-  household member, contrast with dnsmasq's manual-only stopgap status.
-- Simple healthcheck via `nc -z localhost 443` (alpine/socat image is
-  Alpine-based with busybox nc available).
-- `.env.example` created via the write-then-rename workaround documented in
-  [[dnsmasq-service]] (Write tool has a deny rule on `.env*` paths - write to
-  a temp filename, then `mv` via Bash).
+- **Image/command:** `alpine/socat:1.8.0.3`; the image's entrypoint is `socat`, so `command:` is just `TCP-LISTEN:443,fork,reuseaddr TCP:traefik:${TRAEFIK_PORT_3}`. Pure TCP/SNI passthrough: Traefik keeps all TLS and certificate work.
+- **Why a separate macvlan container:** a wildcard bind and a specific-IP bind cannot coexist in one network namespace, so Traefik's own container is not given a second IP.
+- **Networks:** `traefik_forwarder_net` (macvlan, `parent: ${LAN_INTERFACE}`, which must be `bridge0` on this NAS: `.claude/rules/gotchas/macvlan-parent-bridge0.md`; subnet/gateway from `${LAN_SUBNET}`/`${LAN_GATEWAY}`; `ip_range` is the single address) and `traefik-proxy` (to reach `traefik:${TRAEFIK_PORT_3}` by name). Compose names the macvlan network `traefik-private-forwarder_traefik_forwarder_net`; `traefik-public` and any other stack needing its own LAN IP join it as `external: true` (Docker allows one macvlan network per parent/subnet).
+- **No Traefik labels** on itself (infrastructure exposing an IP, not a routed app); LAN only.
+- **`restart: always`** (critical path, same tier as Traefik; unlike the manual-only dnsmasq stopgap), `cpu_shares: 4096`, healthcheck `nc -z 127.0.0.1 443`.
+- The NAS host cannot reach a macvlan IP on its own parent interface; test from another LAN device.

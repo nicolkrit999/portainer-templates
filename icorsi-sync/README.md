@@ -86,9 +86,8 @@ autologin gets disabled, a network/IP problem), the tool sends a Discord **early
 the current token still works** - so you can fix it *before* sync ever stops. It doesn't spam
 on a transient blip (needs two consecutive failures first), but once alerted **it repeats once a
 day for as long as the problem persists** - so a warning nobody acts on immediately doesn't just
-go silent. (Before 2026-07-28 it only alerted once per problem, ever - that's how a token death on
-2026-07-11 went unnoticed until 2026-07-28. See the Troubleshooting section below if you're
-dealing with an active alert.)
+go silent (history: a single alert per problem let the 2026-07-11 token death go unnoticed until
+2026-07-28). See the Troubleshooting section below if you're dealing with an active alert.
 
 It hard-fails (skips runs until you intervene) in two distinct situations - **only one of which
 is actually about downtime:**

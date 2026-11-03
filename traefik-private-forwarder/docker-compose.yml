@@ -1,7 +1,8 @@
 services:
-  # TCP-passthrough sidecar so the household member's private-tier Traefik
-  # access works at a clean `hostname:443` URL, with no port number to
-  # remember and no macvlan/IP-binding changes on Traefik's own container.
+  # TCP-passthrough sidecar for the LAN path: every *.${DOMAIN} name resolves
+  # (dnsmasq) to this container's macvlan IP, so Traefik's private entrypoint
+  # (3) works at a clean `hostname:443` URL, with no port number to remember
+  # and no macvlan/IP-binding changes on Traefik's own container.
   #
   # Traefik itself is completely unchanged: it still listens internally,
   # wildcard-bound, on its existing private entrypoint at container-internal
@@ -30,7 +31,7 @@ services:
       traefik_forwarder_net:
         ipv4_address: "${TRAEFIK_PRIVATE_IP}"
       traefik_proxy_network:
-    # Critical-path for all private-tier Traefik access (same criticality
+    # Critical-path for all LAN access to Traefik (same criticality
     # tier as Traefik itself, which also uses restart: always) - must come
     # back after a host reboot unconditionally, not just after a crash.
     restart: always

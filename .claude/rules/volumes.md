@@ -5,8 +5,7 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 
 # Volume path conventions
 
-Two storage pools with distinct purposes, referenced **only** via their
-canonical variables:
+Two storage pools with distinct purposes, referenced **only** via variables:
 
 - **`${VOLUME_CONFIG}/<service>/`** - NVMe/SSD-class storage. Use for
   **configuration, small fast-access data, small composes**: app config,
@@ -16,10 +15,17 @@ canonical variables:
 
 ## Rules
 - **Committed compose files must never contain literal host paths.** The real
-  storage roots are set in `.env` / Portainer stack env; `.env.example` ships
-  sensible defaults for this instance (`VOLUME_CONFIG=/volume2/docker`,
-  `VOLUME_DATA=/volume1/Default-volume-1/0001_Docker`). Reference paths only
-  as `${VOLUME_CONFIG}/<service>/...` or `${VOLUME_DATA}/<service>/...`.
+  storage roots are set in the Portainer stack env (this NAS: config pool
+  `/volume2/docker`, data pool `/volume1/Default-volume-1/0001_Docker`);
+  `.env.example` defaults are placeholders and vary between stacks. Reference
+  paths only as `${VOLUME_CONFIG}/<service>/...` or `${VOLUME_DATA}/<service>/...`.
+- **Two spellings coexist** (checked 2026-11-04): older stacks use
+  `${DOCKER_CONFIG_DIR}` / `${DOCKER_DATA_DIR}` (about 44 and 23 compose files),
+  newer ones `${VOLUME_CONFIG}` / `${VOLUME_DATA}` (15 and 6). Same meaning, same
+  pools. New stacks use `VOLUME_*`; when editing an existing stack keep the
+  spelling it already has (renaming means touching its Portainer env) and never
+  mix both in one stack. (`gotchas/portainer-relative-bind-mounts.md` needs the
+  root that contains Portainer's own data dir; both spellings are `/volume2/docker` here.)
 - **Avoid unnamed (anonymous) and named-only Docker volumes whenever possible.**
   Every persistent volume should bind-mount to an explicit host path under
   `${VOLUME_CONFIG}/...` or `${VOLUME_DATA}/...`.

@@ -1,10 +1,7 @@
 services:
   # PERMANENT INFRASTRUCTURE (confirmed 2026-08-22): provides the wildcard
-  # DNS override for the household's LAN/tailnet split-DNS. UniFi's gateway
-  # UI does not support wildcard DNS natively - the long-term plan is either
-  # migrating this ruleset into the gateway's own internal dnsmasq, or
-  # having UniFi's "Forward Domain" feature delegate nicolkrit.ch to this
-  # container - either way, this container itself is not going away.
+  # DNS override for the household's LAN split-DNS. UniFi's gateway UI does
+  # not support wildcard DNS natively, so this container answers for the domain.
   #
   # Deliberately NOT attached to traefik-proxy: this is a raw DNS (port 53)
   # service, not HTTP, and is not meant to be reachable through the proxy.
@@ -26,12 +23,12 @@ services:
     # ENTRYPOINT of this image is already ["/usr/sbin/dnsmasq", "--keep-in-foreground"];
     # command: here is appended as extra dnsmasq CLI args, not a replacement.
     command:
-      # Every hostname under the domain resolves to the private Traefik tier
-      # (traefik-private-forwarder's macvlan LAN IP). DNS_TARGET_IP below is
-      # only the address this resolver listens on.
+      # Every hostname under the domain resolves to the private Traefik entrypoint
+      # (traefik-private-forwarder's macvlan LAN IP, DNS_PRIVATE_IP). DNS_TARGET_IP
+      # below is the address this resolver listens on (and the gitea-ssh answer).
       - "--address=/${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
       # Git over SSH is not HTTP: Gitea publishes it on the NAS itself, so this one name
-      # resolves to the NAS's LAN IP instead of the private-tier forwarder.
+      # resolves to the NAS's LAN IP instead of the private forwarder.
       - "--address=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/${DNS_TARGET_IP}"
       - "--log-facility=-"
       - "--listen-address=${DNS_TARGET_IP}"
@@ -57,13 +54,11 @@ services:
       # unneeded, and prevents that exact failure mode if it is.
       - "--bind-dynamic"
       - "--except-interface=lo"
-      # This resolver only ever answers for ${DNS_WILDCARD_DOMAIN} (queries reach
-      # it only via the Tailscale restricted nameserver or manual LAN testing),
-      # so filtering these record types globally is safe here. Without this,
-      # AAAA/HTTPS/SVCB queries fall through to the real upstream and leak
-      # Cloudflare's actual public edge (IPv6 address, ECH config, etc.) even
-      # though the A record is correctly overridden - defeating the whole
-      # point of this override for IPv6-preferring clients.
+      # This resolver only ever answers for ${DNS_WILDCARD_DOMAIN}, so filtering
+      # these record types globally is safe here. Without this, AAAA/HTTPS/SVCB
+      # queries fall through to the real upstream and return the public records
+      # (the public CNAMEs at Cloudflare) even though the A record is correctly
+      # overridden - defeating the override for IPv6-preferring clients.
       - "--filter-AAAA"
       - "--filter-rr=HTTPS"
       - "--filter-rr=SVCB"

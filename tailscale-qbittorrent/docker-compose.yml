@@ -1,10 +1,10 @@
 services:
   # Dedicated Tailscale identity for qbittorrent, routing all of its
-  # torrent traffic through a Mullvad exit node. Replaces qbittorrent's
-  # previous network_mode: host setup - qbittorrent now joins this
-  # container's network namespace (network_mode: service:) instead, and
-  # both the Traefik private/tailnet-admin routers and the Cloudflare
-  # Tunnel reach it by this container's name. See
+  # torrent traffic through a Mullvad exit node. qbittorrent joins this
+  # container's network namespace (network_mode: service:) instead of
+  # using network_mode: host (that is ../qbit-torrent/), and
+  # both Traefik routers (private and tailnet) reach it by this
+  # container's name. See
   # .claude/rules/core-infra-topology.md and ../tailscale-adguard/ for the
   # sibling dedicated-identity pattern this mirrors (structure only - no
   # DNS-relay machinery here, that was AdGuard-specific).
@@ -67,9 +67,8 @@ services:
       retries: 3
     mem_limit: 16g
     cpus: 4.0
-    # Reserves core 5 for the rest of the host's workload, keeping
-    # qbittorrent's transcoding-adjacent torrent I/O from contending with
-    # it under load.
+    # Pinned away from core 5, leaving it reachable by AdGuard's DNS chain
+    # under contention. See adguard/INCIDENT-2026-09-08-dns-relay-outage.md.
     cpuset: "0-4"
     security_opt:
       - no-new-privileges:true

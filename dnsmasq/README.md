@@ -13,7 +13,7 @@ Runs `network_mode: host` (binds directly to the NAS's existing LAN IP - deliber
 
 ## Why it exists (permanent infrastructure, not a stopgap)
 
-UniFi's gateway UI doesn't support wildcard DNS natively. The long-term plan is either migrating this ruleset into the gateway's own internal dnsmasq, or having UniFi's "Forward Domain" feature delegate the domain to this container - either way, this container itself isn't going away. `restart: always` because split-DNS for the whole household depends on it now.
+UniFi's gateway UI doesn't support wildcard DNS natively, so this container answers the wildcard and AdGuard forwards the domain to it. `restart: always` because LAN name resolution for the whole household depends on it.
 
 Deliberately not attached to `traefik-proxy` - this is a raw DNS (port 53) service, not HTTP.
 

@@ -1,24 +1,27 @@
 # Memory Index
 
-- [n8n service](n8n_service.md) - init-container chown pattern for UID/GID mismatch crash loops; depends_on condition nuances
-- [sparkyfitness service](sparkyfitness_service.md) - 3-service compose, verified v0.17.3 pins, volume paths, no-guessed-healthcheck rationale [2026-11-03: partly superseded - Cloudflare gone; see note at top of file]
-- [dnsmasq service](dnsmasq_service.md) - stopgap DNS, host networking, no Cloudflare/Traefik, restart:"no"; .env.example Write-tool deny-rule workaround; includes dnsmasq-tailnet sibling for Tailscale hairpin-NAT bug (2026-08-22) [2026-11-03: partly superseded - dnsmasq now wildcard-only; see note at top of file]
-- [traefik-private-forwarder service](traefik_private_forwarder_service.md) - socat TCP-passthrough sidecar, macvlan+traefik-proxy only, no Cloudflare/self-router, restart:unless-stopped [2026-11-03: partly superseded - Cloudflare wording moot; see note at top of file]
-- [portainer service](portainer_service.md) - migrated from bare docker run, exact live /data path preserved, restart:always exception, docker.sock rw hardcoded [2026-11-03: partly superseded - Cloudflare/SAN gone; see note at top of file]
-- [tailscale-admin + traefik-tailnet-forwarder service](tailscale_admin_traefik_tailnet_forwarder_service.md) - MERGED 2026-09-08 (was two separate stacks) after an independent-redeploy-timer incident; second Tailscale identity + HAProxy PROXY-protocol sidecar; same day, 3rd service tailscale-admin-watcher (docker:27-cli, docker events loop) added as permanent fix for residual staleness risk [2026-11-03: partly superseded - entrypoint/DNS-list wording stale; see note at top of file]
-- [hi-events service](hi_events_service.md) - manual-NAS-to-git migration; hi_events (underscore) vs hi-events (dash) folder mismatch, eventi hostname override, joined productivity-creative SAN group (2026-08-24) [2026-11-03: partly superseded - tiers/SAN/DNS gone; see note at top of file]
-- [openspeedtest service](openspeedtest_service.md) - 4-tier Traefik, NO tailnet-admin router (multi-tier services don't get one), utilities SAN member (2026-08-25) [2026-11-03: partly superseded - tiers/SAN/DNS gone; see note at top of file]
-- [grafana service](grafana_service.md) - private-tier+tailnet-admin Traefik tiers, IS on Cloudflare; UID 472 hardcode; infra-ops SAN member via glances anchor; provisioning (datasource/dashboards-provider/discord alerting) added 2026-09-02, dashboard JSON download still manual [2026-11-03: partly superseded - Cloudflare lesson reversed; see note at top of file]
-- [monitoring stack service](monitoring_stack_service.md) - unpoller+prometheus, internal-only (no Traefik/Cloudflare/SAN), new monitoring_network/monitoring-net external-network convention, prometheus UID 65534 chown (2026-09-02) [2026-11-03: partly superseded - Cloudflare/SAN gone; see note at top of file]
-- [tailscale-adguard service](tailscale_adguard_service.md) - 3rd Tailscale identity giving AdGuard a tailnet IP; same-project network_mode:service: sidecar (not cross-stack container: form); free traefik-proxy static IP finding (.248); no Traefik/Cloudflare/SAN (2026-09-07)
-- [tailscale-qbittorrent service](tailscale_qbittorrent_service.md) - PARTIALLY STALE, see naming-split below - qbit-torrent moved off network_mode:host to a dedicated Tailscale+Mullvad-exit-node sidecar (es-bcn-wg-001, static); dual Traefik+Cloudflare network attach on the sidecar, no static IP; media SAN member unchanged (2026-09-24) [2026-11-03: partly superseded - Cloudflare/SAN gone; see note at top of file]
-- [tailscale-qbittorrent naming split](tailscale_qbittorrent_naming_split.md) - same-day follow-up: qbit-torrent/ (rollback ref) and tailscale-qbittorrent/ restructured to coexist - distinct container_name/volumes/router names/subdomain var, plus DOCKER_CONFIG_DIR/DOCKER_DATA_DIR→VOLUME_CONFIG/VOLUME_DATA fix in both (2026-09-24)
-- [traefik-public service](traefik_public_service.md) - internet-facing Traefik (2026-11-03, undeployed): init-generated file provider, non-root via sysctl, loopback ping, public-apps internal net, local test recipe; batch 1 (5 apps, header-strip middleware, Traefik XFF/X-Real-IP behavior, fixed proxy IPs, git-path tooling gotcha)
-- [immich backend isolation](immich_backend_isolation.md) - 2026-11-03: internal backend net + ML egress net; cross-network DNS precedence finding (gw_priority option), redeploy order, live stack/pool facts [2026-11-03: partly superseded - cloudflare-web deleted; see note at top of file]
-- [privatebin 500 fix](privatebin_service.md) - 2026-11-03: relative ./conf.php mount never reached the Portainer checkout (daemon host-path), /run tmpfs needs exec, latest=nightly image
-- [PrivateBin image ignores PHP size env](privatebin-image-ignores-php-size-env.md) - hard 15M caps, only conf.php sizelimit matters; purge-on-create works, no TZ
-- [Gokapi file requests are a user permission](gokapi-file-requests-are-a-user-permission.md) - no env switch; "0" guest limits = unlimited
-- [Batch 2 public wiring (opencloud, trek, hi-events)](batch2-opencloud-trek-hi-events-public-wiring.md) - proxy-header ownership, root-entrypoint TREK, auto-migrating Hi.Events, basic auth vs app tokens, tunnel caveat
+Lessons for creating and modifying compose files under the current access model (LAN, tailnet, public; see `.claude/rules/networking.md`). Facts about what a stack looks like today live in its compose file and README, not here.
 
-- [Easy!Appointments public wiring](easy-appointments-public-wiring.md) - dev-layout rebuild, zip gaps, PROXY_IPS, php2shell, fixed-.2 IPAM hazard, local test recipe
+## Core and infrastructure stacks
+- [dnsmasq service](dnsmasq_service.md) - wildcard-only resolvers plus the gitea-ssh override, host networking, bind options, why two instances, `.env.example` write workaround
+- [traefik-private-forwarder service](traefik_private_forwarder_service.md) - socat passthrough on a macvlan LAN IP to entrypoint 3; owns the one live macvlan network
+- [traefik-public service](traefik_public_service.md) - design choices and Traefik 3.7 / Docker facts (egress guard, holder pattern, header handling); the README is authoritative
+- [tailscale-admin + traefik-tailnet-forwarder](tailscale_admin_traefik_tailnet_forwarder_service.md) - build lessons for the tailnet-admin gateway; topology lives in `core-infra-topology.md`
+- [tailscale-adguard service](tailscale_adguard_service.md) - third Tailscale identity for AdGuard, dnsdist relay sharing its namespace
+- [portainer service](portainer_service.md) - reference-copy-only compose (not git-tracked), live `/data` path, ports 9000/9444
 - [Public proxy batch lessons](reference_public-proxy-batch-lessons.md) - ip_range+gateway quirk, Traefik path-block limits, CodeIgniter `?/` bypass, local test recipe
+
+## Per-application lessons
+- [Batch 2 public wiring (opencloud, trek, hi-events)](batch2-opencloud-trek-hi-events-public-wiring.md) - proxy-header ownership, root-entrypoint TREK, auto-migrating Hi.Events
+- [Easy!Appointments public wiring](easy-appointments-public-wiring.md) - release-zip gaps, PROXY_IPS, PHP2Shell, CodeIgniter query-route bypass, test recipe
+- [hi-events stack](hi_events_service.md) - underscore vs dash folder naming, eventi hostname override, permission-init containers
+- [Gokapi file requests are a user permission](gokapi-file-requests-are-a-user-permission.md) - no env switch; "0" guest limits mean unlimited
+- [PrivateBin image ignores PHP size env](privatebin-image-ignores-php-size-env.md) - hard 15M caps, only `conf.php` sizelimit matters
+- [PrivateBin lessons](privatebin_service.md) - `/run` tmpfs needs exec, latest = nightly, conf.php behaviour
+- [immich backend isolation](immich_backend_isolation.md) - internal backend + ML egress network, multi-network DNS precedence, redeploy order
+- [n8n service](n8n_service.md) - init-container ownership-fix pattern, depends_on conditions, backend network
+- [sparkyfitness service](sparkyfitness_service.md) - db-init chown, Postgres 18 mount quirk, no server healthcheck
+- [grafana service](grafana_service.md) - UID 472 and grafana-init chown, provisioning layout, Discord contact point rendering
+- [monitoring stack (unpoller + prometheus)](monitoring_stack_service.md) - shared monitoring-net, prometheus init chown, unpoller InfluxDB/healthcheck lesson
+- [tailscale-qbittorrent service](tailscale_qbittorrent_service.md) - qBittorrent behind a dedicated Tailscale + Mullvad exit-node sidecar
+- [qbit-torrent vs tailscale-qbittorrent naming](tailscale_qbittorrent_naming_split.md) - the rollback reference and the live sidecar stack keep fully distinct identities

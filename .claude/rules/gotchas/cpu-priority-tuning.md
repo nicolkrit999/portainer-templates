@@ -1,7 +1,7 @@
 # Gotcha: CPU scheduling priority pattern + rollback point
 
-A repo-wide CPU scheduling priority pass landed 2026-09-07 (commits
-`7fcf6d9` + `8566e3d`) across all 43 deployed stacks. When adding or
+A repo-wide CPU scheduling priority pass landed 2026-09-07 across all
+then-deployed stacks (43 at the time). When adding or
 reviewing a service's resource settings, follow this pattern:
 
 - `cpu_shares: 4096` - critical infra (adguard, tailscale-adguard,
@@ -13,16 +13,14 @@ reviewing a service's resource settings, follow this pattern:
 - No ad-hoc `mem_limit`/`cpu_shares` blocks on low-resource tools that
   don't need them - remove stale ones rather than leaving them.
 
-**Rollback point:** git tag `v4.0.9-pre-performance-tweaks`, on the commit
-immediately before this pass (`4f55e75`). If this tuning pass is ever
-suspected of causing a scheduling/starvation problem, that tag is a clean
-revert target for the whole change, not just individual files.
+**Rollback point:** git tag `v4.0.9-pre-performance-tweaks` (points at `99c2f3c`,
+the commit just before the pass). The branch history was rewritten since, so the
+pre-pass hashes quoted in older notes (`4f55e75`, `7fcf6d9`, `8566e3d`) are not
+reachable from `develop`; use the tag, not those hashes. If this tuning is ever
+suspected of causing a scheduling/starvation problem, the tag is a clean revert
+target for the whole change.
 
-**Stale-ID note (historical, only relevant if digging through old
-records):** an earlier working checklist referenced stack IDs 336
-(`traefik-tailnet-forwarder`) and 337 (`tailscale-admin`) as separate
-stacks that both got `cpu_shares: 4096`. As of 2026-09-08 these are ONE
-merged stack (`tailscale-admin_traefik-tailnet-forwarder`, id 350) - see
-`.claude/rules/core-infra-topology.md`. The `cpu_shares: 4096` setting is
-still present on both services within the merged stack; don't go looking
-for a live stack 336 or 337.
+**Stale IDs:** old notes mention stacks 336 and 337; they are one merged stack now
+(`tailscale-admin_traefik-tailnet-forwarder`, id 350, see
+`.claude/rules/core-infra-topology.md`), and both services in it keep
+`cpu_shares: 4096`.

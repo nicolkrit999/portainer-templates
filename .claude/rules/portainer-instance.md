@@ -6,74 +6,62 @@ description: Instance-specific operational rules for this Portainer setup - MCP 
 
 ## MCP tools
 
-Environment ID is `3` for every call below. Confirmed working 2026-08-22
-(this server's connection has intermittently thrown a persistent
-`[SSL: CERTIFICATE_VERIFY_FAILED]` error across sessions for no discernible
-reason - if a call fails this way, just retry later in the same session
-rather than assuming the tool itself is broken; it cleared on its own more
-than once this session). Same day, this connection also went fully down for
-~40+ minutes after the MCP server's own `.mcp.json` config (`PORTAINER_URL`)
-pointed at a hostname whose Traefik router had no matching entrypoint for
-the default port - see the private-tier port note further down; if every
-call 404s and direct `curl` to Portainer's UI also fails on the same
-hostname, suspect the MCP server's own configured URL before assuming an
-outage.
+Environment ID is `3` for every call below (`docker_proxy` takes it as
+`environment_id`; `StackUpdate`/`StackGitRedeploy` as `endpointId`). Call
+`get_guidance` once per session first (the server refuses every other call until
+then); it covers `select` projection and safe-mutation patterns in more depth.
 
-**For a live git-tracked stack, prefer `StackGitRedeploy` over `StackUpdate`
-for env-only fixes** (a blank/malformed `${VAR}` in the live stack env, not a
-compose file change) - `StackGitRedeploy` doesn't touch `GitConfig` at all,
-so it can't cause the detachment `StackUpdate` risks. Always pair it with
-the mandatory full-`Env`-resupply rule below regardless of which tool is
-used.
+`[SSL: CERTIFICATE_VERIFY_FAILED]` errors are intermittent: retry later in the
+same session. If every call 404s and a direct `curl` to the Portainer UI also
+fails, suspect the MCP server's own `PORTAINER_URL` (`.mcp.json`) before
+assuming an outage: it must be a plain `https://<host>` (port 443) name that the
+`portainer` (private) / `portainer-tailnet` routers serve, reachable from where the
+session runs (LAN or tailnet).
 
-- List stacks → `mcp__portainer__StackList` (project with `select` to
-  `{id:Id,name:Name}` - stack names are **not unique**, duplicates happen,
-  see the 2026-08-22 memory on this)
-- Inspect a stack's live env vars → `mcp__portainer__StackInspect` with
-  `select: Env`
-- Inspect a stack's current compose file content →
-  `mcp__portainer__StackFileInspect`
-- Update a stack's env/file → `mcp__portainer__StackUpdate` - **⚠️ silently
-  detaches the stack from git tracking if it was originally a git-stack**
-  (`GitConfig` becomes `null`). Confirmed 2026-08-22 after using this on 6
-  live git-tracked stacks. Do not use this on a stack you know or suspect
-  is git-tracked unless you've confirmed with the user that the detachment
-  is acceptable - prefer letting a repo-committed fix reach the stack via
-  the normal git-poll cycle instead, even if that means a few minutes'
-  delay.
-- Redeploy a git-tracked stack after a compose change →
-  `mcp__portainer__StackGitRedeploy`. **⚠️ MANDATORY: always call
-  `mcp__portainer__StackInspect(id, select: "{env:Env}")` first and pass the
-  full returned list back as the `Env` parameter on the redeploy call -
-  every single time, with no exceptions, even for a "just pull the latest
-  commit" redeploy.** Omitting `Env` does not preserve the stack's existing
-  env - it wipes it, deploying every `${VAR}` blank. Confirmed 2026-08-22:
-  this broke n8n (blank `N8N_ENCRYPTION_KEY`/`POSTGRES_PASSWORD`, crash-loop)
-  and sparkyfitness (blank `POSTGRES_PASSWORD`, DB refused to init) the same
-  day, both recovered with no data loss only because the real secret values
-  happened to still be recoverable from the household member. If
-  `StackInspect` already returns `Env: null` (a previous redeploy already
-  wiped it), **do not guess or invent values** - stop and ask the user for
-  the real secrets before redeploying. See [[portainer-stackgitredeploy-env-wipe]]
-  (project memory) for the full incident writeup. This is the single most
-  important operational rule in this file - treat every `StackGitRedeploy`
-  call as env-destructive by default unless the full env was just re-supplied
-  in that exact call.
-- Inspect/manage containers, or exec into one to test connectivity → `mcp__portainer__docker_proxy`
-  with `GET /containers/json`, or `POST /containers/{id}/exec` +
-  `POST /exec/{execId}/start` (needs `headers: {"Content-Type": "application/json"}`
-  on both calls or the API 400s) - useful for testing whether a container
-  can actually reach a given backend target, e.g. confirmed 2026-08-22 that
-  Traefik's own container cannot route to the NAS's LAN IP directly, only
-  to `host.docker.internal`.
-- Read container logs → `mcp__portainer__docker_proxy` with
-  `GET /containers/{name}/logs?stdout=true&stderr=true&tail=N` - responses
-  over ~50K chars get saved to a file; grep that file rather than reading
-  it whole, and decode it as JSON first if grepping literal `` ANSI
-  codes doesn't match (the raw file is JSON-string-escaped).
-- `get_guidance` (call once per session before heavy use) covers response
-  projection via `select`, redaction behavior, and safe-mutation patterns
-  in more depth than this file does.
+- **List stacks** → `StackList`, `select: "[].{id:Id,name:Name}"`. Stack names
+  are **not unique** (duplicates happen): resolve by id.
+- **Live env vars** → `StackInspect` (`id`, `select: "Env"`). Values are NOT
+  redacted on this server: never print them, show names only (`Env[].name`)
+  unless the user needs a value. A literal `[REDACTED]` is a placeholder, never
+  pass it back into a redeploy.
+- **Current compose file** → `StackFileInspect` (`id`).
+- **Update env/file** → `StackUpdate` (`id`, `endpointId`, `Env`,
+  `StackFileContent`). **⚠️ Silently detaches a git-tracked stack from git**
+  (`GitConfig` becomes `null`; confirmed 2026-08-22 on 6 stacks). Do not use it
+  on a stack that is or may be git-tracked unless the user accepts that; let a
+  repo-committed fix arrive through the normal git-poll cycle.
+- **Redeploy a git-tracked stack** → `StackGitRedeploy` (`id`, `endpointId`,
+  `Env`; add `RepullImageAndRedeploy: true` only to force an image re-pull).
+  Leave `RepositoryReferenceName` and the other `Repository*` fields unset. It
+  does not touch `GitConfig`, so it is also the tool for env-only fixes.
+  **⚠️ MANDATORY: always call `StackInspect(id, select: "{env:Env}")` first and
+  pass the full returned list back as `Env` on the redeploy, every time, even
+  for a plain "pull the latest commit".** Omitting `Env` does not preserve the
+  stack's env: it wipes it and deploys every `${VAR}` blank (2026-08-22: n8n
+  crash-looped on blank `N8N_ENCRYPTION_KEY`/`POSTGRES_PASSWORD`, sparkyfitness
+  refused to init its DB; both recovered only because the secrets were still
+  known). If `StackInspect` already returns `Env: null`, an earlier redeploy
+  wiped it: **do not guess or invent values**, stop and ask the user for the real
+  secrets. Treat every `StackGitRedeploy` as env-destructive unless the full env
+  was just re-supplied in that exact call. Incident:
+  [[portainer-stackgitredeploy-env-wipe]] (project memory).
+- **Containers, exec, connectivity tests** → `docker_proxy`: `environment_id`,
+  `method`, `path` (e.g. `/containers/json`), optional `query_params` (a map;
+  never a `?query` inside `path`), `body`, `headers`, `select`. Exec is
+  `POST /containers/{id}/exec` then `POST /exec/{execId}/start`, both with
+  `headers: {"Content-Type": "application/json"}` or the API answers 400; the
+  output is a multiplexed binary stream, so use commands whose success or
+  failure is all you need (`ls -ld`, `nc -z`).
+- **Container logs** → `docker_proxy` `GET /containers/{name}/logs` with
+  `query_params: {stdout: "true", stderr: "true", tail: "200"}` (without
+  `stdout`/`stderr` Docker answers 400; never `follow`). `select` is ignored for
+  logs. Responses over ~50K chars are saved to a file: grep that file instead of
+  reading it, and decode it as JSON first if grepping literal ANSI codes does not
+  match (the raw file is JSON-string-escaped).
+- **Container inspect** → `docker_proxy` `GET /containers/{name}/json`, projecting
+  only what you need (`Mounts[].{Type,Source,Destination}`). Never select
+  `Config.Env`: it is not redacted (project memory
+  `portainer-container-inspect-not-redacted`).
 
 ## Migration workflow (.env files)
 

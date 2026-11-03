@@ -8,9 +8,6 @@ services:
     environment:
       TZ: "${TZ}"
       AUTH_ENABLED: "true"
-      # Only needed on first setup to seed the admin account; safe to leave commented after first login.
-      # DEFAULT_USERNAME: "krit"
-      # DEFAULT_PASSWORD: "${SNAPOTTER_PASSWORD}"
       STORAGE_MODE: "local"
     volumes:
       - ${DOCKER_DATA_DIR}/snapotter:/data:rw

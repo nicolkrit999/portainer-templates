@@ -25,5 +25,5 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 - Redeploying a live stack: `StackGitRedeploy` with the full existing `Env`
   re-supplied (`.claude/rules/portainer-instance.md`). Never print secret values.
 
-> Canonical rule. The `docker-compose-architect` agent embeds the same policy;
-> the `compose-security-auditor` enforces it read-only across the repo.
+> Canonical rule. The `docker-compose-architect` agent links here instead of
+> repeating it; the `compose-security-auditor` enforces it read-only across the repo.

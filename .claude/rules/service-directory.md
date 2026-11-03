@@ -1,5 +1,5 @@
 ---
-description: Reference directory of every service in this repo - its clean-URL hostname, which Traefik routers it has (private, tailnet, public via traefik-public), whether it is deployed in Portainer, and the few host ports still published on the NAS (which bypass Traefik). Consult this before adding a service, a public hostname, or a host-port publish.
+description: Reference directory of every service in this repo - its clean-URL hostname, which Traefik routers it has (private, tailnet, public via traefik-public), whether it is deployed in Portainer, and the host ports published on the NAS (which bypass Traefik). Consult this before adding a service, a public hostname, or a host-port publish.
 paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 ---
 
@@ -15,24 +15,15 @@ Hostnames are the `.env.example` defaults of each `${..._SUBDOMAIN}` variable. T
 live Portainer env can differ (a rename once left an `.env.example` default stale), so
 check the stack's env or the compose `Host()` rule before relying on one.
 
-## The access model
+## Access model
 
-Every hostname is `<subdomain>.${DOMAIN}` and is reachable on up to three paths (full
-detail: `.claude/rules/networking.md` and `.claude/rules/core-infra-topology.md`):
-
-1. **LAN (private).** `dnsmasq` answers every name with the `traefik-private-forwarder`
-   macvlan IP, which forwards to Traefik's `private` entrypoint. Router `<svc>-private`
-   on `${TRAEFIK_ENTRYPOINT_3}`.
-2. **Tailnet.** `dnsmasq-tailnet` answers every name with the tailnet-admin gateway's
-   tailnet IP, which reaches Traefik's `tailnet-admin` entrypoint. Router `<svc>-tailnet`
-   on `${TRAEFIK_ENTRYPOINT_7}`, behind the `tailnet-admin-only` allowlist.
-3. **Public (strangers).** Only the 18 hostnames below. A DNS-only CNAME to the WAN
-   address, UniFi forwards TCP 443 to `traefik-public`. The router lives in
-   `traefik-public/docker-compose.yml`, never on the private Traefik.
-
-Every service with a Traefik router has exactly the two private-side routers (private
-and tailnet). There are no other tiers. Nothing needs a DNS entry per service (both
-resolvers are wildcards).
+Every hostname is `<subdomain>.${DOMAIN}`. Every service with a Traefik router has
+exactly two routers on the private side (`<svc>-private` on `${TRAEFIK_ENTRYPOINT_3}`,
+`<svc>-tailnet` on `${TRAEFIK_ENTRYPOINT_7}`), reaching it from the LAN and the tailnet.
+Only the "Public" hostnames below are also served to strangers, by `traefik-public`
+(never by the private Traefik). Router conventions: `.claude/rules/networking.md`; how the
+three paths work: `.claude/rules/core-infra-topology.md`. No DNS entry per service is
+needed (both resolvers are wildcards).
 
 ## Service table
 
@@ -141,42 +132,17 @@ still follow the two-router rule).
 | `ytptube` | `ytptube` | private, tailnet | - | yes |  |
 
 `gitea`: HTTP goes through Traefik (private, tailnet, public). Git over SSH is private
-only: published on the NAS as host port 2222 (`GITEA_SSH_HOST_PORT`), reached at
-`gitea-ssh.<domain>`, a specific override in `dnsmasq` (resolves to the NAS's LAN IP)
-and `dnsmasq-tailnet` (the NAS's tailnet IP). The client's ssh config needs `Port 2222`.
-The gateway never forwards it to the internet.
+only: host port 2222 (`GITEA_SSH_HOST_PORT`) at `gitea-ssh.<domain>`, see
+`core-infra-topology.md`.
 
 ## Public hostnames (traefik-public)
 
-18 hostnames, in the order of `traefik-public/README.md`. Each app also keeps its
-private and tailnet routers from its own stack and joins an external `public-<app>`
-network that `traefik-public` creates. Path restrictions and rate limits are in that
-README.
-
-| Hostname | Directory | Backend (container:port) |
-|---|---|---|
-| `foto` | `immich` | `immich_server:2283` |
-| `pocket-id` | `pocket-id` | `pocket-id:1411` |
-| `jellyfin` | `jellyfin` | `jellyfin:8096` |
-| `navidrome` | `navidrome` | `navidrome:4533` |
-| `gokapi` | `gokapi` | `gokapi:53842` |
-| `gitea` | `gitea` | `gitea:3000` |
-| `privatebin` | `privatebin` | `privatebin:8080` |
-| `ricette` | `mealie` | `mealie:9000` (API docs paths answer 404) |
-| `homebox` | `homebox` | `homebox:7745` |
-| `kavita` | `kavita` | `kavita:5000` |
-| `opencloud` | `opencloud` | `opencloud:9200` |
-| `eventi` | `hi-events` | `all-in-one:80` |
-| `appuntamenti` | `easy-appointments` | `easy-appointments-nginx:80` (REST API paths answer 404) |
-| `trek` | `trek` | `trek:3000` |
-| `paperlessngx` | `paperlessngx` | `paperlessngx:8000` (schema and update-check paths answer 404) |
-| `linkwarden` | `linkwarden` | `linkwarden:3000` |
-| `budget` | `actual-budget/actual-server_actual-https-api` | `ActualBudget:5006` (admin and bootstrap paths answer 404) |
-| `bytestash` | `bytestash` | `bytestash:5000` (public snippets only, explicit path allowlist) |
-
-To make another app public, follow `traefik-public/README.md` ("Adding a public
-service"): router, service and `public-<app>` network in the `traefik-public` compose,
-the network declared external in the app's stack, and a DNS-only CNAME in Cloudflare.
+The 18 rows with "yes" in the Public column (`budget` on the Actual server only; its
+`budget-api` stays private). The router list, backends, path exclusions, rate limits and
+per-app `public-<app>` networks live in `traefik-public/README.md`, the single source for
+them. Each public app keeps its two private-side routers and joins an external
+`public-<app>` network that `traefik-public` creates. To make another app public follow
+`networking.md` ("Making a service public"), then update the table above.
 
 ## Published host ports (bypass Traefik entirely)
 
@@ -210,10 +176,11 @@ compose lint time.
 | `filebrowser` | 8082 | not deployed |
 | `plex` | 32400 | not deployed |
 
-Host-networked stacks bind their ports directly on the NAS (no `ports:` entry):
-`home-assistant` 8123, `glances` 61208 (Glances web default), `iperf3` 5201 (TCP and UDP),
-`qbit-torrent` `WEBUI_PORT` (default 9865), `dnsmasq` and `dnsmasq-tailnet` 53, `upsnap`
-(not deployed), plus the `tailscale*`, `macvlan-host-shim` and `tailscale-adguard` helpers.
+Host-networked stacks bind their ports directly on the NAS (a `ports:` entry, where one
+exists, is ignored in host mode): `home-assistant` 8123, `glances` 61208 (Glances web
+default), `iperf3` 5201 (TCP and UDP), `qbit-torrent` `WEBUI_PORT`, `dnsmasq` and
+`dnsmasq-tailnet` 53, `upsnap` 8090 (not deployed), plus the `tailscale`,
+`macvlan-host-shim` and `tailscale-adguard` helpers.
 
 `pocket-id` deliberately has no direct port: it is an OIDC provider and every app trusts it
 at its one fixed clean URL, so a raw port would be a different origin and break OIDC

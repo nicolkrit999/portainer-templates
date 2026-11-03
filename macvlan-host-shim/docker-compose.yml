@@ -5,13 +5,10 @@ services:
   # instead of a normal Docker network" for the full design, the
   # host-route requirement, and the operational .95-not-.98 rule.
   #
-  # 2026-09-08: the socat DNS relay that used to run in this container is
-  # GONE - dnsmasq now binds ${MACVLAN_SHIM_IP} directly (it runs
-  # network_mode: host, so it can), removing a relay hop entirely rather
-  # than just hardening it. This container's only remaining job is the
-  # interface + host routes below - see
-  # ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for why, and
-  # ../dnsmasq/docker-compose.yml for the other half of this change.
+  # This container's only job is the interface + host routes below: dnsmasq
+  # (network_mode: host) binds ${MACVLAN_SHIM_IP} itself, see
+  # ../dnsmasq/docker-compose.yml. (The socat relay that used to run here was
+  # removed 2026-09-08, see ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md.)
   macvlan-host-shim:
     image: alpine:latest
     container_name: macvlan-host-shim
@@ -47,4 +44,4 @@ services:
         max-file: "3"
 
 # network_mode: host is incompatible with attaching Docker networks - no
-# Cloudflare/Traefik here, same as `tailscale`.
+# Traefik network here, same as `tailscale`.

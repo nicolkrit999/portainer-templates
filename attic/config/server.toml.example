@@ -1,5 +1,5 @@
 # Must be reachable at the port this compose publishes atticd on (8081 by default).
-# Use your NAS's hostname/IP, or your reverse-proxy/tunnel URL if you put one in front.
+# Use your NAS's hostname/IP, or your reverse-proxy URL if you put one in front.
 # Must end with a trailing slash.
 listen = "[::]:8080"
 allowed-hosts = []

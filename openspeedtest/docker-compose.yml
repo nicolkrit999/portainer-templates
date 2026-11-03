@@ -15,10 +15,6 @@ services:
       traefik.http.routers.openspeedtest.tls: "true"
       traefik.http.routers.openspeedtest.service: "openspeedtest"
       traefik.http.routers.openspeedtest.middlewares: "hsts-headers@docker"
-
-
-
-
       traefik.http.routers.openspeedtest-tailnet.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.openspeedtest-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.openspeedtest-tailnet.tls: "true"

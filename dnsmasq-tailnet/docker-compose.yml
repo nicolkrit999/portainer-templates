@@ -31,11 +31,10 @@ services:
       # the NAS itself, so this one name resolves to the NAS's own tailnet IP.
       - "--address=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/${TAILNET_IP}"
       - "--log-facility=-"
-      # Per-query logging, added 2026-08-23 during the 2026-08 tailnet ACL
-      # rollout (the family/friends tiers were retired 2026-11-03) to diagnose a remote tailnet client's DNS queries never
-      # reaching this interface at all (tcpdump on tailscale0 showed zero
-      # packets). Kept on permanently rather than toggled per-incident -
-      # it's one line per query per tailnet client, acceptable at this
+      # Per-query logging, added 2026-08-23 to diagnose a remote tailnet
+      # client's DNS queries never reaching this interface at all (tcpdump on
+      # tailscale0 showed zero packets). Kept on permanently rather than
+      # toggled per-incident - it's one line per query per tailnet client, acceptable at this
       # household's scale, and having it always available avoids a
       # redeploy-just-to-debug round trip next time something like this
       # comes up.
@@ -51,10 +50,9 @@ services:
       # Same reasoning as the original: this resolver only ever answers for
       # ${DNS_WILDCARD_DOMAIN}, so filtering these record types globally is
       # safe here. Without this, AAAA/HTTPS/SVCB queries fall through to the
-      # real upstream and leak Cloudflare's actual public edge (IPv6
-      # address, ECH config, etc.) even though the A record is correctly
-      # overridden - defeating the point of this override for
-      # IPv6-preferring clients.
+      # real upstream and return the public records (the public CNAMEs at
+      # Cloudflare) even though the A record is correctly overridden -
+      # defeating the override for IPv6-preferring clients.
       - "--filter-AAAA"
       - "--filter-rr=HTTPS"
       - "--filter-rr=SVCB"

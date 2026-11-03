@@ -1,16 +1,13 @@
 ---
 name: n8n-service
-description: n8n compose file layout, init-container ownership-fix pattern, and dependency conditions
+description: n8n compose - init-container ownership-fix pattern, depends_on conditions, backend network
 metadata:
   type: project
 ---
 
-The n8n stack at `n8n/docker-compose.yml` uses disposable `alpine` "init"
-services to fix bind-mount ownership before the real service starts, since
-n8n (node user, 1000:1000) and postgres (999:999) images can't chown their
-own bind-mounted data directories.
+`n8n/docker-compose.yml` uses disposable `alpine` init services to fix bind-mount ownership before the real service starts, because n8n (node user, 1000:1000) and postgres (999:999) cannot chown their own bind-mounted data.
 
-Pattern (repeat for any future ownership-mismatch fix in this repo):
+Pattern (reuse for any `EACCES` / permission crash loop on a bind mount):
 ```yaml
 <service>-init:
   image: alpine
@@ -21,29 +18,14 @@ Pattern (repeat for any future ownership-mismatch fix in this repo):
     - ${DOCKER_CONFIG_DIR}/<service>/<subpath>:<container-path>
   command: chown -R <uid>:<gid> <container-path>
 ```
-Then the real service depends on it via
-`depends_on: <service>-init: condition: service_completed_successfully`.
+The real service then has `depends_on: <service>-init: condition: service_completed_successfully`.
 
-Existing instances in n8n/docker-compose.yml:
-- `n8n-db-init` → chowns `${DOCKER_CONFIG_DIR}/n8n/db` to `999:999` (postgres image UID/GID) before `n8n-db` starts.
-- `n8n-data-init` → chowns `${DOCKER_CONFIG_DIR}/n8n/data` to `1000:1000` (n8n's `node` user) before `n8n` starts. Added 2026-07-01 to fix `EACCES: permission denied, open '/home/node/.n8n/config'` crash loop.
+- `n8n-db-init` chowns `${DOCKER_CONFIG_DIR}/n8n/db` to `999:999` before `n8n-db` (`postgres:18`).
+- `n8n-data-init` chowns `${DOCKER_CONFIG_DIR}/n8n/data` to `1000:1000` before `n8n`; added 2026-07-01 for the `EACCES: permission denied, open '/home/node/.n8n/config'` crash loop.
+- **depends_on nuance:** `n8n-db`'s healthcheck block is commented out, so `n8n` depends on it with `condition: service_started` (`service_healthy` would never resolve). When converting list-form `depends_on` to map-form, keep the old entry's semantics (`service_started`), and check whether a healthcheck is actually enabled before choosing `service_healthy`.
+- **Networks:** `n8n-db` is only on `n8n_backend_network` (`n8n-backend`, `internal: true`, 172.16.104.0/28, env-overridable); `n8n` is on that plus `traefik-proxy`. Standard private + `-tailnet` routers.
+- The stack uses `${DOCKER_CONFIG_DIR}` for its paths (not `${VOLUME_CONFIG}`); keep whichever the stack's Portainer env defines.
+- Redeploying n8n via `StackGitRedeploy` without the full env blanks `N8N_ENCRYPTION_KEY`/`POSTGRES_PASSWORD` (incident 2026-08-22, rule in `.claude/rules/portainer-instance.md`).
 
-**Why:** n8nio/n8n image always runs as UID/GID 1000:1000 (`node` user) -
-bind mounts created by the host or by other tooling often don't have
-matching ownership, causing n8n to crash-loop on startup when it can't
-write its config/encryption-key file.
-
-**depends_on nuance:** `n8n`'s `depends_on` is a map with two keys -
-`n8n-db: condition: service_started` (n8n-db has no active healthcheck,
-its healthcheck block is commented out, so `service_healthy` would never
-resolve) and `n8n-data-init: condition: service_completed_successfully`.
-When converting a list-form `depends_on` to map-form to add a new
-dependency, preserve equivalent semantics for the existing entry
-(`service_started` matches list-form's implicit behavior) rather than
-defaulting to `service_healthy`.
-
-**How to apply:** Reuse this exact init-service pattern whenever a new
-service in this repo hits an `EACCES`/permission crash loop against a
-bind-mounted volume. Check whether the target service's healthcheck is
-actually enabled before choosing `service_healthy` vs `service_started`
-in `depends_on`.
+**Why:** n8n always runs as 1000:1000; host-created or tool-created bind mounts have other owners and make it crash-loop on startup.
+**How to apply:** use this init-service pattern for any new ownership mismatch.

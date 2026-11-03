@@ -1,9 +1,10 @@
 services:
-  # Third Tailscale identity in this repo, giving AdGuard its own tailnet
-  # IP so it can be the tailnet's registered DNS nameserver - fixes the
-  # exit-node DNS bypass. Not network_mode: host (would collide with
-  # Traefik's wildcard bind); see adguard/README.md for the full design
-  # and .claude/rules/core-infra-topology.md for why a second identity is
+  # Dedicated Tailscale identity (one of four in this repo), giving AdGuard
+  # its own tailnet IP so it can be the tailnet's registered DNS nameserver -
+  # fixes the exit-node DNS bypass. Ordinary Docker networking, not
+  # network_mode: host (tailscale0 is a TUN device and cannot be shared with
+  # the primary node); see adguard/README.md for the full design and
+  # .claude/rules/core-infra-topology.md for why a separate identity is
   # needed at all.
   tailscale-adguard:
     image: tailscale/tailscale:latest
@@ -46,21 +47,16 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Writes dnsdist's YAML config to a bind-mounted host path. ALWAYS
-  # regenerates (no "skip if exists" check, deliberately - the generated
-  # file has no state of its own worth preserving, and an idempotency
-  # guard here meant three separate manual "delete the stale file" steps
-  # during this fix's own rollout every time the config needed to change;
-  # since regeneration is deterministic and cheap, always-write means a
-  # future config change just takes effect on next redeploy, no manual
-  # deletion ever needed again). ${ADGUARD_INTERNAL_IP}/${DNSDIST_CONSOLE_KEY}
-  # get substituted into the file at generation time - dnsdist YAML files
-  # have no ${VAR} interpolation of their own. CUTOVER (2026-09-08): this
-  # replaced `socat` as the live relay on :53 after burst-test validation
-  # via a :5300 canary showed zero failures at 100x+ the query rate that
-  # caused two real outages - see
-  # ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for the full
-  # incident, root cause, and validation results.
+  # Writes dnsdist's YAML config (and the client config for the healthcheck)
+  # to a bind-mounted host path. ALWAYS regenerates (no "skip if exists"
+  # check, deliberately - the generated files hold no state, so a config
+  # change just takes effect on the next redeploy with no manual deletion).
+  # ${ADGUARD_INTERNAL_IP}/${DNSDIST_CONSOLE_KEY} get substituted into the
+  # files at generation time - dnsdist config files have no ${VAR}
+  # interpolation of their own. dnsdist replaced `socat` as the relay on :53
+  # on 2026-09-08 (socat's UDP fork leak caused two household-wide outages);
+  # see ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for the root
+  # cause and validation results.
   dnsdist-config-init:
     image: alpine:latest
     container_name: tailscale-adguard-dnsdist-config-init
@@ -138,7 +134,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-# No Cloudflare/Traefik labels - Tailscale-only, no HTTP surface (like ../iperf3/).
+# No Traefik labels - Tailscale-only, no HTTP surface (like ../iperf3/).
 networks:
   traefik_proxy_network:
     name: traefik-proxy

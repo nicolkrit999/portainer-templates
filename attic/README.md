@@ -30,7 +30,8 @@ watched or live-reloaded.
   cache when pushing/pulling. It has to match how you're exposing the service:
   - Reachable directly on your LAN → `http://<nas-hostname-or-ip>:8081/` (`8081` is this
     compose's published port; change it if you changed the port mapping).
-  - Behind a reverse proxy or tunnel → the public URL that proxy answers on instead.
+  - Behind a reverse proxy → the URL that proxy answers on instead (this compose has no Traefik
+    labels today, so it is only reachable on the published port).
   - Must end with a trailing slash, or clients will get bad URLs back in cache-config
     responses.
 - **`allowed-hosts`** (optional hardening) - which `Host` headers `atticd` will accept.

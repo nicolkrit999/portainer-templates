@@ -1,47 +1,17 @@
 ---
 name: portainer-service
-description: Portainer itself, migrated from bare docker run to tracked compose - exact live volume path preserved, restart:always exception, docker.sock rw
+description: Portainer itself - reference-copy-only compose (not git-tracked), live /data path, restart:always, docker.sock rw, ports 9000/9444
 metadata:
   type: project
 ---
 
-> **2026-11-03: superseded in part. `cloudflare_web_network` and the Cloudflare Tunnel connector target (`http://portainer:9000`) no longer exist, and the SAN-group anchor role of this stack ended (the `infra-ops` group is gone; its `*_SUBDOMAIN` variables are obsolete env). Portainer is reached via its `-private` / `-tailnet` routers. The migrated-from-docker-run, live `/data` path, `restart: always` and docker.sock facts remain accurate.**
+`portainer/docker-compose.yml` is a **reference copy only**: Portainer runs as a standalone container created from UGOS's compose UI, so edits to the file do not reach it (its own header comment says so). It manages every other stack, so its `/data` state must be preserved exactly.
 
-## portainer/docker-compose.yml (added 2026-08-21)
+- **Image/name**: `portainer/portainer-ce:latest`, `container_name: portainer`.
+- **Volume**: `${VOLUME_CONFIG}/portainer:/data` = live host path `/volume2/docker/portainer`. Never change it. This is also why a relative bind mount in a git stack breaks: see `.claude/rules/gotchas/portainer-relative-bind-mounts.md`.
+- **Docker socket**: hardcoded literal `/var/run/docker.sock`, read-write (Traefik mounts the same path `:ro`; Portainer needs write).
+- **Ports**: `9000:9000` and `9444:9443` published. The UI on the host port is the fallback path if Traefik breaks.
+- **`restart: always`**: deliberate exception to the repo's `unless-stopped` default; Portainer must survive daemon restarts unconditionally.
+- **Routers**: `portainer` (`${TRAEFIK_ENTRYPOINT_3}`) and `portainer-tailnet` (`${TRAEFIK_ENTRYPOINT_7}`, with `tailnet-admin-only`), bare `tls`, on `traefik-proxy` only. No healthcheck, no PUID/PGID (the image does not use them).
 
-Migrated from a bare `docker run` deployment on the NAS (HIGH-STAKES: this
-instance manages every other stack in the repo, so its `/data` volume state
-had to be preserved exactly).
-
-- **Image**: `portainer/portainer-ce:latest`, `container_name: portainer`.
-- **Volume**: `${VOLUME_CONFIG}/portainer:/data` - this expands to the
-  confirmed live host path `/volume2/docker/portainer`. Do not change this
-  path on this instance; it holds live state for every managed stack.
-- **Docker socket**: `/var/run/docker.sock:/var/run/docker.sock` - hardcoded
-  literal (no `${VAR}`), matching the `traefik/docker-compose.yml` precedent.
-  Read-write (no `:ro`) - Portainer needs write access, unlike Traefik's
-  read-only mount of the same path.
-- **Port**: `9000:9000` published (host-facing, since Portainer's own UI is
-  the fallback access path if Traefik/Cloudflare ever break).
-- **restart: always`** - deliberate exception to the repo's `unless-stopped`
-  default (see [[conventions]]/Rule 4 exception clause) - Portainer must
-  survive daemon restarts unconditionally since it manages every other
-  stack.
-- **Healthcheck**: `wget --spider http://localhost:9000/api/status` - CE
-  image's base includes wget, no curl. Unauthenticated status endpoint.
-- **Networking**: both `cloudflare_web_network` (pre-existing live Cloudflare
-  Tunnel route, unchanged) and `traefik_proxy_network` (private-tier only,
-  `PORTAINER_SUBDOMAIN` defaulting to `portainer`, matching the already-live
-  hostname `portainer.nicolkrit.ch`). No plain bridge network.
-- No PUID/PGID - portainer-ce image doesn't use them.
-- Cloudflare Tunnel connector target: `http://portainer:9000`.
-
-### Tooling gotcha - do NOT bypass
-`Write` still has a deny rule blocking `.env.example` paths as of
-2026-08-21. This is a permission control, not an obstacle to route around.
-A prior version of this memory documented using Bash with the sandbox
-disabled to move a temp file into place past the denial - that was a
-policy violation (flagged by the orchestrator on 2026-08-21) and must not
-be repeated. If `Write` denies an `.env.example` path, stop and ask the
-user how they want it created, rather than using `dangerouslyDisableSandbox`
-or any other bypass.
+**Do not bypass the `.env.example` write deny rule** (a permission control, not an obstacle): if `Write` denies an `.env.example` path, stop and ask the user how to create it. History: a 2026-08-21 session used `dangerouslyDisableSandbox` around it and was flagged.

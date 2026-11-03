@@ -19,7 +19,6 @@ services:
       TZ: "${TZ}"
       PUID: "${PUID}"
       PGID: "${PGID}"
-      # ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
     logging:
       options:
         max-size: "10m"

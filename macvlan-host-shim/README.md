@@ -1,6 +1,6 @@
 # macvlan-host-shim
 
-Host-side macvlan "shim" interface plus an active DNS relay, working around a Docker `macvlan` kernel-level limitation that otherwise breaks **[AdGuard Home](../adguard/)**'s conditional forwarding of internal-domain lookups to `dnsmasq`.
+Host-side macvlan "shim" interface plus host routes, working around a Docker `macvlan` kernel-level limitation that otherwise breaks **[AdGuard Home](../adguard/)**'s conditional forwarding of internal-domain lookups to `dnsmasq`.
 
 ## The problem
 
@@ -12,35 +12,26 @@ Confirmed live on this NAS: `dnsmasq` (host-mode, its own LAN IP) could not reac
 
 ## The fix - three parts, all required
 
-1. **A second macvlan interface created directly in the host's own network namespace** (not inside a container) - gives the host itself a legitimate presence on the same macvlan L2 segment, so it can be reached by (and reach) other macvlan-attached containers.
-2. **A DNS relay** (`socat`, UDP+TCP) running in that same host-namespace container, bound only to the shim's own IP (never `0.0.0.0` - `dnsmasq` already holds the NAS's own IP:53 specifically), forwarding to the real host-networked `dnsmasq`. Since this container is `network_mode: host` (same netns as `dnsmasq`), it has unrestricted access there - the macvlan restriction only applies to macvlan-child-to-parent traffic, not ordinary same-netns routing.
-3. **A host-scope `/32` route for each macvlan-attached IP**, pointing at the shim interface. Without this, the shim's *reply* traffic still gets routed back out via the host's normal, broader, pre-existing LAN route instead of the shim - the exact same parent-exclusion restriction, just hit on the way out. This was the non-obvious part, only found via live testing: the interface and relay alone were **not sufficient** - `nslookup` from inside AdGuard timed out even with the shim interface up and the relay listening, because the kernel's routing table preferred the broader pre-existing subnet route over the shim, and that broader route's egress is the macvlan parent interface itself.
+1. **A second macvlan interface created directly in the host's own network namespace** (this container is `network_mode: host`, `${MACVLAN_SHIM_IFACE}` on `${LAN_INTERFACE}`, address `${MACVLAN_SHIM_IP}/32`) - gives the host itself a legitimate presence on the same macvlan L2 segment, so it can be reached by (and reach) other macvlan-attached containers.
+2. **A host-scope `/32` route for each macvlan-attached IP** (`${MACVLAN_ATTACHED_IPS}`), pointing at the shim interface. Without this, the shim's *reply* traffic still gets routed back out via the host's normal, broader, pre-existing LAN route instead of the shim - the exact same parent-exclusion restriction, just hit on the way out. This was the non-obvious part, only found via live testing: the interface alone was **not sufficient** - `nslookup` from inside AdGuard timed out even with the shim interface up, because the kernel's routing table preferred the broader pre-existing subnet route over the shim, and that broader route's egress is the macvlan parent interface itself.
+3. **`dnsmasq` listens on the shim IP directly.** `dnsmasq` runs `network_mode: host`, so it binds `${MACVLAN_SHIM_IP}` itself (`--listen-address`, with `--bind-dynamic` because the interface lives in this separate stack); there is no relay in between. See `../dnsmasq/docker-compose.yml`.
+
+The container applies parts 1 and 2 idempotently on every start, then sleeps; `restart: always` makes Docker re-apply them on every daemon start (i.e. every host boot). Its healthcheck verifies the interface address **and every route**, not just the interface.
+
+History: until 2026-09-08 this container also ran a `socat` DNS relay; it was removed (commit `f563e30`) because `dnsmasq` can bind the shim IP itself, which also removed a `socat` UDP process-leak risk. Background: [`../adguard/INCIDENT-2026-09-08-dns-relay-outage.md`](../adguard/INCIDENT-2026-09-08-dns-relay-outage.md).
 
 ## Operational rule
 
 AdGuard's conditional-forward upstream for your internal domain **must** point at the shim's IP (this instance: `192.168.1.95`), **never** the real internal resolver's own IP (`192.168.1.98`, `dnsmasq`) - the latter is permanently unreachable from AdGuard no matter what, by the same restriction described above. A past design had this pointed at the real IP - don't repeat that mistake.
 
+Add an IP to `MACVLAN_ATTACHED_IPS` whenever another macvlan-attached service needs to reach the host (currently only AdGuard, `192.168.1.96`). `LAN_INTERFACE` must be `bridge0` on this NAS (see `.claude/rules/gotchas/macvlan-parent-bridge0.md`).
+
 ## Why a Compose service instead of an `/etc/rc.local` edit
 
-This repo's convention is that all host-state-affecting configuration is git-tracked and reviewable through compose files, not raw vendor boot scripts, and every opinionated value is an `${VAR}`, not hardcoded. Same precedent as `tailscale`/`tailscale-admin`: a `network_mode: host` container with elevated capabilities manages real host-level network state from inside a container, persisted via `restart: always` (Docker re-applies these on every daemon start, i.e. every host boot).
+This repo's convention is that all host-state-affecting configuration is git-tracked and reviewable through compose files, not raw vendor boot scripts, and every opinionated value is an `${VAR}`, not hardcoded. Same precedent as `tailscale`/`tailscale-admin`: a `network_mode: host` container with elevated capabilities manages real host-level network state from inside a container.
 
 **This is load-bearing infrastructure** for AdGuard's DNS forwarding to `dnsmasq` - do not remove without re-verifying the macvlan limitation no longer applies.
 
-## 2026-09-08: this relay is being deleted entirely
+## Compose gotcha worth keeping
 
-Not because of an incident this specific relay caused (it carries far less
-traffic than its sibling in `tailscale-adguard`, which is the one that
-actually failed), but as part of the same fix: since `dnsmasq` runs
-`network_mode: host`, it can bind this shim's IP directly, removing the
-`socat` relay from this path altogether. See
-**[`../adguard/INCIDENT-2026-09-08-dns-relay-outage.md`](../adguard/INCIDENT-2026-09-08-dns-relay-outage.md)**
-for the full plan (ships as two separate verified commits, given a real
-prior `dnsmasq` crash-loop incident in this exact area - not yet
-implemented as of this write). This container's `ip link`/route-add job
-stays; only the two `socat` lines are removed.
-
-## Two incidents worth knowing if you're adapting this
-
-**Process leak**: `socat`'s `fork` mode never terminates a forked child that handled a UDP query - UDP has no "connection closed" signal, so each child just sits there indefinitely waiting for more traffic from that same peer. This relay carries much less traffic than its sibling in `tailscale-adguard` (only internal conditional-forward lookups, not general household DNS) so it hadn't hit the failure point when found (21 processes vs. 2000+ on the busier relay), but had the identical latent bug. Fixed by adding `-T5` (5-second inactivity timeout) to both `socat` invocations - see `tailscale-adguard/README.md` for the full incident and verification, since it's where the bug was actually caught in production.
-
-**`$ip` interpolation bug**: the route-repair loop (`for ip in ...; do ip route add "$ip/32" ...`) used a shell-local loop variable that Docker Compose silently interpolated to an empty string - Compose interpolates any bare `$IDENTIFIER` in the raw compose file text, not just `${VAR}`, including shell-local variables never meant to be Compose stack env vars. This turned every route-add into `ip route add "/32" ...`, which always fails, leaving this container permanently reporting **unhealthy**. A leftover route from an earlier one-off manual fix masked the practical impact - the internal-domain path kept working since the route already existed at the kernel level (host routes survive container recreates, since this runs `network_mode: host`) - but it would have failed for real on the next NAS reboot, when that manual route would finally be gone. Fixed by escaping the loop variable as `$$ip` in both the startup command and the healthcheck test (both had the identical bug). If you hit one bare-`$VAR` interpolation bug in a compose file, grep the rest of that file for the same pattern rather than assuming it's a one-off.
+The route loop's shell variable (`for ip in ...; do ip route add "$$ip/32" ...`) must stay `$$`-escaped in both the startup command and the healthcheck: Compose interpolates any bare `$IDENTIFIER` in the raw file text, not just `${VAR}`. Unescaped, every route-add became `ip route add "/32" ...`, which always fails and left the container permanently **unhealthy** (a leftover manual route masked the impact until the next reboot would have lost it). If you hit one bare-`$VAR` interpolation bug in a compose file, grep the rest of that file for the same pattern.

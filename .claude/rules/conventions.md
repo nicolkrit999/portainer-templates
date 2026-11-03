@@ -40,8 +40,8 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 
 ## Timezone
 **Always use `TZ: "${TZ}"` - never hardcode the timezone value in a compose
-file.** The `TZ` variable is provided via the `.env` / Portainer stack env and
-defaults to `Europe/Zurich`. Every service that accepts a `TZ` env var must
+file.** The `TZ` variable is provided via the Portainer stack env (this instance:
+`Europe/Zurich`; `.env.example` defaults vary and are placeholders). Every service that accepts a `TZ` env var must
 reference it as `"${TZ}"`.
 
 ## Comments
@@ -68,9 +68,8 @@ requirement (a one-line comment above any non-obvious `${VAR}`, per
   through `${...}`.
 - UID/GID, for images supporting `PUID`/`PGID` (LinuxServer.io, *arr stack) or
   a `user:` directive, are set via `${PUID}`/`${PGID}` (always quoted) - never
-  as literal numbers. The actual values live in `.env` / Portainer stack env;
-  this instance's `.env.example` defaults to user `krit`, `PUID=1000`,
-  `PGID=10`:
+  as literal numbers. The actual values live in the Portainer stack env (`.env.example`
+  defaults vary: most say `PUID=1000`/`PGID=1000`, a few `PGID=10`):
   ```yaml
   environment:
     PUID: "${PUID}"
