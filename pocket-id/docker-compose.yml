@@ -24,6 +24,7 @@ services:
     networks:
       - cloudflare_web_network
       - traefik_proxy_network
+      - public_pocket_id_network
 
     labels:
       traefik.enable: "true"
@@ -46,4 +47,8 @@ networks:
     external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_pocket_id_network:
+    name: public-pocket-id
     external: true
