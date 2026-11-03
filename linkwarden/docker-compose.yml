@@ -13,15 +13,20 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/linkwarden/db:/var/lib/postgresql/data:rw
     environment:
-      POSTGRES_DB: linkwarden
-      POSTGRES_USER: linkwardenuser
-      POSTGRES_PASSWORD: linkwardenpass
+      POSTGRES_DB: "linkwarden"
+      POSTGRES_USER: "linkwardenuser"
+      POSTGRES_PASSWORD: "${LINKWARDEN_DB_PASSWORD:-linkwardenpass}"
+      TZ: "${TZ}"
     restart: unless-stopped
     networks:
-      - cloudflare_web_network
+      - linkwarden_backend_network
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   linkwarden:
-    image: ghcr.io/linkwarden/linkwarden:latest
+    image: ghcr.io/linkwarden/linkwarden:v2.16.3
     container_name: Linkwarden
     cpu_shares: 2048
     healthcheck:
@@ -36,11 +41,17 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/linkwarden/data:/data/data:rw
     environment:
-      DATABASE_URL: postgres://linkwardenuser:linkwardenpass@linkwarden-db:5432/linkwarden
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: "${NEXTAUTH_URL}"
-      NEXT_PUBLIC_DISABLE_REGISTRATION: true
+      DATABASE_URL: "postgres://linkwardenuser:${LINKWARDEN_DB_PASSWORD:-linkwardenpass}@linkwarden-db:5432/linkwarden"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?set NEXTAUTH_SECRET}"
+      NEXTAUTH_URL: "https://${LINKWARDEN_SUBDOMAIN}.${DOMAIN}/api/v1/auth"
+      NEXT_PUBLIC_DISABLE_REGISTRATION: "true"
+      DISABLE_NEW_SSO_USERS: "true"
+      TZ: "${TZ}"
     restart: always
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       traefik.enable: "true"
       traefik.http.routers.linkwarden.rule: "Host(`${LINKWARDEN_SUBDOMAIN}.${DOMAIN}`)"
@@ -49,7 +60,7 @@ services:
       traefik.http.routers.linkwarden.tls.certresolver: "cf_dns"
       # SAN-bundle (group "productivity-creative", anchor router): this router
       # is the anchor for a single multi-SAN Let's Encrypt certificate
-      # covering 11 low-traffic services, to stay under LE's 50-certs/168h
+      # covering 12 other low-traffic services, to stay under LE's 50-certs/168h
       # rate limit that Traefik previously hit issuing near-one cert per
       # router. Mechanism is per-router tls.domains labels (the correct
       # approach) - NOT resolver-level CLI flags on Traefik's own
@@ -80,16 +91,23 @@ services:
       traefik.http.services.linkwarden.loadbalancer.server.port: "3000"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_linkwarden_network
+      - linkwarden_backend_network
     depends_on:
       db:
         condition: service_healthy
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  linkwarden_backend_network:
+    name: linkwarden-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${LINKWARDEN_BACKEND_SUBNET:-172.16.91.16/28}"
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  public_linkwarden_network:
+    name: public-linkwarden
     external: true
