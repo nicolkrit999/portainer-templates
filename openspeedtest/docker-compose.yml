@@ -41,6 +41,12 @@ services:
       traefik.http.routers.openspeedtest-friends.service: "openspeedtest"
       traefik.http.routers.openspeedtest-friends.middlewares: "hsts-headers@docker"
 
+      traefik.http.routers.openspeedtest-tailnet.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.openspeedtest-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.openspeedtest-tailnet.tls: "true"
+      traefik.http.routers.openspeedtest-tailnet.service: "openspeedtest"
+      traefik.http.routers.openspeedtest-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
+
       traefik.http.services.openspeedtest.loadbalancer.server.port: "3000"
       traefik.docker.network: "traefik-proxy"
 
