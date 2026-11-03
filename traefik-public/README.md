@@ -11,7 +11,7 @@ The container joins the existing macvlan network `traefik-private-forwarder_trae
 ## What it does
 
 - **File provider only.** No Docker socket, no Docker provider, no dashboard, no API. Routers, the service and the middleware are generated into `${VOLUME_CONFIG}/traefik-public/dynamic/dynamic.yml` by the `traefik-public-init` container on every deploy. The compose file is the only source of truth; never hand-edit `dynamic.yml`.
-- **Routers** (single entrypoint `websecure`): `${PUBLIC_TEST_SUBDOMAIN}.${DOMAIN}` and `${IMMICH_SUBDOMAIN}.${DOMAIN}`, both to `http://immich_server:2283`. Any other hostname gets Traefik's default 404, and `sniStrict` rejects TLS handshakes for names without a certificate. Each router sets `certResolver` explicitly: a router-level `tls` section replaces the entrypoint's TLS settings entirely.
+- **Routers** (single entrypoint `websecure`): `${PUBLIC_TEST_SUBDOMAIN}.${DOMAIN}` and `${IMMICH_SUBDOMAIN}.${DOMAIN}`, both to `http://immich_server:2283`, and `${POCKET_ID_SUBDOMAIN}.${DOMAIN}` to `http://pocket-id:1411`. Any other hostname gets Traefik's default 404, and `sniStrict` rejects TLS handshakes for names without a certificate. Each router sets `certResolver` explicitly: a router-level `tls` section replaces the entrypoint's TLS settings entirely.
 - **Certificates:** one per router hostname via ACME DNS-01 (resolver `cf_dns_public`, Cloudflare), EC256 keys, own `acme.json`, own token. No wildcard. These count against the same Let's Encrypt registered-domain quota (50 per week) as the core Traefik, so keep the hostname count small and keep `acme.json` backed up.
 - **Headers and TLS:** `public-secure-headers` (HSTS 1 year + subdomains + preload, nosniff, frame deny, `same-origin` referrer policy). TLS 1.2 minimum, AEAD cipher suites only. Request headers with aliasing names (`X_Foo`, `X.Foo`) are stripped.
 - **Timeouts:** read and write 86400s (24h), idle 180s. The read and write values are total per-request budgets, not inactivity timers; 24h covers about 100 GB at 10 Mbit/s in a single request. Slow-client limits come from the planned per-source controls below, not from these values. Resumable/chunked clients (Gokapi chunks, OpenCloud/TUS) remain the robust way to move very large files, because a dropped single-request upload restarts from zero.
@@ -25,12 +25,13 @@ The container joins the existing macvlan network `traefik-private-forwarder_trae
 |---|---|
 | `traefik-private-forwarder_traefik_forwarder_net` (external, macvlan) | LAN IP `${TRAEFIK_PUBLIC_IP}`, default route, ACME egress |
 | `public-apps` (created here, `internal: true`) | Immich's backend network. Immich attaches to it as `external: true`. No default route, no egress. |
+| `public-pocket-id` (created here, `internal: true`, explicit subnet) | Pocket-ID's backend network. Pocket-ID attaches to it as `external: true`, next to its existing networks. No default route, no egress. |
 
 Deliberately not on `cloudflare-web` or `traefik-proxy`, and there is no Cloudflare Tunnel handoff: the point of this stack is to bypass the tunnel.
 
 ## Environment variables
 
-All are required except `TZ`: an unset or empty value fails the deploy instead of generating a broken rule such as ``Host(`foto.`)``.
+All are required except `TZ` and `PUBLIC_POCKET_ID_SUBNET`: an unset or empty value fails the deploy instead of generating a broken rule such as ``Host(`foto.`)``.
 
 | Variable | Purpose |
 |---|---|
@@ -42,6 +43,8 @@ All are required except `TZ`: an unset or empty value fails the deploy instead o
 | `TRAEFIK_PUBLIC_IP` | Free static LAN IP for the macvlan interface; the UniFi forward targets it. |
 | `PUBLIC_TEST_SUBDOMAIN` | Hostname segment of the test router. |
 | `IMMICH_SUBDOMAIN` | Hostname segment of the Immich router; same value as the immich stack. |
+| `POCKET_ID_SUBDOMAIN` | Hostname segment of the Pocket-ID router; same value as the pocket-id stack, and the host of Pocket-ID's `APP_URL`. |
+| `PUBLIC_POCKET_ID_SUBNET` | Optional. Subnet of the `public-pocket-id` network (default `172.16.77.0/28`). Outside Docker's default address pools, the LAN/VLANs and the tailnet. |
 
 ## Deploy order
 
@@ -51,19 +54,29 @@ All are required except `TZ`: an unset or empty value fails the deploy instead o
 4. Test with `curl --resolve <test-host>:443:<TRAEFIK_PUBLIC_IP> https://<test-host>/api/server/ping` from a LAN device other than the NAS (the LAN resolvers wildcard-override `*.${DOMAIN}` to the NAS, so plain names do not reach this stack from inside the LAN).
 5. In UniFi, forward WAN TCP 443 to `${TRAEFIK_PUBLIC_IP}:443`. Create the public DNS records as **DNS only** (not proxied), IPv4 only unless an IPv6 path is set up.
 
+## Adding Pocket-ID (second backend)
+
+Pocket-ID keeps its passkey login and its existing private, tailnet and Cloudflare paths; this only adds the public router and a dedicated backend network.
+
+1. Add `POCKET_ID_SUBDOMAIN` (and optionally `PUBLIC_POCKET_ID_SUBNET`) to the `traefik-public` stack's environment **before** the commit reaches it. The variable is required, so a deploy without it fails at interpolation and leaves the running containers untouched.
+2. Deploy `traefik-public` **first**. It creates the `public-pocket-id` network and requests the Pocket-ID certificate (DNS-01). The proxy container is recreated, so the public Immich path has a short gap. Wait for the container to be healthy and for the certificate to appear.
+3. Only afterwards deploy the updated `pocket-id` stack. It declares `public-pocket-id` as external; if the network does not exist yet the deploy fails before touching the running container, and the next poll retries. Pocket-ID itself is recreated: requests fail for a few seconds, while sessions and signing keys live in its data volume and survive.
+4. Confirm self sign-up is off in the running instance before the public DNS record goes live: `curl -s https://<pocket-id-host>/api/application-configuration | jq -r '.[] | select(.key=="allowUserSignups") | .value'` must print `disabled` (admin UI: Application configuration, User signups). In Pocket-ID v1 the `ALLOW_USER_SIGNUPS` variable only takes effect together with `UI_CONFIG_DISABLED=true`, which would move every other setting to the environment, so the admin UI setting is the control.
+5. Create the DNS-only public record and test with `curl --resolve <pocket-id-host>:443:<TRAEFIK_PUBLIC_IP> https://<pocket-id-host>/.well-known/openid-configuration` from a LAN device other than the NAS.
+
 ## Rollback
 
 1. Remove the UniFi WAN 443 forward.
 2. Flip the affected public DNS record(s) back to their previous (Cloudflare Tunnel) target.
-3. Optionally stop the `traefik-public` stack. Stopping keeps the `public-apps` network, so Immich keeps starting.
+3. Optionally stop the `traefik-public` stack. Stopping keeps the `public-apps` and `public-pocket-id` networks, so Immich and Pocket-ID keep starting.
 
-To delete the stack entirely, first revert the `public-apps` network entries in `../immich/docker-compose.yml` and redeploy Immich; otherwise the network cannot be removed while Immich is attached and Immich cannot start without it.
+To delete the stack entirely, first revert the `public-apps` network entries in `../immich/docker-compose.yml` and the `public-pocket-id` entries in `../pocket-id/docker-compose.yml` and redeploy both; otherwise the networks cannot be removed while attached and those stacks cannot start without them. To withdraw only Pocket-ID, flip its DNS record back, remove the network entries from the pocket-id stack and redeploy it, then remove the router and network from this stack.
 
 ## Operating rules
 
 - **Never add `TRAEFIK_PUBLIC_IP` to `MACVLAN_ATTACHED_IPS` in `../macvlan-host-shim/`.** That list creates host-side routes to the listed macvlan IPs and would remove the host/macvlan isolation this stack relies on, giving a compromised proxy a path to the NAS host.
 - **Remove the `public-test` router** (and `PUBLIC_TEST_SUBDOMAIN`) from the init command once the Immich cutover is verified.
-- **One dedicated backend network per backend.** `public-apps` is Immich's. For each additional public service, create its own `internal: true` network, declare it external in that service's stack and add it to this stack's `traefik-public` networks. Never put several backends on one shared network.
+- **One dedicated backend network per backend.** `public-apps` is Immich's and `public-pocket-id` is Pocket-ID's. For each additional public service, create its own `internal: true` network in this stack with an explicit subnet outside Docker's default address pools (those pools are nearly exhausted, and an explicit subnet cannot collide with an auto-allocated one), declare it external in that service's stack and add it to the `traefik-public` service's networks. Never put several backends on one shared network.
 - **Adding a public service:** add a router (and a service block if the backend differs) to the heredoc in `traefik-public-init`'s command, attach the backend as above, and create the DNS-only record. Each new hostname requests its own certificate.
 
 ## Planned hardening
