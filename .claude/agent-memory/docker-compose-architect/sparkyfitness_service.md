@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. The frontend is no longer on `cloudflare_web_network` and there is no Cloudflare Tunnel target; the frontend carries a private router and a `-tailnet` router on `traefik-proxy` (db and server stay on the stack's default network; a per-stack `sparkyfitness-backend` network with an explicit /28 has not been added). Image pins, volumes and the healthcheck reasoning remain accurate.**
+
 Added `sparkyfitness/docker-compose.yml`: sparkyfitness-db (postgres:18.3-alpine),
 sparkyfitness-server (codewithcj/sparkyfitness_server:v0.17.3), sparkyfitness-frontend
 (codewithcj/sparkyfitness:v0.17.3). Fresh deploy, no data migration.

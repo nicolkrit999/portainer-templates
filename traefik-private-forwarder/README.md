@@ -1,14 +1,14 @@
 # traefik-private-forwarder
 
-TCP-passthrough sidecar so private-tier Traefik access works at a clean `hostname:443` URL on the LAN - no port number to remember, no changes to Traefik's own container.
+TCP-passthrough sidecar so private-tier Traefik access works at a clean `hostname:443` URL on the LAN - no port number to remember, no changes to Traefik's own container. `../dnsmasq/` answers every `*.${DOMAIN}` name with this sidecar's IP (`${TRAEFIK_PRIVATE_IP}`, called `DNS_PRIVATE_IP` there), so at home every service name reaches it.
 
 ## What it does
 
 A `socat` TCP-LISTEN on port 443, forwarding raw bytes to `traefik:${TRAEFIK_PORT_3}` (Traefik's private entrypoint, container-internal only). Pure SNI-passthrough - it does not terminate, inspect, or touch the TLS handshake in any way; all TLS/cert work still happens on Traefik's end exactly as it does for every other entrypoint.
 
-Gets its own dedicated **macvlan** LAN IP (`${TRAEFIK_PRIVATE_IP}`) rather than giving Traefik's own container a second IP bind - a wildcard bind (family entrypoint) and a specific-IP bind can't coexist in the same network namespace, confirmed risk, deliberately avoided.
+Gets its own dedicated **macvlan** LAN IP (`${TRAEFIK_PRIVATE_IP}`) rather than giving Traefik's own container a second IP bind - a wildcard bind and a specific-IP bind can't coexist in the same network namespace, confirmed risk, deliberately avoided (Traefik itself only publishes the `private` entrypoint's port and the port-80 redirect).
 
-Deliberately not attached to `cloudflare-web` (LAN-only, not tunnel-reachable) and has no Traefik router labels of its own - it's infrastructure that exposes an IP, not a routed application; Traefik on the other end already owns routing/TLS for whatever it forwards to.
+Deliberately LAN-only (no tunnel, no public path - public traffic goes through `../traefik-public/` instead) and has no Traefik router labels of its own - it's infrastructure that exposes an IP, not a routed application; Traefik on the other end already owns routing/TLS for whatever it forwards to.
 
 ## The tailnet equivalent
 

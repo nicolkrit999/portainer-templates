@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: the 'Cloudflare tunnel caveat' below is moot: the tunnel and `cloudflare-web` were deleted, so there is no tunnel path to an app any more.**
+
 Edits made 2026-11-03 (uncommitted at the time, nothing deployed); per-service detail lives in the private notes folder `/home/krit/momentary/proxy-research/findings/`.
 
 - **OpenCloud (8.0.1 kept, 9.0.0 = separate user-approved upgrade):** the app's own proxy sends CSP (`frame-ancestors 'self'`), `X-Frame-Options: SAMEORIGIN`, referrer policy etc., so `traefik-public`'s global `frameDeny` must not apply to it. `PROXY_ENABLE_BASIC_AUTH` is upstream "tests/dev only"; WebDAV clients that cannot do OIDC use per-user app tokens (`auth-app`, on by default) as the Basic password, desktop/mobile apps use OIDC client ids registered in the built-in IdP. The repo's `csp.yaml` is MERGED into the upstream default (additive), it does not replace it. The init container's `chown -R` over ~212k already-correct entries was replaced by `find ! -user/-group -exec chown -h` with `cap_drop ALL` + CHOWN + DAC_OVERRIDE (DAC_OVERRIDE needed: dirs are 700/755 owned by the app uid).

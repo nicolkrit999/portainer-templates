@@ -1,60 +1,32 @@
 ---
-description: Networking, hostnames, and Cloudflare Tunnel conventions for compose files.
+description: Networking, hostnames, Traefik routers and access-path conventions for compose files.
 paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 ---
 
-# Networking & Cloudflare Tunnel
+# Networking
+
+Current model (2026-11-03): no Cloudflare Tunnel, no `cloudflare-web` network, no
+family/guest/friends tiers, no SAN-bundle certificate groups. Three access paths
+exist (LAN, tailnet, public); the mechanism is in `.claude/rules/core-infra-topology.md`.
+A service compose only deals with the first two, via two Traefik routers.
 
 ## Hostname convention
-Unless the user specifies otherwise, a service's public hostname is
+Unless the user specifies otherwise, a service's hostname is
 `<service-name>.${DOMAIN}`, using dashes for multi-word names
 (`n8n.${DOMAIN}`, `uptime-kuma.${DOMAIN}`, `actual-budget.${DOMAIN}`).
 Use this default for `N8N_HOST`, `WEBHOOK_URL`, and any hostname/URL env vars -
 never hardcode a real domain in a committed compose file. The actual domain
 lives in `.env` / Portainer stack env (this instance: `DOMAIN=nicolkrit.ch` in
-`.env.example`).
-
-## Cloudflare Tunnel network
-**Default: every user-facing application service is attached to the Cloudflare
-Tunnel.** Do not ask, do not skip - if in doubt, use Cloudflare. Only omit it
-when the user explicitly says a service is internal-only, or when the service is
-a backing dependency (database, cache, message broker, migration job) that must
-never be publicly reachable.
-
-Services on the Cloudflare Tunnel need this exact configuration.
-
-Top-level networks block (always at the end of the file):
-```yaml
-networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
-```
-
-Per-service reference:
-```yaml
-networks:
-  - cloudflare_web_network
-```
-
-- Network key is always `cloudflare_web_network`; the Docker network name is
-  always `cloudflare-web`; always `external: true`.
-- Internal-only services (databases, caches) do **not** need this network - use
-  the default bridge or a named internal network.
-- A service with both internal deps and external access includes both networks.
+`.env.example`). Every hostname resolves through the wildcard in `dnsmasq` (LAN)
+and `dnsmasq-tailnet` (tailnet), so there is **no DNS step per service**.
 
 ## Traefik reverse-proxy network
-**Default: every user-facing application service is ALSO attached to the
-Traefik network, with a router on the `private` tier only, in addition to
-`cloudflare_web_network` above - not instead of it.** Both networks are
-default-on together; this is additive, not a choice between the two. Only
-ask the user whether to add further tiers (`family`/`guest`/`friends`) -
-never ask whether to add Traefik-private access at all, and never skip it
-for the same categories of service that skip Cloudflare (internal-only
-backing dependencies).
+**Every user-facing application service joins the shared `traefik-proxy`
+network and gets exactly two routers, no confirmation needed.** Backing
+dependencies (databases, caches, brokers, migration jobs) do not join it.
 
-Top-level networks block addition (`external: true` in every service's own
-compose - only `traefik/docker-compose.yml` itself creates the network):
+Top-level networks block (`external: true` in every service's own compose -
+only `traefik/docker-compose.yml` itself creates the network):
 ```yaml
 networks:
   traefik_proxy_network:
@@ -68,102 +40,89 @@ networks:
   - traefik_proxy_network
 ```
 
-Default label set (private-only - `<service>` is the compose service name,
-`<port>` its internal listening port):
+A stack with databases or helpers also gets ONE per-stack backend network
+(`<stack>-backend`): `internal: true` unless a member needs egress or published
+ports (Docker skips port publishing for internal-only containers), an explicit
+/28 `subnet` with `gateway` `.1` and `ip_range` `.8/29`, all three as
+env-overridable defaults (`${<STACK>_BACKEND_SUBNET:-172.16.x.0/28}`). Docker's
+default address pools on this NAS are nearly exhausted, so the /28 is allocated
+from the registry at `/home/krit/momentary/proxy-research/findings/subnets.md`
+(outside the repo; add the new row there before editing the compose). Never
+define an `ipam:` block on `traefik-proxy` itself (see `traefik/README.md`).
+
+Label set (`<service>` is the compose service name, `<port>` its internal
+listening port):
 ```yaml
 labels:
   traefik.enable: "true"
-  traefik.http.routers.<service>.rule: "Host(`${<SERVICE>_SUBDOMAIN}.${DOMAIN}`)"
-  traefik.http.routers.<service>.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
-  traefik.http.routers.<service>.tls: "true"
-  traefik.http.routers.<service>.tls.certresolver: "cf_dns"
-  traefik.http.routers.<service>.service: "<service>"
-  traefik.http.services.<service>.loadbalancer.server.port: "<port>"
-  traefik.docker.network: "traefik-proxy"
-```
-
-**⚠️ `tls.certresolver` must be set explicitly on the router, every time -
-this is a confirmed live bug, not a style preference.** Once a router sets
-its own `tls: "true"`, it overrides the entrypoint's `tls.certresolver`
-default entirely (confirmed against Traefik's own community docs and a real
-production incident on this instance, 2026-08-21). Omitting the router-level
-`tls.certresolver` label produces **no error and no crash** - Traefik just
-silently falls back to serving its self-signed `TRAEFIK DEFAULT CERT`
-forever. Verify by checking the certificate issuer after any change, not by
-absence of errors in the logs.
-
-**`${<SERVICE>_SUBDOMAIN}` naming:** always a dedicated `${VAR}` (e.g.
-`ACTUAL_BUDGET_SUBDOMAIN`), never a hardcoded literal in the router rule -
-this repo is public and even the service-specific hostname segment counts as
-an opinionated value. Default the variable's *value* to the service's
-directory name, **except** when a legacy Cloudflare hostname already exists
-for that service and differs from it - ask the user to confirm before
-assuming. Known overrides so far: `actual-budget`→`budget`, `immich`→`foto`,
-`homehub`→`casa`, `mealie`→`ricette`, `surmai`→`viaggi`,
-`mini-qr`→`miniqr`, `omni-tools`→`omnitools`,
-`easy-appointments`→`appuntamenti`, `ghost`→`blog`, `vikunja`→`promemoria`.
-
-**Entrypoint variables - generically numbered on purpose, never named after
-their tier** (this repo is public; even a var *name* like
-`TRAEFIK_ENTRYPOINT_FAMILY` would leak this household's trust-tier
-vocabulary - only the *value* should describe the tier, per an explicit
-household-member decision, 2026-08-21):
-
-| Variable | Meaning this instance | Port var | Port |
-|---|---|---|---|
-| `TRAEFIK_ENTRYPOINT_3` | private tier (`asDefault`), LAN only via `traefik-private-forwarder` | `TRAEFIK_PORT_3` | 8444 |
-| `TRAEFIK_ENTRYPOINT_6` | internal, ping/dashboard-API only, no host port | `TRAEFIK_PORT_6` | 8080 |
-| `TRAEFIK_ENTRYPOINT_7` | tailnet-admin - admin-gated, no host port (see below) | `TRAEFIK_PORT_7` | 8446 |
-
-Numbers 1, 2, 4 and 5 are retired (the family, guest, friends and `cloudflared`
-tiers were removed 2026-11-03); the other numbers were kept so no stack's
-variables had to change. Public access does not use this Traefik at all: it
-goes through `traefik-public` (see `traefik-public/README.md`).
-
-**Every service gets exactly two routers, and no confirmation is needed:**
-`<service>-private` on `${TRAEFIK_ENTRYPOINT_3}` and `<service>-tailnet` on
-`${TRAEFIK_ENTRYPOINT_7}`. The LAN wildcard in `dnsmasq` points every
-hostname at the private tier and the tailnet wildcard in `dnsmasq-tailnet`
-points every hostname at the tailnet-admin gateway, so a hostname without
-both routers answers Traefik's own 404 on that path. If a service must also
-be public, that is a router in `traefik-public/docker-compose.yml`, not a
-label here. Never use a single router with a comma-separated `entrypoints`
-value (Traefik GitHub issue #11889).
-
-## Tailnet-admin clean-URL router (default, additive on top of `private`)
-
-**Every service gets a second router on
-`${TRAEFIK_ENTRYPOINT_7}` (`tailnet-admin`) by default, no confirmation
-needed** - this became standard for all 53+ private-tier services in
-2026-08-23's rollout (GitHub PR #2) and applies to every new one going
-forward. It gives admin-allowlisted Tailscale devices a clean, port-free
-URL (same hostname as the private router) instead of having to append the
-private tier's host port. Add this block alongside the private router,
-same `Host()` rule, same service name:
-
-```yaml
-labels:
+  traefik.http.routers.<service>-private.rule: "Host(`${<SERVICE>_SUBDOMAIN}.${DOMAIN}`)"
+  traefik.http.routers.<service>-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+  traefik.http.routers.<service>-private.tls: "true"
+  traefik.http.routers.<service>-private.service: "<service>"
+  traefik.http.routers.<service>-private.middlewares: "hsts-headers@docker"
   traefik.http.routers.<service>-tailnet.rule: "Host(`${<SERVICE>_SUBDOMAIN}.${DOMAIN}`)"
   traefik.http.routers.<service>-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
   traefik.http.routers.<service>-tailnet.tls: "true"
   traefik.http.routers.<service>-tailnet.service: "<service>"
   traefik.http.routers.<service>-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
+  traefik.http.services.<service>.loadbalancer.server.port: "<port>"
+  traefik.docker.network: "traefik-proxy"
 ```
 
-No `tls.certresolver`/`tls.domains` on this router - it shares the same
-backing service as the private router, so it rides on whatever cert that
-hostname already gets via its SAN-bundle group (Rule 8 elsewhere in this
-file's sibling docs), it doesn't request its own. `tailnet-admin-only@docker`
-is the shared ipallowlist middleware, already defined once on the `traefik`
-service itself - always list it **after** `hsts-headers@docker` (middleware
-chains short-circuit, and HSTS should still apply even on a rejected
-request). Full mechanism (why this needs a dedicated entrypoint + a second
-Tailscale identity + PROXY protocol, not just a plain Tailscale IP bind) is
-in `.claude/rules/core-infra-topology.md` - read it before touching any of
-the stacks that implement this path (`tailscale-admin_traefik-tailnet-forwarder`
-- one merged stack since 2026-09-08, was two separate ones before -
-and `dnsmasq-tailnet`), though adding this router
-block to an ordinary new service needs none of that caution.
+- **Bare `tls: "true"` on both routers - no `tls.certresolver`, no `tls.domains`.**
+  One wildcard certificate (`${DOMAIN}` + `*.${DOMAIN}`) is requested by the single
+  router `traefik-dashboard` in `traefik/docker-compose.yml`, the only router
+  allowed to carry those labels; every other router is served that certificate by
+  SNI. A router with its own `certresolver` would request its own certificate and
+  race the wildcard. Verify a new hostname by checking the served certificate's
+  issuer/SAN, not by absence of log errors (a missing certificate silently falls
+  back to Traefik's self-signed default).
+- **`hsts-headers@docker` on every router, listed first** in `middlewares`
+  (chains short-circuit, so a rejecting middleware listed before it would drop the
+  HSTS header on 401/403). `tailnet-admin-only@docker` is the shared ipallowlist
+  middleware defined on the `traefik` service (owner device IPs only); it goes
+  after HSTS.
+- **Never two entrypoints on one router** (comma-separated `entrypoints`; Traefik
+  GitHub issue #11889) - hence the separate `-tailnet` router.
+- **Both routers are required.** The LAN wildcard sends every hostname to the
+  private tier and the tailnet wildcard sends every hostname to the tailnet-admin
+  gateway, so a hostname missing either router answers Traefik's own 404 on that path.
+- **`${<SERVICE>_SUBDOMAIN}`**: always a dedicated `${VAR}` (e.g.
+  `ACTUAL_BUDGET_SUBDOMAIN`), never a hardcoded literal in the router rule - this
+  repo is public and even the hostname segment counts as an opinionated value.
+  Default its *value* to the service's directory name, **except** when an
+  established hostname already differs from it (ask the user to confirm before
+  assuming). Known overrides: `actual-budget`→`budget`, `immich`→`foto`,
+  `homehub`→`casa`, `mealie`→`ricette`, `surmai`→`viaggi`, `mini-qr`→`miniqr`,
+  `omni-tools`→`omnitools`, `easy-appointments`→`appuntamenti`, `ghost`→`blog`,
+  `vikunja`→`promemoria`.
+- **`.env.example` and the Portainer env contain only variables the compose
+  actually references** - drop a variable when the label or setting that used it goes.
+
+**Entrypoint variables - generically numbered on purpose, never named after
+their tier** (this repo is public; even a var *name* like
+`TRAEFIK_ENTRYPOINT_FAMILY` would leak this household's trust-tier vocabulary -
+only the *value* should describe the tier):
+
+| Variable | Meaning this instance | Port var | Port |
+|---|---|---|---|
+| `TRAEFIK_ENTRYPOINT_3` | private (`asDefault`), LAN via `traefik-private-forwarder` | `TRAEFIK_PORT_3` | 8444 |
+| `TRAEFIK_ENTRYPOINT_6` | internal, ping/dashboard-API only, no host port | `TRAEFIK_PORT_6` | 8080 |
+| `TRAEFIK_ENTRYPOINT_7` | tailnet-admin - owner devices only, no host port | `TRAEFIK_PORT_7` | 8446 |
+
+Numbers 1, 2, 4 and 5 are retired (family, guest, friends and `cloudflared` were
+removed 2026-11-03); the other numbers were kept so no stack's variables had to
+change. Do not reintroduce them.
+
+## Making a service public
+Public access never goes through the core Traefik. It is a router, a service and
+a per-app `public-<app>` network added to `traefik-public/docker-compose.yml`,
+plus a DNS-only CNAME for the hostname in Cloudflare (Cloudflare is DNS hosting
+only; it is not proxying or tunnelling anything), following
+`traefik-public/README.md` step by step. The app's own compose then also joins
+its external `public-<app>` network (created by the `traefik-public` stack, which
+must be deployed first) and keeps its two ordinary routers above, so the same
+hostname still works on the LAN and the tailnet. Only do this when the user asks.
 
 ## Host references (NAS)
 Never hardcode host IPs in a committed compose file - reference them as
@@ -236,14 +195,20 @@ Docker network, not a published host port.
 ## Direct LAN/Tailscale port (bypassing Traefik entirely) - opt-in only
 
 A small, explicit set of bandwidth-heavy or large-upload services
-(`jellyfin`, `plex`, `navidrome`, `gitea`, `duplicati`, `convertx`,
-`filebrowser`, `stirling-pdf`, `audiobookshelf` as of 2026-08-23) also
-publish a plain HTTP host port so they can be reached directly over LAN or
-Tailscale without going through Traefik's TLS termination at all - useful
-when Cloudflare's ~100MB upload limit or Traefik's overhead is a real
-problem for that specific service, and only for services that already
-have their own login (this bypasses HSTS/TLS and, for tailnet-admin
-services, the ipallowlist middleware too). **This is not a default** - only
+(`jellyfin`, `navidrome`, `gitea`, `duplicati`, `convertx`, `filebrowser`,
+`stirling-pdf` as of 2026-08-23; UNVERIFIED which of these still publish one,
+check the compose or `.claude/rules/service-directory.md`) also publish a
+plain HTTP host port so they can be reached directly over LAN or Tailscale
+without going through Traefik's TLS termination at all - useful when
+Traefik's overhead is a real problem for that specific service, and only
+for services that already have their own login (this bypasses HSTS/TLS and,
+for tailnet-admin services, the ipallowlist middleware too). Non-HTTP
+services follow the same logic: Git over SSH is published on the NAS as
+host port 2222 (private only; `gitea-ssh.${DOMAIN}` is the one hostname the
+DNS wildcards answer with the NAS's own address, and the gateway never
+forwards it). Any published host port is reachable by every device that can
+reach the NAS and bypasses Traefik entirely, so add one only deliberately.
+**This is not a default** - only
 add a host-port publish when the user explicitly asks for LAN-speed direct
 access for a specific service, bind to `0.0.0.0` (not `127.0.0.1` - see
 above, the old race this used to guard against no longer applies), and
@@ -251,20 +216,3 @@ record the chosen port in `.claude/rules/service-directory.md`'s port table
 first to avoid colliding with another service's already-published port -
 duplicate host-port bindings fail silently late (the losing container just
 won't start) rather than at compose lint time.
-
-## Cloudflare connector handoff
-After writing/modifying any compose attached to `cloudflare_web_network`, state
-the exact connector target for the Tunnel public-hostname config:
-
-> Cloudflare Tunnel target: `http://<container_name_or_service>:<internal_port>`
-
-Use the service/`container_name` as host (it resolves inside the `cloudflare-web`
-network) and the **internal** port (tunneled services don't publish ports).
-
-**Exception - services NOT on `cloudflare_web_network`** (reached on the host,
-e.g. Portainer itself, or composes that only expose ports to localhost):
-
-> Cloudflare Tunnel target: `http://host.docker.internal:<host_port>`
-
-Use the host-mapped port from `ports:`, not the internal container port. Example:
-a web UI published on host port 9443 → `https://host.docker.internal:9443`.

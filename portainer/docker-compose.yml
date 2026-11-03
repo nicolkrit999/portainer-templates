@@ -1,3 +1,5 @@
+# Reference copy only: Portainer is not a git-tracked stack here (it runs as a standalone
+# container created from UGOS's compose UI), so edits to this file do not reach it by themselves.
 services:
   portainer:
     image: portainer/portainer-ce:latest
@@ -29,23 +31,6 @@ services:
       traefik.http.routers.portainer-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.portainer.loadbalancer.server.port: "9000"
       traefik.docker.network: "traefik-proxy"
-      # --- SAN-bundle (group "infra-ops") - this service is now a MEMBER,
-      # not the anchor. The anchor role moved to `glances` (see
-      # glances/docker-compose.yml) because glances is the more disposable
-      # service to carry ACME-renewal responsibility for the group, leaving
-      # this router as a bare `tls: "true"` like every other non-anchor
-      # router in the group - no `tls.certresolver`/`tls.domains` here.
-      # Part of a 6-group SAN-bundle rollout to stay under Let's Encrypt's
-      # weekly rate limit (50 certs/168h per domain), which this repo hit
-      # from requesting a near-separate certificate per Traefik router
-      # across ~77 hostnames. Traefik's cert store is keyed globally by
-      # hostname, so this router picks up the anchor's bundled cert
-      # automatically via SNI - no label changes needed here beyond bare
-      # `tls: "true"`.
-      # ⚠️ When copy-pasting these labels into UGOS's manual compose UI
-      # (Portainer isn't a git-tracked stack here, so this file is
-      # reference-only), copy carefully - this file no longer carries the
-      # cert-request labels at all, only the routing/TLS-selection ones.
     networks:
       - traefik_proxy_network
 

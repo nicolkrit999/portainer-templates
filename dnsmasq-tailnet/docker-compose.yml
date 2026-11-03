@@ -31,8 +31,8 @@ services:
       # the NAS itself, so this one name resolves to the NAS's own tailnet IP.
       - "--address=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/${TAILNET_IP}"
       - "--log-facility=-"
-      # Per-query logging, added 2026-08-23 during the family/friends ACL
-      # rollout to diagnose a remote tailnet client's DNS queries never
+      # Per-query logging, added 2026-08-23 during the 2026-08 tailnet ACL
+      # rollout (the family/friends tiers were retired 2026-11-03) to diagnose a remote tailnet client's DNS queries never
       # reaching this interface at all (tcpdump on tailscale0 showed zero
       # packets). Kept on permanently rather than toggled per-incident -
       # it's one line per query per tailnet client, acceptable at this

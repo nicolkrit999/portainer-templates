@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. `cloudflare_web_network` and the Cloudflare Tunnel connector target (`http://portainer:9000`) no longer exist, and the SAN-group anchor role of this stack ended (the `infra-ops` group is gone; its `*_SUBDOMAIN` variables are obsolete env). Portainer is reached via its `-private` / `-tailnet` routers. The migrated-from-docker-run, live `/data` path, `restart: always` and docker.sock facts remain accurate.**
+
 ## portainer/docker-compose.yml (added 2026-08-21)
 
 Migrated from a bare `docker run` deployment on the NAS (HIGH-STAKES: this

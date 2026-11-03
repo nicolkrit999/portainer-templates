@@ -12,7 +12,7 @@
 | `phpmyadmin` | `phpmyadmin:5.2.3-apache` | backend, `traefik-proxy` | Private/tailnet only. |
 | `swagger-ui` | built from `swagger-ui/` (v5.34.1, API spec of 1.6.1 baked in) | `traefik-proxy` | Private/tailnet only. |
 
-`easy-appointments-backend` (`internal: true`, `${EASY_APPOINTMENTS_BACKEND_SUBNET}`) carries all nginx/php-fpm/MySQL/phpMyAdmin traffic. php-fpm additionally sits on the stack's default network because it sends mail through an external SMTP server (`application/config/email.php`) and loads the about-page news feed. No service publishes a host port and none is on `cloudflare-web`.
+`easy-appointments-backend` (`internal: true`, `${EASY_APPOINTMENTS_BACKEND_SUBNET}`) carries all nginx/php-fpm/MySQL/phpMyAdmin traffic. php-fpm additionally sits on the stack's default network because it sends mail through an external SMTP server (`application/config/email.php`) and loads the about-page news feed. No service publishes a host port; the only ways in are the Traefik routers (private and tailnet) and `../traefik-public/` for the booking site.
 
 The public path needs, in `../traefik-public/`: the network `public-easy-appointments` (`internal: true`, subnet `172.16.88.0/28`, proxy at `.2`) and a router `Host(`${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN}`)` to `http://easy-appointments-nginx:80`.
 
@@ -72,7 +72,7 @@ Later updates are the same three moves: back up, replace the contents of `easyap
 - **CAPTCHA**: Settings > Booking settings > CAPTCHA (covers booking, login and recovery). ALTCHA (proof of work, no third party) is under Settings > Integrations.
 - **Login throttling**: five failed logins from one address in five minutes must answer HTTP 429 ("Too many login attempts"). Test it from a device on the public path, then confirm a different address is not blocked at the same time (this proves `PROXY_IPS` works).
 - **SMTP**: send a test booking and check the confirmation mail arrives.
-- Optional hardening on the public router (in `../traefik-public/`): the REST API answers on both `/index.php/api/` and `/api/`; block both prefixes there unless an external integration needs them from the internet. The proxy's global `frameDeny` header also stops the booking page from being embedded in another site.
+- Public router hardening (already in `../traefik-public/`): the REST API answers on both `/index.php/api/` and `/api/`; the public router excludes both prefixes (see that README for the query-string limit). The proxy's `frameDeny` header also stops the booking page from being embedded in another site.
 
 ## Database: MySQL 8.0 to 8.4 LTS (not done, your decision)
 

@@ -155,7 +155,7 @@ headless Chromium (a fresh browser per attempt, nothing persisted):
   written to disk, and the three secrets are removed from the process environment right after start
   (`os.environ`) and the process is made non-dumpable (`PR_SET_DUMPABLE=0`) so the same-uid Chromium
   processes cannot read them back from `/proc/1/environ` or `/proc/1/mem`.
-- Separate container: no `/data`, not on the `cloudflare-web` network (own default network), no ports,
+- Separate container: no `/data`, not on the `traefik-proxy` network (own default network), no ports,
   read-only filesystem (tmpfs `/tmp` for the browser profile), all capabilities dropped except those
   needed to chown `/auth` and drop privileges, `no-new-privileges`, runs as `PUID`/`PGID`,
   `mem_limit: 768m` (Chromium can balloon). The two containers share only

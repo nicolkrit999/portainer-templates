@@ -1,35 +1,32 @@
 ---
-description: How the core/setup infrastructure stacks (Traefik, both forwarders, both Tailscale nodes, both dnsmasq instances, Cloudflare Tunnel) fit together. Read this fully before modifying any of these specific stacks - they are not ordinary application services.
+description: How the core/setup infrastructure stacks (Traefik, traefik-public, both forwarders, both Tailscale nodes, both dnsmasq instances) fit together. Read this fully before modifying any of these specific stacks - they are not ordinary application services.
 paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 ---
 
-> **OBSOLETE PARTS (2026-11-03), rewrite pending:** the family, guest, friends and
-> `cloudflared` entrypoints (1, 2, 4, 5), the Cloudflare Tunnel section and every statement
-> that tailnet names fall through to the family tier are no longer true. Current model: LAN
-> names go to the private tier (entrypoint 3) via `traefik-private-forwarder`, tailnet names
-> go to the tailnet-admin gateway (entrypoint 7), public access is `traefik-public`. See
-> `.claude/rules/networking.md` and `traefik/README.md` for the up-to-date tables.
-
 # Core infrastructure topology
+
+Current model (rewritten 2026-11-03, after the Cloudflare Tunnel, the
+family/guest/friends tiers and the SAN-bundle certificate groups were
+retired). Exactly three access paths exist: **LAN** (owner at home →
+`dnsmasq` → `traefik-private-forwarder` → Traefik entrypoint 3),
+**tailnet** (owner away → `dnsmasq-tailnet` → the tailnet-admin gateway →
+Traefik entrypoint 7) and **public** (strangers, a short hostname list →
+UniFi WAN TCP 443 forward → `traefik-public`, never the core Traefik).
 
 ## Two different kinds of edit to these files - only one needs extra caution
 
-**Routine, well-defined per-service list additions are expected, ordinary
-maintenance of these files, not what the caution below is about.** Adding
-one line to `dnsmasq`/`dnsmasq-tailnet`'s existing per-hostname override
-list for a new service (see `adding-compose-services`), or adding a
-hostname to the `sans` list on an existing SAN-bundle anchor router (see
-`.claude/rules/san-cert-groups.md`) - even when that anchor happens to live
-in a core stack's directory, which it normally doesn't - are exactly the
-kind of change these files are designed to keep accepting. Do these
-routinely, without extra ceremony, as part of the normal service-adding
-workflow.
+**Routine, well-defined additions are ordinary maintenance, not what the
+caution below is about.** A new service needs **no** DNS step (both
+dnsmasq instances are wildcard-only) and **no** certificate step (one
+wildcard certificate, see the `traefik` entry below). Making a service
+public is an additive router/service/network in `traefik-public/` following
+its own `README.md`, not a structural change to the core Traefik.
 
 **What genuinely needs the caution below**: anything touching a core
 stack's own structure - `network_mode`, image, core `command`/CLI flags,
 entrypoint definitions, port publishing, capability/security settings, or
-anything that isn't a simple additive entry to an established per-service
-list. That class of change is what caused real repo-wide outages before.
+the DNS wildcard/override lines. That class of change is what caused real
+repo-wide outages before.
 
 ## Rule: never modify a core/setup compose's structure without reading this file first
 
@@ -40,11 +37,11 @@ config change here has caused a full outage of every Traefik-routed
 service at least twice, and a THIRD incident, 2026-09-08, was caused by
 `tailscale-admin` and `traefik-tailnet-forwarder` being separate stacks in
 the first place - see that pair's note below). Before editing `traefik/`,
-`traefik-private-forwarder/`, `tailscale-admin_traefik-tailnet-forwarder/`,
-`tailscale/`, `dnsmasq/`, `dnsmasq-tailnet/`, or `cloudflared/`, read this
-file completely and understand which OTHER stacks the change could affect -
-these six are tightly coupled, and a change that looks local to one file
-often isn't.
+`traefik-public/`, `traefik-private-forwarder/`,
+`tailscale-admin_traefik-tailnet-forwarder/`, `tailscale/`, `dnsmasq/`, or
+`dnsmasq-tailnet/`, read this file completely and understand which OTHER
+stacks the change could affect - these are tightly coupled, and a change
+that looks local to one file often isn't.
 
 Ordinary application services (everything else in this repo) do not need
 this level of caution - this file is specifically about the shared
@@ -53,14 +50,37 @@ infrastructure layer.
 ## What each stack's job is
 
 **`traefik`** - the only stack that owns HTTP(S) routing, TLS certificates,
-and per-service access rules (Cloudflare tier, family/guest/friends/private
-tier routers, the tailnet-admin ipallowlist middleware). Everything else in
-this list exists purely to get the right traffic to Traefik's front door
-with the right source IP intact - none of the other stacks change Traefik's
-actual routing/TLS logic. Listens on host-published ports 80 (redirect
-only), family/guest/private/friends tiers, plus internal-only entrypoints
-(cloudflared-facing, dashboard-API/ping, tailnet-admin) never published to
-any host port.
+and per-service access rules for the private and tailnet paths (the
+tailnet-admin ipallowlist middleware lives here). Everything else in this
+list exists purely to get the right traffic to a Traefik front door with
+the right source IP intact. Entrypoints (numbering kept on purpose after
+1, 2, 4 and 5 were retired): `3` private (`asDefault`, port 8444, the only
+one besides 80 that is host-published, though the forwarder reaches it over
+`traefik-proxy`, not via the host port), `6`
+internal ping/dashboard-API (8080, no host port), `7` tailnet-admin (8446,
+no host port, PROXY protocol, reached only via the tailnet forwarder);
+plus plain `:80` as a redirect to https only. Variables:
+`TRAEFIK_ENTRYPOINT_3/6/7`, `TRAEFIK_PORT_3/6/7`. **One wildcard
+certificate** (`${DOMAIN}` + `*.${DOMAIN}`, DNS-01 via Cloudflare DNS, token
+`CF_DNS_API_TOKEN`) is requested by the single router `traefik-dashboard`,
+the only router allowed to carry `tls.certresolver`/`tls.domains`; every
+other router has a bare `tls: "true"` and is served that certificate by SNI
+(a second router carrying its own certresolver would race and request its
+own certificate). The same two certresolver/domains settings sit on
+entrypoints 3 and 7 as defaults.
+
+**`traefik-public`** - a second, separate Traefik instance for the few
+hostnames strangers may reach. Own macvlan LAN IP (joined to the same
+macvlan network as the private forwarder), TCP 443 only, no host ports,
+file provider only (no Docker socket, no dashboard). UniFi forwards WAN
+TCP 443 to it, with UniFi Region Blocking (Incoming, Allow CH+IT) in
+front. Per-app internal networks `public-<app>`, an egress guard,
+per-hostname DNS-01 certificates (resolver `cf_dns_public`, token
+`CF_DNS_API_TOKEN_PUBLIC`), per-app path rules and rate limits. Public DNS
+for each hostname is a DNS-only (grey cloud) CNAME to the DDNS name that
+tracks the WAN address. The router list, the exact variables and the
+procedure for making an app public live in `traefik-public/README.md`;
+never expose an app publicly through the core Traefik.
 
 **`tailscale`** (the primary/original node, `network_mode: host`) - puts
 this NAS on the household's tailnet, advertises the LAN subnet route so
@@ -70,33 +90,30 @@ device and host-level routing - this is also exactly why nothing else can
 bind a host-published port directly on this node's tailnet IP: host mode
 puts `tailscale0` in the same network namespace as every other
 host-published port on this machine, including Traefik's own wildcard
-bind for the family entrypoint.
+binds (80 and the private entrypoint).
 
-**`dnsmasq`** - LAN-facing DNS. Answers `*.${DOMAIN}` queries from LAN/
-guest/friends devices with the right IP for each tier (family → NAS LAN
-IP, private → the private forwarder's dedicated LAN IP) - a per-hostname
-split, not a universal answer.
+**`dnsmasq`** - LAN-facing DNS, wildcard only: every `*.${DNS_WILDCARD_DOMAIN}`
+name answers `${DNS_PRIVATE_IP}` (the private forwarder's macvlan LAN IP).
+The single exception is `gitea-ssh`, which answers `${DNS_TARGET_IP}` (the
+NAS's own LAN IP) because Git over SSH is not HTTP and is published on the
+NAS directly (host port 2222). No per-service overrides exist any more.
 
-**`dnsmasq-tailnet`** - the Tailscale-facing sibling of the above. Answers
-`*.${DOMAIN}` queries from Tailscale-connected devices. One universal
-wildcard answer (the primary node's tailnet IP) for the whole domain,
-EXCEPT hostnames with a `tailnet-admin` Traefik router, which get a
-more-specific override pointing at the `tailscale-admin` node's IP instead
-(dnsmasq resolves the most-specific match, so this coexists safely with the
-wildcard rule). **In practice this "except" list covers almost every
-service, not a small special-case set** - since `adding-compose-services`
-gives every new private-tier service a `tailnet-admin` router by default,
-virtually every new service needs its hostname added to this override list
-too, or it silently falls through to the wildcard and never reaches
-Traefik's `tailnet-admin` entrypoint correctly (confirmed real bug,
-2026-09-02 - see that skill's DNS step).
+**`dnsmasq-tailnet`** - the Tailscale-facing sibling. Wildcard only: every
+`*.${DNS_WILDCARD_DOMAIN}` name answers `${TAILSCALE_ADMIN_IP}` (the
+tailnet-admin gateway's tailnet IP), and `gitea-ssh` answers `${TAILNET_IP}`
+(the primary node, i.e. the NAS). A hostname without a `-tailnet` router
+therefore answers Traefik's own 404 on this path - every service compose
+carries both routers (`.claude/rules/networking.md`).
 
 **`traefik-private-forwarder`** - a narrow TCP-passthrough sidecar (socat)
 that lets the private tier be reached at a clean `hostname:443` URL from
 the LAN, without giving Traefik's own container a second, conflicting IP
 bind. Solves this via **macvlan**: it gets its own dedicated LAN IP,
 genuinely separate L2 identity from the NAS's own IP, so its 443 bind
-never collides with Traefik's own wildcard bind.
+never collides with Traefik's own wildcard bind. It creates the one live
+macvlan network (`traefik-private-forwarder_traefik_forwarder_net`) that
+`traefik-public` and anything else needing its own LAN IP join as
+`external: true` (see `.claude/rules/networking.md`).
 
 **`tailscale-admin` + `traefik-tailnet-forwarder`** - as of 2026-09-08 these
 are TWO SERVICES IN ONE MERGED STACK
@@ -219,11 +236,7 @@ client IP even though the connection arrives via this forwarder -
 Traefik's `proxyProtocol.trustedIPs` on the tailnet-admin entrypoint only
 trusts PROXY headers from this forwarder's own static IP.
 
-**Cloudflare Tunnel** (`cloudflared`) - the fully independent public-internet
-access path. Untouched by anything above - none of the Tailscale/tailnet-admin
-plumbing affects public/Cloudflare access at all.
-
-## Known structural constraints (the reasons these 6 stacks look the way they do)
+## Known structural constraints (the reasons these stacks look the way they do)
 
 - **A wildcard-bound port and a specific-IP bind on the same port cannot
   coexist in the same network namespace.** This is why the private tier
@@ -239,27 +252,35 @@ plumbing affects public/Cloudflare access at all.
   ipallowlist middleware needed the PROXY-protocol forwarder path at all -
   a router relying on the raw TCP source IP for access control will see a
   rewritten, useless address for any traffic that transits a published
-  port, not the real client IP.
+  port, not the real client IP. (`traefik-public` avoids the problem the
+  other way: it has its own macvlan IP and no published ports, so it sees
+  the real client address directly.)
 - **Macvlan requires a real L2-capable parent interface.** It works for
-  the LAN-facing private forwarder (parent: the NAS's own bridge
-  interface) but cannot be used for anything Tailscale-facing, since
-  `tailscale0` is a TUN device, not a physical/bridge NIC.
+  the LAN-facing private forwarder and `traefik-public` (parent: the NAS's
+  own bridge interface, `bridge0`, see `gotchas/macvlan-parent-bridge0.md`)
+  but cannot be used for anything Tailscale-facing, since `tailscale0` is a
+  TUN device, not a physical/bridge NIC.
+- **The NAS host itself cannot reach a macvlan IP on its own parent
+  interface.** Test the private forwarder and `traefik-public` from another
+  LAN device (or, for public, from outside the LAN), not from the NAS.
 
-## A stopped container looks identical to "no router for this tier"
+## A stopped container looks identical to "no router for this entrypoint"
 
-This repo's Traefik uses only the Docker provider (no file/static
-provider) - every router/service is built from labels on a currently
-running container. **When a container stops, Traefik's Docker provider
-detects this and removes that router/service from its dynamic config
-entirely - it does not keep the router around returning a 502 for a dead
-backend.** This means a genuinely-stopped service and a wrong-tier request
-(e.g. hitting a private-tier-only host's family port) both produce the
-exact same `404` (no router matched) - they are not distinguishable by
-HTTP status code alone. Confirmed 2026-08-23 while designing an
-access-control verification script (see the household's memory
-`family-tier-dns-access-incident` for the debugging session this came out
-of). To tell them apart, check the container's actual running state
-directly (`docker_proxy` `/containers/json`), not the HTTP response.
+The core Traefik uses only the Docker provider (no file/static provider) -
+every router/service is built from labels on a currently running container.
+**When a container stops, Traefik's Docker provider detects this and
+removes that router/service from its dynamic config entirely - it does not
+keep the router around returning a 502 for a dead backend.** This means a
+genuinely-stopped service and a hostname that never had a router on the
+entrypoint being hit (e.g. a service missing its `-tailnet` router,
+reached over the tailnet) both produce the exact same `404` (no router
+matched) - they are not distinguishable by HTTP status code alone.
+Confirmed 2026-08-23 while designing an access-control verification script
+(see the household's memory `family-tier-dns-access-incident` - historical,
+the family tier it describes no longer exists). To tell them apart, check
+the container's actual running state directly (`docker_proxy`
+`/containers/json`), not the HTTP response. (`traefik-public` uses the file
+provider, so its routers do not disappear when a backend stops.)
 
 **A second, distinct ambiguous-404 case, with an actual HTTP-only fix**:
 a real router that matched and routed correctly can still have its
@@ -268,10 +289,10 @@ with nothing served at `/`) - indistinguishable from "no router matched at
 all" by status code alone, same problem as above but for a different
 reason (nothing to do with the container being down). Found 2026-08-23
 while a verification script hit false-positive failures on `budget-api`/
-`budget-ical` (a known-benign case, see `family-tier-dns-access-incident`).
+`budget-ical` (a known-benign case; those hostnames no longer exist).
 **Fix that doesn't need `docker_proxy` access**: check for the
-`Strict-Transport-Security` response header. Every real router in this
-repo has `hsts-headers@docker` in its `middlewares` list (see
+`Strict-Transport-Security` response header. Every real router on the core
+Traefik has `hsts-headers@docker` in its `middlewares` list (see
 `.claude/rules/networking.md`), so that header is only present when a
 router's actual middleware chain ran - Traefik's own internal "no route
 matched" fallback never runs any middleware, so it never has that header,
@@ -280,22 +301,24 @@ that can't query the Docker API to check container state directly.
 
 ## How a request flows, per access path
 
-- **LAN device → a private-tier-only service**: LAN `dnsmasq` → the private
-  forwarder's own macvlan IP → `traefik-private-forwarder` (raw TCP
-  passthrough) → Traefik's private entrypoint → the service.
-- **Any device (LAN or Tailscale) → a family-tier service**: `dnsmasq`/
-  `dnsmasq-tailnet` → the NAS's own IP (LAN or the primary Tailscale
-  node's IP) → Traefik's family entrypoint (wildcard-bound, reached
-  directly, no forwarder involved) → the service.
-- **Admin device via Tailscale → an admin-gated hostname**: `dnsmasq-tailnet`
-  (specific override) → `tailscale-admin`'s IP → `traefik-tailnet-forwarder`
+- **LAN device (owner, at home) → any service**: `dnsmasq` (wildcard) →
+  the private forwarder's own macvlan IP → `traefik-private-forwarder`
+  (raw TCP passthrough) → Traefik's private entrypoint (3) → the service.
+- **Tailscale device (owner, away) → any service**: `dnsmasq-tailnet`
+  (wildcard) → `tailscale-admin`'s IP → `traefik-tailnet-forwarder`
   (bound inside `tailscale-admin`'s namespace) → PROXY-protocol-tagged
-  connection → Traefik's tailnet-admin entrypoint (trusts the forwarder's
-  static IP only) → the ipallowlist middleware (sees the real client IP
-  via the PROXY header) → the service.
-- **Public internet device → a Cloudflare-tunneled service**: Cloudflare
-  Tunnel → `cloudflared` → Traefik's cloudflared entrypoint → the service.
-  Nothing above touches this path.
+  connection → Traefik's tailnet-admin entrypoint (7; trusts the
+  forwarder's static IP only) → the ipallowlist middleware (sees the real
+  client IP via the PROXY header; owner devices only) → the service.
+- **Public internet → one of the public hostnames**: public DNS
+  (DNS-only CNAME to the DDNS name) → WAN TCP 443 → UniFi Region Blocking →
+  UniFi forward → `traefik-public` (macvlan IP) → the per-app `public-<app>`
+  network → the service. The core Traefik is not involved.
+- **Git over SSH (private only)**: `gitea-ssh.<domain>` resolves to the NAS
+  on the LAN (`dnsmasq`) and on the tailnet (`dnsmasq-tailnet`, the primary
+  node's tailnet IP) → published host port 2222 on the NAS → Gitea. Bypasses
+  Traefik entirely; never forwarded by the gateway. Client ssh config needs
+  `Port 2222`.
 
 ## The one-sentence version
 

@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. The dual `traefik_proxy_network` + `cloudflare_web_network` attachment, the Cloudflare Tunnel target and the `media` SAN-bundle membership are obsolete (no tunnel, no `cloudflare-web`, no SAN groups); the sidecar keeps `traefik-proxy` and has the private and `-tailnet` routers (the compose may still carry stale `tls.certresolver` labels as of 2026-11-03). The Tailscale + Mullvad exit-node design remains accurate.**
+
 STALE (2026-09-24, same day): the "replaces qbit-torrent/ entirely, old
 dir deleted" claim below is WRONG - the user restored `qbit-torrent/` as a
 deliberate rollback reference (not deployed) and had BOTH directories

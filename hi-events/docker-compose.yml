@@ -152,11 +152,6 @@ services:
       - public_hi_events_network
     labels:
       traefik.enable: "true"
-      # SAN-bundle group "productivity-creative", anchored by
-      # linkwarden/docker-compose.yml. All four routers below get bare
-      # tls: "true" with NO certresolver/tls.domains of their own - the
-      # anchor's router requests one multi-SAN cert covering this hostname
-      # too. See .claude/rules/san-cert-groups.md before changing this.
       traefik.http.routers.hi-events.rule: "Host(`${HI_EVENTS_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.hi-events.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.hi-events.tls: "true"

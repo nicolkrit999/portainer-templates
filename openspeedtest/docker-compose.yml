@@ -10,12 +10,6 @@ services:
 
     labels:
       traefik.enable: "true"
-      # SAN-bundle (group "utilities", member - NOT the anchor): this
-      # hostname is bundled onto duplicati's anchor certificate. Every
-      # router below carries bare tls: "true" with NO tls.certresolver and
-      # NO tls.domains of its own - see .claude/rules/san-cert-groups.md.
-      # The anchor (duplicati/docker-compose.yml) carries this hostname in
-      # its tls.domains[0].sans list.
       traefik.http.routers.openspeedtest.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.openspeedtest.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.openspeedtest.tls: "true"

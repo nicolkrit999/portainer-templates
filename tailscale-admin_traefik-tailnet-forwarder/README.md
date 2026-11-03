@@ -1,6 +1,6 @@
 # tailscale-admin_traefik-tailnet-forwarder
 
-Gives admin-gated services a clean, no-port `hostname:443` URL over Tailscale, with the real client IP preserved end-to-end so Traefik's tailnet-admin IP-allowlist actually works. Three containers, one Portainer stack.
+Gives every service (via the `tailnet-admin` router each one carries; `../dnsmasq-tailnet/` answers the whole `*.${DOMAIN}` wildcard with this gateway's tailnet IP) a clean, no-port `hostname:443` URL over Tailscale, with the real client IP preserved end-to-end so Traefik's tailnet-admin IP-allowlist actually works. Four containers, one Portainer stack.
 
 ## What it is
 
@@ -19,7 +19,7 @@ Tailscale's `tailscale0` interface is a TUN device, not a real L2 NIC, so it can
 
 ## History: two incidents that shaped this file
 
-1. **2026-08-22, `network_mode: host` reverted.** The forwarder originally used `network_mode: host` to reach the Tailscale interface directly. That put it in the same namespace as the host - which is also where Traefik's own `docker-proxy` wildcard-binds `0.0.0.0:443` for the family entrypoint - so the two binds collided. Fixed by giving it its own isolated namespace via `tailscale-admin` instead.
+1. **2026-08-22, `network_mode: host` reverted.** The forwarder originally used `network_mode: host` to reach the Tailscale interface directly. That put it in the same namespace as the host - which is also where Traefik's own `docker-proxy` wildcard-bound `0.0.0.0:443` for the (since retired, 2026-11-03) family entrypoint - so the two binds collided. Fixed by giving it its own isolated namespace via `tailscale-admin` instead.
 2. **2026-09-08, merged from two stacks into one (see the compose file's own top-of-file comment for the full incident writeup).** `tailscale-admin` and `traefik-tailnet-forwarder` were two independent Portainer git stacks. `traefik-tailnet-forwarder`'s `network_mode: container:tailscale-admin` is a hard runtime coupling - Docker pins `tailscale-admin`'s raw container ID at creation time. Two independent 5-minute auto-poll timers could (and did) recreate `tailscale-admin` without also recreating the forwarder, leaving it bound inside a stale, orphaned network namespace: `haproxy` looked "listening" locally, but the *live* `tailscaled` (now in a fresh namespace) had nothing listening on port 443 in *its* namespace, so real tailnet connections got an instant "Connection refused" - while everything looked healthy. This broke tailnet-admin access to ~50 hostnames for hours before being diagnosed and fixed live, then structurally fixed by merging into this one file/stack.
 
 ## The residual-risk watcher

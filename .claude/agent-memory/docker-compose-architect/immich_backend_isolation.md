@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. `cloudflare-web` was deleted, so the cross-network DNS precedence hazard between `cloudflare-web` and `immich-backend` no longer applies and the `gw_priority` mitigation is moot; `immich-server` now sits on `traefik-proxy`, `public-apps` (for `traefik-public`) and `immich-backend`. The backend isolation design and the redeploy-order notes remain accurate.**
+
 ## immich/docker-compose.yml: backend isolation (written 2026-11-03, coordinator reviews/pushes)
 
 Added `immich_backend_network` (`immich-backend`, internal, created by the stack) for server+ML+redis+db,

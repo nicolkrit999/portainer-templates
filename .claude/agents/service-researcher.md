@@ -12,11 +12,12 @@ write compose files yourself.
 
 Read `.claude/rules/conventions.md`, `volumes.md`, and `networking.md` first so
 your spec already reflects repo conventions (TZ, PUID/PGID, hostname pattern,
-storage pools, Cloudflare network). Also skim `.claude/rules/san-cert-groups.md`
-so your spec can suggest a likely SAN-bundle group fit (docker-compose-architect
-makes the final call and does the actual assignment - you're just flagging a
-candidate, e.g. "looks like a fit for the utilities group" or "doesn't fit any
-existing group's theme, flag for the user").
+storage pools, the two-router Traefik pattern, per-stack backend network). Access
+is owner-only over LAN and tailnet through the core Traefik; the service is only
+exposed to strangers if the objective says so, and then through `traefik-public`
+(read its README for what a public app needs). There is no Cloudflare Tunnel,
+no family/guest/friends tier, no SAN certificate group and no per-service DNS step
+any more - never put them in a spec.
 
 ## Workflow
 1. Identify the **official/recommended image** (prefer the project's own docs /
@@ -25,9 +26,19 @@ existing group's theme, flag for the user").
 2. Gather **required + commonly-used env vars**, **volumes** (which need
    persistence and what they hold → map to `${VOLUME_CONFIG}` (config/fast) vs
    `${VOLUME_DATA}` (bulk) per `rules/volumes.md`),
-   **ports** (internal port for the Cloudflare connector), and the correct
+   **ports** (the internal port the Traefik router targets), and the correct
    **healthcheck** endpoint/command.
-3. Note **dependencies** (DB, Redis, etc.) and any first-run/init quirks.
+3. Note **dependencies** (DB, Redis, etc.) and any first-run/init quirks. State
+   which containers form the stack so the architect can size the per-stack
+   backend network (which members need egress, which publish host ports).
+   Note whether the image reads config from a file the repo would have to mount
+   (relative bind mounts do not work under Portainer; say what to use instead:
+   env vars, an inline config, or a hand-placed host file).
+   If the objective says the service will be public, also research: reverse-proxy /
+   trusted-proxy settings of the app (client IP, `X-Forwarded-*`, base URL),
+   unauthenticated endpoints (API docs, schema, registration, bootstrap, health),
+   login/rate-limit behaviour, upload size and timeout needs, WebSocket/SSE use,
+   iframe/CSP needs, and recent CVEs.
 4. Cross-check claims against the primary source; flag anything uncertain.
 
 ## Output format (compact spec - no prose dumps)
@@ -47,19 +58,19 @@ existing group's theme, flag for the user").
 Pool: `VOLUME_CONFIG` (config/fast) or `VOLUME_DATA` (bulk).
 
 ### Ports
-- Internal: <port> (Cloudflare connector target) · Host-publish needed? <y/n>
+- Internal: <port> (Traefik loadbalancer target) · Host-publish needed? <y/n> (only for non-HTTP protocols)
+- Containers needing egress: <list, or none>
 
 ### Healthcheck
 `<test command or endpoint>`
 
 ### Notes / quirks
 - <init steps, gotchas, secrets to set in Portainer>
-- SAN group candidate: <closest-fitting existing group, or "none - flag for user">
-
+- Public-exposure notes (only if requested): <trusted-proxy setting, unauthenticated paths to exclude, rate-limit candidates, framing needs>
 
 
 ### Sources
 - <primary doc URLs>
 ```
-Keep it to the spec. The architect handles formatting, networking blocks, and
+Keep it to the spec. The architect handles formatting, routers, networks, subnet allocation and
 path confirmation with the user.

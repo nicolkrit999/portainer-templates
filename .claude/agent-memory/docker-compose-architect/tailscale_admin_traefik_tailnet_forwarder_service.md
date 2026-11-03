@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. References to the 'family entrypoint' (`TRAEFIK_ENTRYPOINT_1`), `cloudflare_web_network`, and the admin-gated hostname list in `dnsmasq-tailnet` are obsolete: entrypoints 1/2/4/5 were retired, the network was deleted, and `dnsmasq-tailnet` is wildcard-only now (every name goes to this gateway). The merged-stack design, second Tailscale identity, PROXY-protocol sidecar and watcher remain accurate; `.claude/rules/core-infra-topology.md` is the current description.**
+
 ## MERGE 2026-09-08 - read this first
 
 `tailscale-admin/` and `traefik-tailnet-forwarder/` were two independent

@@ -20,7 +20,7 @@ Plain HTTP on port 80 is redirect-only (to `https` on port 443) - without it, an
 
 ## Certificates
 
-One wildcard certificate (`${DOMAIN}` plus `*.${DOMAIN}`, DNS-01) is requested by the single anchor router `traefik-dashboard` (labels `tls.certresolver` and `tls.domains` on it). **No other router may carry `tls.certresolver` or `tls.domains`**: every other router uses a bare `tls: "true"` and picks the certificate from Traefik's store by SNI. This replaced the six SAN-bundle groups (`.claude/rules/san-cert-groups.md`, now obsolete); the remaining bundle anchors (`duplicati`, `glances`, `linkwarden`, `vikunja`) are removed in a later step, and their certificates keep serving until they expire.
+One wildcard certificate (`${DOMAIN}` plus `*.${DOMAIN}`, DNS-01) is requested by the single anchor router `traefik-dashboard` (labels `tls.certresolver` and `tls.domains` on it). **No other router may carry `tls.certresolver` or `tls.domains`**: every other router uses a bare `tls: "true"` and picks the certificate from Traefik's store by SNI. The `private` and `tailnet-admin` entrypoints also carry the same resolver and wildcard `domains` as an entrypoint-level default. This replaced the six SAN-bundle groups; the last four bundle anchors (`duplicati`, `glances`, `linkwarden`, `vikunja`) were removed 2026-11-03, so no bundle anchor remains.
 
 ## The tailnet-admin path
 

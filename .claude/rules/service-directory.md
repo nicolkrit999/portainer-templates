@@ -1,194 +1,220 @@
 ---
-description: Reference directory of every service in this repo - which access tier(s) it's reachable on, its clean-URL hostname, and (where one exists) its direct LAN/Tailscale port that bypasses Traefik entirely. Consult this before adding a new service's tier, or before adding/removing a direct-port publish.
+description: Reference directory of every service in this repo - its clean-URL hostname, which Traefik routers it has (private, tailnet, public via traefik-public), whether it is deployed in Portainer, and the few host ports still published on the NAS (which bypass Traefik). Consult this before adding a service, a public hostname, or a host-port publish.
 paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 ---
 
-> **OBSOLETE PARTS (2026-11-03), rewrite pending:** the tier columns (family, guest, friends,
-> internal-cloudflared-only) describe routers that were removed. Every service now has exactly a
-> private and a tailnet router; public ones are routed by `traefik-public`. Hostnames and the
-> "deployed" column are still accurate; `audiobookshelf` and the 20 names without a router
-> (blender, cardyo, datetime, dockpeek, excalidraw, filebrowser, fossflow, gocron, moocup,
-> openresume, owncloud, plex, snappyemail, sosse, upsnap, withoutbg, ...) are not deployed.
-
 # Service directory
 
-This file is generated from the actual compose files and live Portainer env
-(not hand-maintained from memory) - if it ever looks wrong, re-derive it from
-the compose files rather than trusting a stale copy. Update it whenever a
-service's tier changes or a direct-port link is added/removed, the same way
-`san-cert-groups.md`'s table is kept current.
+Generated on 2026-11-04 from the actual compose files (routers, `ports:`), each
+stack's `.env.example` (hostname defaults) and Portainer's stack list (environment 3).
+If it ever looks wrong, re-derive it from those rather than trusting this copy.
+Update it when a service is added, removed, made public or private, or when a host
+port is published or removed.
 
-## What "access tier" means here
+Hostnames are the `.env.example` defaults of each `${..._SUBDOMAIN}` variable. The
+live Portainer env can differ (a rename once left an `.env.example` default stale), so
+check the stack's env or the compose `Host()` rule before relying on one.
 
-Each tier corresponds to a Traefik entrypoint (see `.claude/rules/networking.md`
-for the full entrypoint/port table): `family`, `guest`, `private`, `friends`.
-`tailnet-admin` is not a tier in that sense - it's the admin-gated clean-URL
-path over Tailscale (see `.claude/rules/core-infra-topology.md`), additive on
-top of `private` for private-tier-only services. `internal-cloudflared-only`
-is Traefik's own internal entrypoint for the Cloudflare Tunnel connector, not
-a household-facing tier.
+## The access model
 
-**`private` is always present wherever Traefik is configured at all** - it's
-the mandatory baseline (see `.claude/rules/networking.md`). Every other tier
-is additive on top of it, per the household's own explicit request for that
-specific service.
+Every hostname is `<subdomain>.${DOMAIN}` and is reachable on up to three paths (full
+detail: `.claude/rules/networking.md` and `.claude/rules/core-infra-topology.md`):
 
-## Access tier + clean-URL table
+1. **LAN (private).** `dnsmasq` answers every name with the `traefik-private-forwarder`
+   macvlan IP, which forwards to Traefik's `private` entrypoint. Router `<svc>-private`
+   on `${TRAEFIK_ENTRYPOINT_3}`.
+2. **Tailnet.** `dnsmasq-tailnet` answers every name with the tailnet-admin gateway's
+   tailnet IP, which reaches Traefik's `tailnet-admin` entrypoint. Router `<svc>-tailnet`
+   on `${TRAEFIK_ENTRYPOINT_7}`, behind the `tailnet-admin-only` allowlist.
+3. **Public (strangers).** Only the 18 hostnames below. A DNS-only CNAME to the WAN
+   address, UniFi forwards TCP 443 to `traefik-public`. The router lives in
+   `traefik-public/docker-compose.yml`, never on the private Traefik.
 
-| Service (directory) | Hostname(s) | Access tier(s) | Deployed? |
-|---|---|---|---|
-| `actual-budget` | budget, budget-api | family, private | yes |
-| `actual-budget-ical` | budget-ical | family, private | yes |
-| `actual-budget-tap` | budget-tap | family, private | yes |
-| `adguard` | adguard | private, tailnet-admin | yes |
-| `affine` | affine | private, tailnet-admin | yes |
-| `apprise-api` | apprise-api | private, tailnet-admin | yes |
-| `attic` | *(no Traefik router - LAN-only)* | *(none)* | yes |
-| `audiobookshelf` | audiobookshelf | private, tailnet-admin | no |
-| `beszel` | beszel | private, tailnet-admin | yes |
-| `blender` | blender | private, tailnet-admin | no |
-| `bytestash` | bytestash | private, tailnet-admin | yes |
-| `cardyo` | cardyo | private, tailnet-admin | no |
-| `central-services` | mailpit, phpldapadmin | private, tailnet-admin | yes |
-| `change-detection` | change-detection | private, tailnet-admin | yes |
-| `convertx` | convertx | private, tailnet-admin | yes |
-| `coolify` | coolify, soketi-coolify | private, tailnet-admin | yes |
-| `datetime` | datetime | private, tailnet-admin | no |
-| `dockpeek` | dockpeek | private, tailnet-admin | no |
-| `draw-io` | draw-io | private, tailnet-admin | yes |
-| `duplicati` | duplicati | private, tailnet-admin | yes |
-| `easy-appointments` | appuntamenti | family, guest, private | yes |
-| `easy-appointments` (phpmyadmin) | appuntamenti-pma | private, tailnet-admin | yes |
-| `easy-appointments` (swagger-ui) | appuntamenti-swagger | private, tailnet-admin | yes |
-| `easy-appointments` (baikal) | appuntamenti-baikal | private, tailnet-admin | yes |
-| `excalidraw` | excalidraw | private, tailnet-admin | no |
-| `filebrowser` | filebrowser | private, tailnet-admin | no |
-| `fossflow` | fossflow | private, tailnet-admin | no |
-| `ghost` | blog | family, guest, private | no |
-| `gitea` | gitea | family, guest, private, friends | yes |
-| `glance` | glance | private, tailnet-admin | yes |
-| `glances` | glances | private, tailnet-admin | yes |
-| `gocron` | gocron | private, tailnet-admin | no |
-| `gokapi` | gokapi | family, private, friends, tailnet-admin | yes |
-| `gotify` | gotify | private, tailnet-admin | yes |
-| `grafana` | grafana | private, tailnet-admin | yes |
-| `grocy` | grocy | family, private | yes |
-| `harborguard` | harborguard | private, tailnet-admin | yes |
-| `holyclaude` | claude | private, tailnet-admin | yes |
-| `home-assistant` | home-assistant | private, tailnet-admin | yes |
-| `homebox` | homebox | family, private | yes |
-| `homehub` | casa | family, private | yes |
-| `immich` | foto | family, guest, private, friends | yes |
-| `iperf3` | *(no Traefik router - Tailscale-grant-only, see port table)* | *(none - not a Traefik tier at all)* | yes |
-| `it-tools` | it-tools | private, tailnet-admin | yes |
-| `jellyfin` | jellyfin | family, guest, private, friends | yes |
-| `jellyfin-radarr` | radarr | private, tailnet-admin | yes |
-| `jellyfin-sonarr` | sonarr | private, tailnet-admin | yes |
-| `kavita` | kavita | private, tailnet-admin | yes |
-| `lifeglance` | lifeglance | private, tailnet-admin | yes |
-| `linkwarden` | linkwarden | private, tailnet-admin | yes |
-| `mealie` | ricette | family, guest, private | yes |
-| `mini-qr` | miniqr | family, private | yes |
-| `moocup` | moocup | private, tailnet-admin | no |
-| `n8n` | n8n | private, tailnet-admin | yes |
-| `navidrome` | navidrome | family, guest, private | yes |
-| `omni-tools` | omnitools | family, private | yes |
-| `opennotebook` | opennotebook | private, tailnet-admin | yes |
-| `opennotebook` (api sub-service) | opennotebook-api | private, tailnet-admin | yes |
-| `openresume` | openresume | private, tailnet-admin | no |
-| `owncloud` | owncloud | guest, private | yes |
-| `paperlessngx` | paperlessngx | private, tailnet-admin | yes |
-| `plex` | plex | family, guest, private, friends | no |
-| `pocket-id` | pocket-id | private, tailnet-admin | yes |
-| `portainer` | portainer | private, tailnet-admin | yes |
-| `privatebin` | privatebin | private, tailnet-admin | yes |
-| `qbit-torrent` | qbit-torrent | private, tailnet-admin | yes |
-| `snapotter` | snapotter | private, tailnet-admin | yes |
-| `snappyemail` | snappyemail | private, tailnet-admin | no |
-| `sosse` | sosse | private, tailnet-admin | no |
-| `sparkyfitness` | sparkyfitness | private, tailnet-admin | yes |
-| `stirling-pdf` | stirling-pdf | private, tailnet-admin | yes |
-| `surmai` | viaggi | family, guest, private, friends | yes |
-| `termix` | termix | private, tailnet-admin | yes |
-| `traefik` | traefik | private, tailnet-admin, internal-cloudflared-only | yes |
-| `trek` | trek | family, guest, private, friends | yes |
-| `tugtainer` | tugtainer | private, tailnet-admin | yes |
-| `upsnap` | upsnap | private, tailnet-admin | no |
-| `uptime-kuma` | uptime-kuma | private, tailnet-admin | yes |
-| `vikunja` | promemoria | family, private | yes |
-| `web-check` | web-check | private, tailnet-admin | yes |
-| `withoutbg` | withoutbg | private, tailnet-admin | no |
-| `ytptube` | ytptube | private, tailnet-admin | yes |
+Every service with a Traefik router has exactly the two private-side routers (private
+and tailnet). There are no other tiers. Nothing needs a DNS entry per service (both
+resolvers are wildcards).
 
-`gitea` note: HTTP through Traefik; Git over SSH is private only: published on the NAS
-as host port 2222 and reached at `gitea-ssh.<domain>` (a specific override in `dnsmasq`
-and `dnsmasq-tailnet`; the client's ssh config needs `Port 2222`). The old Cloudflare
-tunnel routes `gitea-ssh` and `ssh` were retired 2026-11-03.
+## Service table
 
-## Direct LAN/Tailscale port table (bypasses Traefik entirely)
+"Routers" is what the stack's own compose file declares. "Public" means the hostname is
+also routed by `traefik-public`. 95 compose files: 79 declare Traefik routers (85
+hostnames), 16 have none. 75 are deployed: 74 Portainer stacks plus `portainer`, which
+runs as a standalone container; 20 are in the repo only (not deployed, their routers
+still follow the two-router rule).
 
-Added 2026-08-23 for bandwidth-heavy or large-upload services where the
-household wanted a raw fallback that doesn't depend on Tailscale/DNS being
-correctly configured on every device (see `san-bundle-stale-cert-cleanup-runbook`
-memory's sibling reasoning - same "don't assume the smart path always applies"
-principle). These bypass Traefik's TLS, HSTS, and (for `tailnet-admin` services)
-the IP-allowlist middleware entirely - only use them for services that already
-have their own login, and only for browsing, not for entering fresh passwords
-(the connection is plain HTTP, not TLS).
+| Service (directory) | Hostname(s) | Routers | Public | Deployed | Notes |
+|---|---|---|---|---|---|
+| `actual-budget/actual-ical` | `budget-ical` | private, tailnet | - | yes |  |
+| `actual-budget/actual-server_actual-https-api` | `budget`, `budget-api` | private, tailnet | `budget` only | yes | only `budget` is public; `budget-api` is private only |
+| `actual-budget/actual-tap` | `budget-tap` | private, tailnet | - | yes |  |
+| `adguard` | `adguard` | private, tailnet | - | yes |  |
+| `affine` | `affine` | private, tailnet | - | yes |  |
+| `apprise-api` | `apprise-api` | private, tailnet | - | yes |  |
+| `attic` | - | none | - | yes | no router; LAN-only, host port 8081 |
+| `beszel` | `beszel` | private, tailnet | - | yes |  |
+| `blender` | `blender` | private, tailnet | - | no |  |
+| `bytestash` | `bytestash` | private, tailnet | yes | yes |  |
+| `cardyo` | `cardyo` | private, tailnet | - | no |  |
+| `central-services` | `mailpit`, `phpldapadmin` | private, tailnet | - | yes | Mailpit and phpLDAPadmin |
+| `change-detection` | `change-detection` | private, tailnet | - | yes |  |
+| `convertx` | `convertx` | private, tailnet | - | yes |  |
+| `coolify` | `coolify`, `soketi-coolify` | private, tailnet | - | yes | app and realtime (Soketi) |
+| `datetime` | `datetime` | private, tailnet | - | no |  |
+| `dnsmasq-tailnet` | - | none | - | yes | DNS (port 53), host-networked |
+| `dnsmasq` | - | none | - | yes | DNS (port 53), host-networked |
+| `dockpeek` | `dockpeek` | private, tailnet | - | no |  |
+| `draw-io` | `draw-io` | private, tailnet | - | yes |  |
+| `duplicati` | `duplicati` | private, tailnet | - | yes |  |
+| `easy-appointments` | `appuntamenti`, `appuntamenti-pma`, `appuntamenti-swagger` | private, tailnet | yes | yes | booking site plus phpMyAdmin and Swagger UI (private only) |
+| `excalidraw` | `excalidraw` | private, tailnet | - | no |  |
+| `filebrowser` | `filebrowser` | private, tailnet | - | no |  |
+| `fossflow` | `fossflow` | private, tailnet | - | no |  |
+| `ghost` | `blog` | private, tailnet | - | no |  |
+| `gitea` | `gitea` | private, tailnet | yes | yes |  |
+| `glance` | `glance` | private, tailnet | - | yes |  |
+| `glances` | `glances` | private, tailnet | - | yes |  |
+| `gocron` | `gocron` | private, tailnet | - | no |  |
+| `gokapi` | `gokapi` | private, tailnet | yes | yes |  |
+| `gotify` | `gotify` | private, tailnet | - | yes |  |
+| `grafana` | `grafana` | private, tailnet | - | yes |  |
+| `grocy` | `grocy` | private, tailnet | - | yes |  |
+| `harborguard` | `harborguard` | private, tailnet | - | yes |  |
+| `hi-events` | `eventi` | private, tailnet | yes | yes |  |
+| `holyclaude` | `claude` | private, tailnet | - | yes |  |
+| `home-assistant` | `home-assistant` | private, tailnet | - | yes |  |
+| `homebox` | `homebox` | private, tailnet | yes | yes |  |
+| `homehub` | `casa` | private, tailnet | - | yes |  |
+| `icorsi-notes` | - | none | - | yes | no router, no inbound ports |
+| `icorsi-sync` | - | none | - | yes | no router, no inbound ports |
+| `immich` | `foto` | private, tailnet | yes | yes |  |
+| `iperf3` | - | none | - | yes | no router; host-networked, TCP+UDP 5201, reached over Tailscale by IP |
+| `it-tools` | `it-tools` | private, tailnet | - | yes |  |
+| `jdownloader` | - | none | - | no | no router |
+| `jellyfin-radarr` | `radarr` | private, tailnet | - | yes |  |
+| `jellyfin-sonarr` | `sonarr` | private, tailnet | - | yes |  |
+| `jellyfin` | `jellyfin` | private, tailnet | yes | yes |  |
+| `kavita` | `kavita` | private, tailnet | yes | yes |  |
+| `lifeglance` | `lifeglance` | private, tailnet | - | yes |  |
+| `linkwarden` | `linkwarden` | private, tailnet | yes | yes |  |
+| `macvlan-host-shim` | - | none | - | yes | host-networked helper, no router |
+| `mealie` | `ricette` | private, tailnet | yes | yes |  |
+| `mini-qr` | `miniqr` | private, tailnet | - | yes |  |
+| `moocup` | `moocup` | private, tailnet | - | no |  |
+| `n8n` | `n8n` | private, tailnet | - | yes |  |
+| `navidrome` | `navidrome` | private, tailnet | yes | yes |  |
+| `omni-tools` | `omnitools` | private, tailnet | - | yes |  |
+| `opencloud` | `opencloud` | private, tailnet | yes | yes |  |
+| `opennotebook` | `opennotebook`, `opennotebook-api` | private, tailnet | - | yes | UI and API hostnames |
+| `openresume` | `openresume` | private, tailnet | - | no |  |
+| `openspeedtest` | `openspeedtest` | private, tailnet | - | yes |  |
+| `owncloud` | `owncloud` | private, tailnet | - | no |  |
+| `paperlessngx` | `paperlessngx` | private, tailnet | yes | yes |  |
+| `plex` | `plex` | private, tailnet | - | no |  |
+| `pocket-id` | `pocket-id` | private, tailnet | yes | yes |  |
+| `portainer` | `portainer` | private, tailnet | - | yes (standalone container, not a Portainer stack) |  |
+| `privatebin` | `privatebin` | private, tailnet | yes | yes |  |
+| `prometheus` | - | none | - | yes | no router |
+| `qbit-torrent` | `qbit-torrent` | private, tailnet | - | yes |  |
+| `snapotter` | `snapotter` | private, tailnet | - | yes |  |
+| `snappyemail` | `snappyemail` | private, tailnet | - | no |  |
+| `sosse` | `sosse` | private, tailnet | - | no |  |
+| `sparkyfitness` | `sparkyfitness` | private, tailnet | - | yes |  |
+| `stirling-pdf` | `stirling-pdf` | private, tailnet | - | yes |  |
+| `surmai` | `viaggi` | private, tailnet | - | yes |  |
+| `tailscale-adguard` | - | none | - | yes | host-networked, no router |
+| `tailscale-admin_traefik-tailnet-forwarder` | - | none | - | yes | tailnet-admin gateway, no router |
+| `tailscale-qbittorrent` | `qbit-torrent-tailscale` | private, tailnet | - | no | qBittorrent behind its own Tailscale sidecar |
+| `tailscale` | - | none | - | yes | host-networked, no router |
+| `termix` | `termix` | private, tailnet | - | yes |  |
+| `traefik-private-forwarder` | - | none | - | yes | private forwarder (macvlan), no router |
+| `traefik-public` | - | none | - | yes | public edge; its routers are generated from the compose file, not Docker labels (see below) |
+| `traefik` | `traefik` | private, tailnet | - | yes | dashboard; holds the one wildcard certificate |
+| `trek` | `trek` | private, tailnet | yes | yes |  |
+| `tugtainer` | `tugtainer` | private, tailnet | - | yes |  |
+| `unpoller` | - | none | - | yes | no router |
+| `upsnap` | `upsnap` | private, tailnet | - | no |  |
+| `uptime-kuma` | `uptime-kuma` | private, tailnet | - | yes |  |
+| `vikunja` | `promemoria` | private, tailnet | - | yes |  |
+| `watchtower` | - | none | - | no | no router |
+| `web-check` | `web-check` | private, tailnet | - | yes |  |
+| `withoutbg` | `withoutbg` | private, tailnet | - | no |  |
+| `ytptube` | `ytptube` | private, tailnet | - | yes |  |
 
-Only services with a real published host port are listed - everything else has
-no direct-port path at all (Traefik-internal-Docker-network-only), by design.
-Before adding a new one, check this whole table for the chosen host port -
-duplicate host-port bindings across compose files were the single biggest risk
-identified in this session's work session; the docker daemon rejects the
-create silently-late (container just fails to start) rather than at compose
-lint time.
+`gitea`: HTTP goes through Traefik (private, tailnet, public). Git over SSH is private
+only: published on the NAS as host port 2222 (`GITEA_SSH_HOST_PORT`), reached at
+`gitea-ssh.<domain>`, a specific override in `dnsmasq` (resolves to the NAS's LAN IP)
+and `dnsmasq-tailnet` (the NAS's tailnet IP). The client's ssh config needs `Port 2222`.
+The gateway never forwards it to the internet.
 
-**`pocket-id` deliberately has NO direct port** (removed 2026-08-24, was
-`1411:1411`) - it's an OIDC provider, and every app trusting it as an
-issuer is configured against its one fixed clean URL
-(`https://pocket-id.nicolkrit.ch`). A raw LAN/Tailscale link would be a
-genuinely different origin, breaking OIDC discovery/token validation for
-every relying app - never add a direct port back for this service.
+## Public hostnames (traefik-public)
+
+18 hostnames, in the order of `traefik-public/README.md`. Each app also keeps its
+private and tailnet routers from its own stack and joins an external `public-<app>`
+network that `traefik-public` creates. Path restrictions and rate limits are in that
+README.
+
+| Hostname | Directory | Backend (container:port) |
+|---|---|---|
+| `foto` | `immich` | `immich_server:2283` |
+| `pocket-id` | `pocket-id` | `pocket-id:1411` |
+| `jellyfin` | `jellyfin` | `jellyfin:8096` |
+| `navidrome` | `navidrome` | `navidrome:4533` |
+| `gokapi` | `gokapi` | `gokapi:53842` |
+| `gitea` | `gitea` | `gitea:3000` |
+| `privatebin` | `privatebin` | `privatebin:8080` |
+| `ricette` | `mealie` | `mealie:9000` (API docs paths answer 404) |
+| `homebox` | `homebox` | `homebox:7745` |
+| `kavita` | `kavita` | `kavita:5000` |
+| `opencloud` | `opencloud` | `opencloud:9200` |
+| `eventi` | `hi-events` | `all-in-one:80` |
+| `appuntamenti` | `easy-appointments` | `easy-appointments-nginx:80` (REST API paths answer 404) |
+| `trek` | `trek` | `trek:3000` |
+| `paperlessngx` | `paperlessngx` | `paperlessngx:8000` (schema and update-check paths answer 404) |
+| `linkwarden` | `linkwarden` | `linkwarden:3000` |
+| `budget` | `actual-budget/actual-server_actual-https-api` | `ActualBudget:5006` (admin and bootstrap paths answer 404) |
+| `bytestash` | `bytestash` | `bytestash:5000` (public snippets only, explicit path allowlist) |
+
+To make another app public, follow `traefik-public/README.md` ("Adding a public
+service"): router, service and `public-<app>` network in the `traefik-public` compose,
+the network declared external in the app's stack, and a DNS-only CNAME in Cloudflare.
+
+## Published host ports (bypass Traefik entirely)
+
+Only ports a compose file publishes today. A published port skips Traefik's TLS, HSTS and
+the tailnet allowlist, so use one only for non-HTTP protocols or for a service with its own
+login, and only deliberately. Check this whole table before choosing a new host port: the
+Docker daemon rejects a duplicate bind late (the container fails to start) rather than at
+compose lint time.
 
 | Service | Host port | Notes |
 |---|---|---|
-| `actual-budget` (budget) | 5006 | |
-| `actual-budget` (budget-api) | 5007 | |
-| `actual-budget-ical` | 3000 | |
-| `actual-budget-tap` | 3001 | host-networked (`network_mode: host`) |
+| `gitea` | 2222 -> 22 | Git over SSH, private only (see above) |
 | `apprise-api` | 8010 | |
-| `attic` | 8081 | no clean URL at all - LAN/Tailscale-only by design |
-| `audiobookshelf` | 13378 | not currently deployed |
+| `attic` | 8081 | no clean URL; LAN-only by design |
 | `beszel` | 8096 | |
-| `central-services` (mailpit) | 8025 | |
+| `central-services` (mailpit) | 8025 (UI), 1025 (SMTP) | |
 | `central-services` (phpldapadmin) | 8201 | |
-| `convertx` | 3010 | |
-| `coolify` (soketi-coolify) | 6001 | 6002 also published (metrics, not the main link) |
-| `duplicati` | 8200 | password-protected (`DUPLICATI_WEBSERVICE_PASSWORD`) |
-| `easy-appointments` (nginx/main app) | 8180 | |
-| `easy-appointments` (phpmyadmin) | 8080 | now also has a clean URL (`appuntamenti-pma`), added 2026-08-23 |
-| `easy-appointments` (swagger-ui) | 8000 | now also has a clean URL (`appuntamenti-swagger`), added 2026-08-23 |
-| `easy-appointments` (baikal) | 8100 | now also has a clean URL (`appuntamenti-baikal`), added 2026-08-23 |
-| `filebrowser` | 8082 | not currently deployed |
-| `gitea` | 3003 | has its own full login/account system |
-| `glances` | 61208 | host-networked (`network_mode: host`) |
+| `central-services` (openldap) | 389, 636 | LDAP and LDAPS |
+| `convertx` | 3010 | default of `CONVERTX_HOST_PORT` |
+| `coolify` (realtime) | 6001, 6002 | Soketi; 6002 is metrics |
+| `duplicati` | 8200 | default of `DUPLICATI_HOST_PORT`; password-protected |
 | `holyclaude` | 3059 | |
-| `home-assistant` | 8123 | host-networked (`network_mode: host`) |
 | `homehub` | 5000 | |
 | `immich` | 2283 | |
-| `iperf3` | 5201 (tcp+udp) | no Traefik router at all, no clean URL - reachable only via a direct Tailscale grant (`tag:family`/`tag:friends` -> NAS tailnet IP, both protocols), added 2026-08-23 for household bandwidth testing. No authentication of any kind - anyone on those tags can start a test at will |
-| `jellyfin` | 8196 | has its own login |
-| `navidrome` | 4533 | |
-| `plex` | 32400 | not currently deployed |
 | `portainer` | 9000 (http), 9444 (https) | |
-| `stirling-pdf` | 8085 | moved from the conventional 8080 - that port is already used live by `easy-appointments`' phpMyAdmin sidecar container |
-| `upsnap` | 8090 | not currently deployed |
+| `stirling-pdf` | 8085 | default of `STIRLING_PDF_HOST_PORT`; 8080 is avoided on purpose |
 | `vikunja` | 3456 | |
+| `traefik` | 80, 8444 | 80 is the HTTPS redirect; 8444 is the `private` entrypoint, reached through `traefik-private-forwarder` |
+| `privatebin` | 127.0.0.1:8080 | loopback only (default of `PRIVATEBIN_HOST_PORT`) |
+| `sparkyfitness` | 127.0.0.1:8280 | loopback only (default of `SPARKYFITNESS_HOST_PORT`) |
+| `filebrowser` | 8082 | not deployed |
+| `plex` | 32400 | not deployed |
 
-**Known already-occupied host ports NOT in the table above** (internal-only,
-multi-container composes - don't reuse these when picking a new port):
-`easy-appointments` also publishes 3306 (mysql - not meant for direct
-end-user access, internal DB only). Its phpMyAdmin/swagger-ui/baikal ports
-moved into the table above since they turned out to be real, reachable
-admin links, just without a Traefik router.
+Host-networked stacks bind their ports directly on the NAS (no `ports:` entry):
+`home-assistant` 8123, `glances` 61208 (Glances web default), `iperf3` 5201 (TCP and UDP),
+`qbit-torrent` `WEBUI_PORT` (default 9865), `dnsmasq` and `dnsmasq-tailnet` 53, `upsnap`
+(not deployed), plus the `tailscale*`, `macvlan-host-shim` and `tailscale-adguard` helpers.
+
+`pocket-id` deliberately has no direct port: it is an OIDC provider and every app trusts it
+at its one fixed clean URL, so a raw port would be a different origin and break OIDC
+discovery for every relying app. Never add one.

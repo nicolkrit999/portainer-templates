@@ -15,7 +15,7 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
   bool/number env values with an opaque `[object Object]` UI error. Write
   `FOO: "true"` not `FOO: true`; `PORT: "8080"` not `PORT: 8080`;
   `KEY: "${MY_SECRET}"` not `KEY: ${MY_SECRET}`.
-  **Exception:** `PUID`/`PGID` may stay unquoted (numeric user IDs Portainer accepts).
+  Applies to `PUID`/`PGID` too: `PUID: "${PUID}"`.
 - **No YAML block/folded scalars** (`>`, `|`) in any field. Portainer's editor mangles them into `[object Object]`. Write multi-line values as a single double-quoted string: `command: "start --user ${X} --flag"` instead of `command: >`.
 
 ## Compose best practices

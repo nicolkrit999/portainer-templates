@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. Both `dnsmasq` and `dnsmasq-tailnet` are now wildcard-only (LAN -> `traefik-private-forwarder` IP, tailnet -> the tailnet-admin gateway) plus a single `gitea-ssh` override each; the 87 per-hostname overrides, the admin-gated hostname list, `traefik.` override and the family/private-tier IP split below are gone, and no new service needs a DNS step. The image choice, host networking, port-53 bind fix, restart-policy lesson and the `.env.example` Write-tool workaround notes remain accurate. Current model: `.claude/rules/core-infra-topology.md`.**
+
 ## dnsmasq/docker-compose.yml (added 2026-08-21)
 
 Stopgap wildcard-DNS service, explicitly not permanent - household member

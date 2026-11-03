@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. 'NOT the usual Cloudflare+Traefik-private pattern' and 'Deliberately NOT on `cloudflare_web_network`' are moot (the network no longer exists), and its forward now serves all hostnames via the wildcard in `dnsmasq`. The socat passthrough design, macvlan + `traefik-proxy` attachment and restart policy remain accurate; see `.claude/rules/gotchas/macvlan-parent-bridge0.md` for the `bridge0` parent rule.**
+
 ## traefik-private-forwarder/docker-compose.yml (added 2026-08-21)
 
 Narrow, single-purpose infra sidecar, same "deliberately breaks the usual

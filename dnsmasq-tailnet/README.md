@@ -8,13 +8,11 @@ Root cause (confirmed via SSH diagnosis, 2026-08-22): a Tailscale-connected devi
 
 **Fix**: answer DNS with the NAS's own *tailnet* IP instead of its LAN IP for Tailscale-connected clients. Traffic then arrives directly on `tailscale0` with no hairpin hop at all. A genuinely separate dnsmasq instance (not a change to the LAN-facing one) so it can bind specifically to the tailnet IP without touching or depending on the original - both already run `network_mode: host`, so a second instance is safe.
 
-## Admin-gated hostname override (the part that matters most operationally)
+## The wildcard and the `gitea-ssh` override
 
-The simple "every hostname resolves to the same tailnet IP" description above no longer holds for admin-gated hostnames. A second, independent Tailscale identity (`tailscale-admin`, now living in `../tailscale-admin_traefik-tailnet-forwarder/`) fronts those via its own forwarder + Traefik entrypoint - see that stack's README for the full mechanism. Those hostnames need their own more-specific `--address=` rule pointing at `${TAILSCALE_ADMIN_IP}` instead of the general wildcard's `${TAILNET_IP}`.
+Tailnet access to the web services runs through the tailnet-admin gateway: a second, independent Tailscale identity (`tailscale-admin`, living in `../tailscale-admin_traefik-tailnet-forwarder/`) fronts Traefik's `tailnet-admin` entrypoint behind an allowlist of the owner's devices - see that stack's README for the full mechanism. So the single wildcard rule answers every `*.${DNS_WILDCARD_DOMAIN}` hostname (and the bare domain) with `${TAILSCALE_ADMIN_IP}`, the gateway's tailnet IP. There is no per-hostname list any more: a new service needs no DNS change.
 
-**In practice this override list covers almost every service, not a small special case** - `adding-compose-services` gives every new private-tier service a `tailnet-admin` router by default, so virtually every new service needs its hostname added to this override list too, or it silently falls through to the wildcard and never reaches Traefik's `tailnet-admin` entrypoint correctly (confirmed real bug, 2026-09-02).
-
-dnsmasq's `--address` syntax natively supports multiple domains in one directive (`--address=/<domain>[/<domain>...]/[<ipaddr>]`) - this repo keeps every admin-gated hostname in one shared rule rather than one rule per hostname, for a single easy-to-audit place as the list grows.
+One more-specific override, `gitea-ssh.${DNS_WILDCARD_DOMAIN}`, answers with `${TAILNET_IP}` (the NAS's own tailnet IP). Git over SSH is not HTTP and bypasses the gateway: Gitea publishes it on the NAS as host port 2222, so the name must reach the NAS directly. Clients need `Port 2222` in their ssh config. It is private only and never forwarded by the gateway. dnsmasq prefers the most specific match, so the override coexists with the wildcard.
 
 `--log-queries` is on permanently (added 2026-08-23 to diagnose a remote tailnet client's queries never reaching this interface at all) - one line per query per tailnet client, acceptable at this household's scale, avoids a redeploy-just-to-debug round trip.
 
@@ -23,9 +21,9 @@ dnsmasq's `--address` syntax natively supports multiple domains in one directive
 | Variable | Purpose |
 |---|---|
 | `DNS_WILDCARD_DOMAIN` | Same domain as the LAN-facing sibling. |
-| `TAILNET_IP` | The NAS's own primary-node tailnet IP - the wildcard answer for non-admin-gated hostnames. |
-| `TAILSCALE_ADMIN_IP` | `tailscale-admin`'s own tailnet IP (see `../tailscale-admin_traefik-tailnet-forwarder/README.md`) - the override target for admin-gated hostnames. |
+| `TAILNET_IP` | The NAS's own primary-node tailnet IP - the address this resolver listens on, and the answer for `gitea-ssh`. |
+| `TAILSCALE_ADMIN_IP` | `tailscale-admin`'s own tailnet IP (see `../tailscale-admin_traefik-tailnet-forwarder/README.md`) - the wildcard answer for every other hostname. |
 
 ## Adding a new service
 
-Add its hostname to the admin-gated `--address=` override rule here (almost always required, see above) AND to `../dnsmasq/`'s private-tier override list. Literal hostname segments in the override list match each service's own `${..._SUBDOMAIN}` value, not necessarily its directory name - two confirmed historical mismatches: `claude` (not `holyclaude`) and `soketi-coolify` (not `coolify-realtime`). Check the live env before assuming a hostname matches its folder name.
+Nothing to do here: the wildcard already answers the new hostname. Only a name that must NOT go through the gateway (a non-HTTP service published on the NAS itself, like `gitea-ssh`) needs its own more-specific `--address=` line, here and in `../dnsmasq/`.

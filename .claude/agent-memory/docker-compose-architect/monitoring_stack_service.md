@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. `cloudflare_web_network`, 'SAN-bundle group membership' and 'all still ride `cloudflare_web_network`' references are obsolete: that network was deleted and SAN groups no longer exist. The external `monitoring_network` convention described below is still how these stacks talk; new multi-container stacks use a per-stack `<stack>-backend` network with an explicit /28 from the subnet registry instead.**
+
 ## unpoller + prometheus (added 2026-09-02)
 
 New internal-only backing services for the already-deployed `grafana`

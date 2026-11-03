@@ -1,10 +1,10 @@
 # traefik-public
 
-Internet-facing Traefik for services that must be reachable from the public internet **without** the Cloudflare Tunnel (which caps uploads at 100 MB and restricts video). It is a separate instance from `../traefik/` on purpose: small, hardened and isolated from the rest of the estate.
+Internet-facing Traefik for the 18 services that must be reachable from the public internet. It carries all public traffic; there is no Cloudflare Tunnel any more (it capped uploads at 100 MB and restricted video, and was retired 2026-11-03). Cloudflare only hosts DNS: each public name is a DNS-only (grey cloud) CNAME to `wg.${DOMAIN}`, which UniFi DDNS keeps pointed at the WAN address. It is a separate instance from `../traefik/` on purpose: small, hardened and isolated from the rest of the estate.
 
 ## Address
 
-Own macvlan LAN IP `${TRAEFIK_PUBLIC_IP}` (this instance: `192.168.1.94`), TCP **443** only - no port 80, no HTTP/3, no published host ports. The UniFi gateway forwards WAN TCP 443 to that IP. Clients connect directly, so Traefik logs the real client IP (confirmed 2026-11-03 with a request through the UniFi forward).
+Own macvlan LAN IP `${TRAEFIK_PUBLIC_IP}` (this instance: `192.168.1.94`), TCP **443** only - no port 80, no HTTP/3, no published host ports. The UniFi gateway forwards WAN TCP 443 to that IP, with UniFi Region Blocking (Incoming, Allow CH and IT) in front. Clients connect directly, so Traefik logs the real client IP (confirmed 2026-11-03 with a request through the UniFi forward).
 
 The container joins the existing macvlan network `traefik-private-forwarder_traefik_forwarder_net` (Docker allows only one per parent/subnet - see `.claude/rules/networking.md`). The NAS host itself cannot reach a macvlan IP on its own parent interface; test from another LAN device or from outside the LAN.
 
@@ -108,7 +108,7 @@ Each backend's own stack declares its network as `external: true`. A `/28` holds
 
 **Batch 1 has the same latent risk, and its fixed address does not survive it.** `public-jellyfin`, `public-navidrome`, `public-gokapi`, `public-gitea` and `public-privatebin` have no `ip_range`, so any of them can be hit by the race above (not reproduced on the NAS itself, only on the local Docker; the NAS daemon's allocation order is unverified). Their IPAM is left alone on purpose: Docker cannot change a live network's IPAM in place, so a changed definition makes Compose stop the proxy's holder container, try to remove the network and fail with `has active endpoints` while the backends' stacks are attached, which leaves the proxy stopped (reproduced locally). Two ways out, neither applied: (a) pin each Batch 1 backend to its own fixed address in its own stack (for example `ipv4_address: 172.16.78.3` on its `public-jellyfin` entry), which keeps it out of Docker's dynamic allocation and needs no network change; (b) in a maintenance window, stop the five backends and the proxy, remove the five networks and redeploy `traefik-public` with an `ip_range` and `gateway` on them. Recovery if it happens: stop or recreate the backend that took `.2` (`docker network inspect public-<app>` shows who holds it), then redeploy or restart `traefik-public-net` and `traefik-public`. `public-apps` and `public-pocket-id` are not affected (no fixed proxy address there).
 
-Deliberately not on `cloudflare-web` or `traefik-proxy`, and there is no Cloudflare Tunnel handoff: the point of this stack is to bypass the tunnel.
+Deliberately not on `traefik-proxy` (the shared network of the private and tailnet-admin Traefik routers): public traffic reaches the apps only through the per-app `public-<app>` networks.
 
 The networks and the address are attached to `traefik-public-net`, not to `traefik-public` itself: the proxy joins that container's network namespace (`network_mode: service:traefik-public-net`), which is what lets the guard below stay out of the proxy's reach.
 
@@ -169,12 +169,12 @@ All are required except `TZ` and the optional `PUBLIC_*_SUBNET`, `PUBLIC_*_GATEW
 1. Create the dedicated Cloudflare token and set the variables on a new Portainer stack `traefik-public` (this directory's compose file).
 2. Deploy `traefik-public` **first**. It creates the `public-apps` network and requests the certificates (DNS-01 needs neither the port forward nor public DNS records). Wait for the container to be healthy and for the certificates to appear in the logs / `acme.json`.
 3. Only afterwards deploy the updated `immich` stack: it declares `public-apps` as external and fails to start if that network does not exist yet. Do not push the immich edit before step 2 is done.
-4. Test with `curl --resolve <test-host>:443:<TRAEFIK_PUBLIC_IP> https://<test-host>/api/server/ping` from a LAN device other than the NAS (the LAN resolvers wildcard-override `*.${DOMAIN}` to the NAS, so plain names do not reach this stack from inside the LAN).
+4. Test with `curl --resolve <test-host>:443:<TRAEFIK_PUBLIC_IP> https://<test-host>/api/server/ping` from a LAN device other than the NAS (the LAN resolvers wildcard-override `*.${DOMAIN}` to the private forwarder, so plain names do not reach this stack from inside the LAN).
 5. In UniFi, forward WAN TCP 443 to `${TRAEFIK_PUBLIC_IP}:443`. Create the public DNS records as **DNS only** (not proxied), IPv4 only unless an IPv6 path is set up.
 
 ## Adding Pocket-ID (second backend)
 
-Pocket-ID keeps its passkey login and its existing private, tailnet and Cloudflare paths; this only adds the public router and a dedicated backend network.
+Pocket-ID keeps its passkey login and its existing private and tailnet paths; this only adds the public router and a dedicated backend network.
 
 1. Add `POCKET_ID_SUBDOMAIN` (and optionally `PUBLIC_POCKET_ID_SUBNET`) to the `traefik-public` stack's environment **before** the commit reaches it. The variable is required, so a deploy without it fails at interpolation and leaves the running containers untouched.
 2. Deploy `traefik-public` **first**. It creates the `public-pocket-id` network and requests the Pocket-ID certificate (DNS-01). The proxy container is recreated, so the public Immich path has a short gap. Wait for the container to be healthy and for the certificate to appear.
@@ -195,10 +195,10 @@ Same mechanics as Pocket-ID, five backends at once: five routers sharing the hea
 
 ## Adding the second batch (Mealie, Homebox, Kavita, OpenCloud, Hi.Events, Easy!Appointments, TREK)
 
-Same mechanics as the first batch: seven routers sharing the header-strip middleware, seven dedicated `internal: true` networks with a fixed proxy address. Differences: the networks carry a `gateway` and an `ip_range` (see [Networks](#networks)), OpenCloud and TREK use the app-framing header profile, and the Mealie and Easy!Appointments routers exclude paths (see [What it does](#what-it-does)). Each application keeps its private, tailnet and tier routers; its stack declares `public-<app>` as `external: true` and no longer joins `cloudflare-web`.
+Same mechanics as the first batch: seven routers sharing the header-strip middleware, seven dedicated `internal: true` networks with a fixed proxy address. Differences: the networks carry a `gateway` and an `ip_range` (see [Networks](#networks)), OpenCloud and TREK use the app-framing header profile, and the Mealie and Easy!Appointments routers exclude paths (see [What it does](#what-it-does)). Each application keeps its private and tailnet routers; its stack declares `public-<app>` as `external: true`.
 
 1. Add the seven `*_SUBDOMAIN` variables to the `traefik-public` stack's environment **before** the commit reaches it. They are required, so a deploy without them fails at interpolation and leaves the running containers untouched. Each value must equal the one in that application's own stack. All other new variables are optional.
-2. Deploy `traefik-public` **first**. It creates the seven networks and requests seven more certificates (DNS-01), which count toward the weekly Let's Encrypt quota; the public hostnames then total 15. `traefik-public-net` and `traefik-public` are recreated, so the public Immich, Pocket-ID and first-batch paths have a short gap.
+2. Deploy `traefik-public` **first**. It creates the seven networks and requests seven more certificates (DNS-01), which count toward the weekly Let's Encrypt quota; the public hostnames then total 14 (the `public-test` router that was counted here has since been removed). `traefik-public-net` and `traefik-public` are recreated, so the public Immich, Pocket-ID and first-batch paths have a short gap.
 3. Only afterwards deploy the application stacks, one at a time (each declares its network as external and fails before touching the running container if the network is missing). Easy!Appointments also needs its new application directory first (its README has the steps), and Hi.Events should have a database backup first because its migrations run automatically at every start.
 4. No application in this batch needs the proxy's fixed address: they trust the `/28` or a hop count (TREK `TRUST_PROXY=1`, Mealie `HOST_IP`, Hi.Events `APP_TRUSTED_PROXIES`, Easy!Appointments `PROXY_IPS`).
 5. After each application is up, `docker exec traefik-public nc -z -w2 <container> <port>` confirms the proxy reaches it (`mealie` 9000, `homebox` 7745, `kavita` 5000, `opencloud` 9200, `all-in-one` 80, `trek` 3000, `easy-appointments-nginx` 80).
@@ -210,7 +210,7 @@ Same mechanics as the first batch: seven routers sharing the header-strip middle
 Same mechanics as the second batch: three applications, three `internal: true` networks with `gateway`, `ip_range` and a fixed proxy `.2` (ByteStash, `172.16.92.0/28`, follows the same pattern, see below). ActualAPI, actualtap and actual-ical are deliberately NOT public (owner decisions 2026-11-03: everything exposing personal data or bound to the owner's budget stays on the private and tailnet paths; only the Actual server is internet-facing), so `172.16.94.0/28`, `172.16.95.0/28` and `172.16.96.0/28` stay unused. Paperless-ngx and Linkwarden use the app-framing header profile, Paperless-ngx excludes paths (see [What it does](#what-it-does)), and the Actual server routers use the default profile.
 
 1. Add the three `*_SUBDOMAIN` variables (`PAPERLESS_SUBDOMAIN=paperlessngx`, `LINKWARDEN_SUBDOMAIN=linkwarden`, `ACTUAL_BUDGET_SUBDOMAIN=budget`) to the `traefik-public` stack's environment **before** the commit reaches it. They are required, so a deploy without them fails at interpolation and leaves the running containers untouched. Each value must equal the one in that application's own stack.
-2. Deploy `traefik-public` **first**. It creates the three networks (four with ByteStash) and requests three more certificates (four with ByteStash, DNS-01); the public hostnames then total 19 including ByteStash and the `public-test` router. `traefik-public-net` and `traefik-public` are recreated, so every public path has a short gap.
+2. Deploy `traefik-public` **first**. It creates the three networks (four with ByteStash) and requests three more certificates (four with ByteStash, DNS-01); the public hostnames then total 18 including ByteStash (the `public-test` router has since been removed). `traefik-public-net` and `traefik-public` are recreated, so every public path has a short gap.
 3. Only afterwards deploy the application stacks (each declares its `public-<app>` network as `external: true`). Container names the proxy resolves: `paperlessngx` (8000), `linkwarden` (3000), `ActualBudget` (5006).
 4. `docker exec traefik-public nc -z -w2 <container> <port>` confirms the proxy reaches each backend.
 5. Test with `curl --resolve <host>:443:<TRAEFIK_PUBLIC_IP> https://<host>/...` from a LAN device other than the NAS: Paperless `/api/schema/` and `/api/remote_version/` answer 404 and the document preview and `/ws/status/` work; Linkwarden's archived page and PDF views render; the Actual web UI loads with its own COOP/COEP headers and `/openid/config` answers 404 while `/openid/callback` is routed.
@@ -228,10 +228,10 @@ Everything else answers Traefik's plain 404: `/`, `/login`, `/register`, all of 
 ## Rollback
 
 1. Remove the UniFi WAN 443 forward.
-2. Flip the affected public DNS record(s) back to their previous (Cloudflare Tunnel) target.
+2. Delete the affected public DNS record(s) (the Cloudflare Tunnel they used to point at no longer exists, so there is no previous target to flip back to). The names keep working on the LAN and the tailnet, where the wildcard resolvers answer them.
 3. Optionally stop the `traefik-public` stack. Stopping keeps the `public-*` backend networks, so every backend keeps starting.
 
-To delete the stack entirely, first revert the `public-*` network entries in each backend's own stack (`../immich`, `../pocket-id`, `../jellyfin`, `../navidrome`, `../gokapi`, `../gitea`, `../privatebin`, `../mealie`, `../homebox`, `../kavita`, `../opencloud`, `../hi-events`, `../easy-appointments`, `../trek`, `../paperlessngx`, `../linkwarden`, `../actual-budget/*`, `../bytestash`) and redeploy them; otherwise the networks cannot be removed while attached and those stacks cannot start without them. To withdraw a single backend, flip its DNS record back, remove the network entries from its stack and redeploy it, then remove its router, service and network from this stack.
+To delete the stack entirely, first revert the `public-*` network entries in each backend's own stack (`../immich`, `../pocket-id`, `../jellyfin`, `../navidrome`, `../gokapi`, `../gitea`, `../privatebin`, `../mealie`, `../homebox`, `../kavita`, `../opencloud`, `../hi-events`, `../easy-appointments`, `../trek`, `../paperlessngx`, `../linkwarden`, `../actual-budget/*`, `../bytestash`) and redeploy them; otherwise the networks cannot be removed while attached and those stacks cannot start without them. To withdraw a single backend, delete its public DNS record, remove the network entries from its stack and redeploy it, then remove its router, service and network from this stack.
 
 ## Operating rules
 
@@ -244,7 +244,7 @@ To delete the stack entirely, first revert the `public-*` network entries in eac
 
 Before widening exposure beyond the first service:
 
-- Per-source connection cap (CrowdSec or an nftables `ct count` rule) and a country allow-list on the gateway; rate limiting and forward-auth once real client IPs are confirmed in the access log, since they can break Immich bulk uploads and the mobile apps.
+- Per-source connection cap (CrowdSec or an nftables `ct count` rule) on the gateway (the country allow-list already exists: UniFi Region Blocking, Incoming, Allow CH and IT); rate limiting and forward-auth once real client IPs are confirmed in the access log, since they can break Immich bulk uploads and the mobile apps.
 - Deferred, not applied: a small HAProxy hop between `traefik-public` and the Actual server on `public-budget` that accepts `POST /account/login` only with a strict OIDC-start JSON body and rejects explicit password logins (`loginMethod: password`, duplicate keys, urlencoded bodies), which is the only way to keep the shared server password from being usable on the public path while OIDC works. Tested config and results: `tools/actual-login-body-filter.haproxy.cfg` and the 2026-11-03 19:50 and 19:58 entries in the rollout notes (`findings/actual-budget.md`). The rate limit above is the interim control.
 - Rate limits exist per source address on logins, the Actual login endpoint and ByteStash (see [What it does](#what-it-does)); a global or per-country control and forward-auth are still planned.
 - Watch the UniFi gateway's conntrack table under load.

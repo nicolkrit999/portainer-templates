@@ -64,10 +64,6 @@ services:
       traefik.http.routers.grafana.rule: "Host(`${GRAFANA_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.grafana.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.grafana.tls: "true"
-      # SAN-bundle (group "infra-ops"): this router is a MEMBER, not the
-      # anchor - no tls.certresolver/tls.domains here. The anchor is
-      # glances/docker-compose.yml, which requests one bundled cert
-      # covering this hostname alongside the rest of the infra-ops group.
       traefik.http.routers.grafana.service: "grafana"
       traefik.http.routers.grafana.middlewares: "hsts-headers@docker"
       traefik.http.routers.grafana-tailnet.rule: "Host(`${GRAFANA_SUBDOMAIN}.${DOMAIN}`)"

@@ -75,6 +75,6 @@ AdGuard Home itself takes no environment-based configuration - everything (admin
 
 On first boot, AdGuard listens on port 3000 (setup wizard) before switching permanently to port 80 once configured. The setup wizard is **only reachable directly via the macvlan IP** (`http://192.168.1.96:3000`) from another device on the LAN - not from the Docker host itself (same macvlan limitation as above), and not yet through Traefik (which only forwards to port 80). Leave AdGuard's own built-in DHCP server **disabled** if, as in this deployment, your router/gateway remains the DHCP authority.
 
-## Certificate group
+## Certificate
 
-This service is a non-anchor member of the `infra-ops` SAN-bundle certificate group - see `.claude/rules/san-cert-groups.md`. It carries bare `tls: "true"` with no `certresolver`/`tls.domains` of its own.
+The routers carry a bare `tls: "true"` with no `certresolver`/`tls.domains` of their own; they are served by the single wildcard certificate that the `traefik-dashboard` router requests (see `.claude/rules/networking.md`).

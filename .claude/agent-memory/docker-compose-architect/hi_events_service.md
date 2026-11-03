@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. The four routers (private/family/friends/tailnet-admin), the `productivity-creative` SAN group (linkwarden anchor), the `eventi` dnsmasq entry and the 'Internal-only, no Cloudflare/Traefik network' wording are obsolete: Hi.Events (directory `hi-events/`) is now routed by a private and a `-tailnet` router, has no certificate labels, needs no DNS step, and is also served publicly through `traefik-public` (see `batch2-opencloud-trek-hi-events-public-wiring.md`). Folder naming, hostname override and migration facts remain accurate.**
+
 ## hi-events/docker-compose.yml (added 2026-08-24)
 
 Migrated from a manually-run NAS all-in-one compose (never a Portainer

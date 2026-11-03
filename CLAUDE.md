@@ -13,7 +13,7 @@ Full roster and orchestration notes: `.claude/agents/README.md`. Delegate by tri
 - **Creating / modifying / reviewing a compose file** → `docker-compose-architect` (the anchor agent; writes files).
 - **Adding a *new* service** → `service-researcher` first (compiles a compact image/env/volume/port/healthcheck spec via web research), then hand that spec to `docker-compose-architect`.
 - **"Audit / security-check my composes"** → `compose-security-auditor` (read-only: secrets, exposed ports, privileged, unpinned images, default-volume leaks).
-- **"Are my composes consistent / following conventions?"** → `compose-consistency-linter` (read-only: TZ, restart, no `version:`, quoting, volume pools, hostname, Cloudflare block).
+- **"Are my composes consistent / following conventions?"** → `compose-consistency-linter` (read-only: TZ, restart, no `version:`, quoting, volume pools, hostname, the two Traefik routers).
 
 The three read-only agents fan out across the ~70 service dirs in their own context and return only a compact report - use them to keep large scans and web research out of the main token budget.
 
@@ -23,7 +23,7 @@ The three read-only agents fan out across the ~70 service dirs in their own cont
 
 ## Shared conventions (`.claude/rules/`)
 
-The canonical compose conventions live in `.claude/rules/` and are referenced by every agent: `secrets.md` (no hardcoded secrets, use `${VAR}`), `networking.md` (Cloudflare Tunnel block, `<svc>.${DOMAIN}` hostnames, connector handoff), `volumes.md` (`${VOLUME_CONFIG}` fast/SSD-class vs `${VOLUME_DATA}` bulk/HDD-class bind-mounts - parameterized, real paths in .env), `conventions.md` (2-space indent, no `version:`, quote-all-env incl. PUID/PGID, `TZ: "${TZ}"`, `${ADMIN_USER}`/`${PUID}`/`${PGID}`), `portainer-instance.md` (instance-specific operational rules - Portainer MCP tools and migration workflow). A non-blocking PostToolUse hook (`.claude/hooks/validate-compose.sh`) warns on `version:`, unquoted env values, and hardcoded-secret patterns when a `docker-compose.yml` is edited.
+The canonical compose conventions live in `.claude/rules/` and are referenced by every agent: `secrets.md` (no hardcoded secrets, use `${VAR}`), `networking.md` (`<svc>.${DOMAIN}` hostnames, the two Traefik routers `<svc>-private` + `<svc>-tailnet` with bare `tls`, per-stack backend networks, making a service public), `volumes.md` (`${VOLUME_CONFIG}` fast/SSD-class vs `${VOLUME_DATA}` bulk/HDD-class bind-mounts - parameterized, real paths in .env), `conventions.md` (2-space indent, no `version:`, quote-all-env incl. PUID/PGID, `TZ: "${TZ}"`, `${ADMIN_USER}`/`${PUID}`/`${PGID}`), `portainer-instance.md` (instance-specific operational rules - Portainer MCP tools and migration workflow), `core-infra-topology.md` (read before touching traefik, traefik-public, the forwarders, tailscale or either dnsmasq). Current access model: three paths only - LAN (`dnsmasq` → private forwarder → Traefik entrypoint 3), tailnet (`dnsmasq-tailnet` → tailnet-admin gateway → entrypoint 7), public (`traefik-public`, a short hostname list). No Cloudflare Tunnel, no family/guest/friends tiers, one wildcard certificate, wildcard-only DNS (no per-service DNS or certificate step). A non-blocking PostToolUse hook (`.claude/hooks/validate-compose.sh`) warns on `version:`, unquoted env values, and hardcoded-secret patterns when a `docker-compose.yml` is edited.
 
 ## Known gotchas (`.claude/rules/gotchas/`)
 
@@ -32,7 +32,6 @@ session only pays to read the full writeup when it's actually relevant:
 
 - **macvlan networking** → `gotchas/macvlan-parent-bridge0.md` - any macvlan `parent`/`LAN_INTERFACE` on this NAS must be `bridge0`, not `eth0` (Virtual Network Bridging enslaves the physical NIC underneath it).
 - **`icorsi-sync` redeploys** → `gotchas/icorsi-sync-stackgitredeploy-endpoint.md` - `StackGitRedeploy` 404s on this one stack unless `endpointId: 3` is passed explicitly.
-- **SAN-bundle anchor `.env` scoping** → `gotchas/san-bundle-anchor-env-scoping.md` - an anchor's `.env` only needs its OWN group's subdomain vars; a missing one silently drops that hostname from the cert instead of erroring.
 - **CPU scheduling priority pattern** → `gotchas/cpu-priority-tuning.md` - the `cpu_shares`/`cpus` convention from the 2026-09-07 repo-wide pass, plus its rollback tag (`v4.0.9-pre-performance-tweaks`).
 - **Jellyfin `LibraryMonitor` permission errors** → `gotchas/jellyfin-librarymonitor-quirk.md` - a specific folder's cosmetic watcher error was chased to exhaustion and is a confirmed dead end; don't re-diagnose it without new evidence.
 - **Relative bind mounts under Portainer** → `gotchas/portainer-relative-bind-mounts.md` - a `./file` bind mount in a git stack resolves inside Portainer's container, so the NAS daemon creates an EMPTY DIRECTORY and the app silently runs without its config (broke PrivateBin 2026-11-03); mount from `${DOCKER_CONFIG_DIR}/portainer/compose/${PORTAINER_STACK_ID}/<dir>/<file>` instead. Repo-wide scan found no other affected stack.

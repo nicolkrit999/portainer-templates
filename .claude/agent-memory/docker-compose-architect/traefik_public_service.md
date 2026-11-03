@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: the 'Not in SAN-bundle groups ... no dnsmasq entry' lines now simply describe the normal case (SAN groups and per-service dnsmasq entries no longer exist for any service). Public hostnames resolve through public DNS (DNS-only CNAME to the WAN DDNS name), while on LAN/tailnet the wildcards send the same names to the private paths. Everything else here is current; `traefik-public/README.md` is authoritative.**
+
 ## traefik-public/ (written 2026-11-03, reviewed once same day; NOT deployed or committed by the architect)
 
 Second, separate Traefik for direct WAN TCP 443 exposure (replaces the Cloudflare Tunnel

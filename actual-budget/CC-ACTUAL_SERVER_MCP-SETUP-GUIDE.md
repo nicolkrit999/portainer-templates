@@ -13,14 +13,14 @@ Uses the open-source [`actual-mcp`](https://github.com/s-stefanov/actual-mcp) np
 ## How it works
 
 ```
-Claude Code  →  MCP Server (runs locally via npx)  →  Actual Server (via Cloudflare Tunnel)
+Claude Code  →  MCP Server (runs locally via npx)  →  Actual Server (via its HTTPS hostname)
                     uses: @actual-app/api (Node.js)
                     auth: ACTUAL_PASSWORD + ACTUAL_BUDGET_SYNC_ID
 ```
 
 - The MCP server runs **locally on your machine** as a stdio process spawned by Claude Code
 - `npx -y actual-mcp` downloads and runs it on-the-fly (cached in npm cache)
-- Connects to Actual Server through the **Cloudflare Tunnel URL** — works from anywhere
+- Connects to Actual Server through the Actual server's **HTTPS hostname** (public through `traefik-public`, and on the LAN and tailnet through the private and tailnet routers) — works from anywhere
 - No extra Docker container needed — your existing Actual Server is all you need
 - **Cost: Free** (open source, runs locally, included in Claude Pro plan)
 
@@ -49,7 +49,7 @@ Get these before running the commands:
 
 | Value | Where to find it |
 |-------|-----------------|
-| `ACTUAL_SERVER_URL` | Your Cloudflare Tunnel URL (e.g., `https://actual.yourdomain.com`) |
+| `ACTUAL_SERVER_URL` | Your Actual server's HTTPS URL (e.g., `https://budget.yourdomain.com`) |
 | `ACTUAL_PASSWORD` | Your Actual Server password |
 | `ACTUAL_BUDGET_SYNC_ID` | Actual Budget UI → Settings → Advanced → Sync ID (one per budget) |
 | `ACTUAL_BUDGET_ENCRYPTION_PASSWORD` | Your E2E encryption password |
@@ -60,7 +60,7 @@ Get these before running the commands:
 claude mcp add budget-principale \
   --scope user \
   --transport stdio \
-  --env ACTUAL_SERVER_URL="https://actual.yourdomain.com" \
+  --env ACTUAL_SERVER_URL="https://budget.yourdomain.com" \
   --env ACTUAL_PASSWORD="your-server-password" \
   --env ACTUAL_BUDGET_SYNC_ID="your-principale-sync-id" \
   --env ACTUAL_BUDGET_ENCRYPTION_PASSWORD="your-encryption-password" \
@@ -73,7 +73,7 @@ claude mcp add budget-principale \
 claude mcp add budget-euro \
   --scope user \
   --transport stdio \
-  --env ACTUAL_SERVER_URL="https://actual.yourdomain.com" \
+  --env ACTUAL_SERVER_URL="https://budget.yourdomain.com" \
   --env ACTUAL_PASSWORD="your-server-password" \
   --env ACTUAL_BUDGET_SYNC_ID="your-euro-sync-id" \
   --env ACTUAL_BUDGET_ENCRYPTION_PASSWORD="your-encryption-password" \
@@ -109,7 +109,7 @@ Copy-paste, change the name and sync ID:
 claude mcp add budget-NEW-NAME \
   --scope user \
   --transport stdio \
-  --env ACTUAL_SERVER_URL="https://actual.yourdomain.com" \
+  --env ACTUAL_SERVER_URL="https://budget.yourdomain.com" \
   --env ACTUAL_PASSWORD="your-server-password" \
   --env ACTUAL_BUDGET_SYNC_ID="the-new-budget-sync-id" \
   --env ACTUAL_BUDGET_ENCRYPTION_PASSWORD="your-encryption-password" \

@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. The family/guest/friends tiers, the 4-tier router layout, the `utilities` SAN-bundle membership (`duplicati` anchor) and the per-hostname dnsmasq entry no longer exist. openspeedtest is private only now with the standard two routers (private on `${TRAEFIK_ENTRYPOINT_3}`, `-tailnet` on `${TRAEFIK_ENTRYPOINT_7}`; the rule is a bare `tls: "true"`, though the compose still had a stale `tls.certresolver` on 2026-11-03); the 'tailnet router is only for private-tier-only services' lesson below is obsolete - EVERY service gets both routers. Image, port, stateless and security_opt facts remain accurate.**
+
 ## openspeedtest/docker-compose.yml (added 2026-08-25)
 
 Speed-test service, deliberately reachable on ALL FOUR access tiers

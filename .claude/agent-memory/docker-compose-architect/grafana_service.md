@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: superseded in part. The Cloudflare lesson below ('Cloudflare is the unconditional default... add `cloudflare_web_network`') is the OPPOSITE of the current model: the Cloudflare Tunnel and the `cloudflare-web` network were deleted and must never be added. Grafana has the standard private + `-tailnet` router pair (as of 2026-11-03 the compose may still carry a stale `tls.certresolver` label; the rule is bare TLS), no SAN group (the `infra-ops` group and the `glances` anchor no longer exist) and no dnsmasq entry. UID 472, provisioning and dashboard facts remain accurate.**
+
 ## grafana/docker-compose.yml (added 2026-09-02, corrected same day)
 
 **CORRECTED 2026-09-02**: originally built with no `cloudflare_web_network`

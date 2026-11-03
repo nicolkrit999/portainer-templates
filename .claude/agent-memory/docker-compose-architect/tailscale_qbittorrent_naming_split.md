@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+> **2026-11-03: only the shared-subdomain / router-name facts apply; any `cloudflare-web` or SAN-group wording in the linked notes is obsolete (see `tailscale_qbittorrent_service.md`).**
+
 Follow-up to [[tailscale_qbittorrent_service]]'s migration, same day
 (2026-09-24). The user restored `qbit-torrent/docker-compose.yml` as a
 deliberate, permanent rollback reference (not currently deployed - see
