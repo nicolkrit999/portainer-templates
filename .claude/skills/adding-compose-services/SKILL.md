@@ -3,6 +3,12 @@ name: adding-compose-services
 description: Use this skill when the user wants to bring a brand-new service into this Portainer homelab repo. Trigger phrases include 'add <service> to my homelab', 'set up <service> behind the tunnel', 'create a compose for <service>', 'deploy <service>', 'I want to self-host <service>'. It researches the service, has docker-compose-architect create the new `<service>/docker-compose.yml` per repo rules - Cloudflare Tunnel AND Traefik ALWAYS added together (private tier by default plus its tailnet-admin sibling router, other tiers only if the user asks, no confirmation needed either way), HSTS on every router - adds the matching DNS overrides in BOTH `dnsmasq` (LAN) and `dnsmasq-tailnet` (tailnet-admin path) - required together for almost every new service, not just a rare admin-gated subset - assigns the service to a SAN-bundle certificate group (existing group if it fits, otherwise asks the user - never silently invented) and, after the anchor redeploys, checks for and cleans up the stale-duplicate-cert issue that reliably follows an anchor SAN-list change, runs compose-security-auditor and compose-consistency-linter in parallel, loops fixes back through docker-compose-architect, and hands off + VERIFIES the Cloudflare Tunnel public-hostname route plus the full list of `${VAR}`s to set in Portainer. It does NOT cover auditing or linting services that already exist across the repo (use auditing-compose-repo for that) and it does NOT cover editing an already-deployed service's compose file (dispatch docker-compose-architect directly for that).
 ---
 
+> **OBSOLETE PARTS (2026-11-03), rewrite pending:** the Cloudflare Tunnel steps, the
+> per-service `dnsmasq`/`dnsmasq-tailnet` entries (both now use a wildcard, nothing to add
+> per service), the SAN-bundle group steps (one wildcard certificate replaced them) and the
+> family/guest/friends tiers no longer exist. A new service needs: a private and a tailnet
+> router, and, if it must be public, a router and network in `traefik-public`.
+
 # Adding a Compose Service
 
 Orchestrated in the main chat. You (the orchestrator) dispatch each agent below in
@@ -223,13 +229,11 @@ order and loop the review step - agents cannot call each other.
 
      | Var | Tier | Port |
      |---|---|---|
-     | `TRAEFIK_ENTRYPOINT_1` / `TRAEFIK_PORT_1` | family | 443 |
-     | `TRAEFIK_ENTRYPOINT_2` / `TRAEFIK_PORT_2` | guest | 8443 |
      | `TRAEFIK_ENTRYPOINT_3` / `TRAEFIK_PORT_3` | private (`asDefault`, default for new services) | 8444 |
-     | `TRAEFIK_ENTRYPOINT_4` / `TRAEFIK_PORT_4` | friends | 8445 |
-     | `TRAEFIK_ENTRYPOINT_5` / `TRAEFIK_PORT_5` | internal, `cloudflared`-facing only | 9080 |
      | `TRAEFIK_ENTRYPOINT_6` / `TRAEFIK_PORT_6` | internal, ping/dashboard-API only | 8080 |
-     | `TRAEFIK_ENTRYPOINT_7` | tailnet-admin, no host port (default alongside private, step 2) | n/a |
+     | `TRAEFIK_ENTRYPOINT_7` / `TRAEFIK_PORT_7` | tailnet-admin, no host port (second router on every service) | 8446 |
+
+     (1, 2, 4 and 5 are retired.)
    - a reminder that **both `dnsmasq` and `dnsmasq-tailnet` need to be
      redeployed** (recreated, not just restarted - see step 3's note on why
      a live git-tracked stack doesn't auto-recreate) before the new

@@ -3,6 +3,10 @@ description: Let's Encrypt SAN-bundle certificate groups - which group a new ser
 paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 ---
 
+> **OBSOLETE (2026-11-03):** the six SAN-bundle groups are being replaced by one wildcard
+> certificate requested by the `traefik-dashboard` router (see `traefik/README.md`).
+> Do not add anchors or `tls.domains`. The remaining anchors are removed in a later step.
+
 # SAN-bundle certificate groups
 
 ## Why this exists

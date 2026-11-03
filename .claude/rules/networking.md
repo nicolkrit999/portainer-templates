@@ -111,28 +111,28 @@ household-member decision, 2026-08-21):
 
 | Variable | Meaning this instance | Port var | Port |
 |---|---|---|---|
-| `TRAEFIK_ENTRYPOINT_1` | family tier | `TRAEFIK_PORT_1` | 443 |
-| `TRAEFIK_ENTRYPOINT_2` | guest tier | `TRAEFIK_PORT_2` | 8443 |
-| `TRAEFIK_ENTRYPOINT_3` | private tier (`asDefault`) - **the default for new services** | `TRAEFIK_PORT_3` | 8444 |
-| `TRAEFIK_ENTRYPOINT_4` | friends tier | `TRAEFIK_PORT_4` | 8445 |
-| `TRAEFIK_ENTRYPOINT_5` | internal, `cloudflared`-facing only, no host port | `TRAEFIK_PORT_5` | 9080 |
+| `TRAEFIK_ENTRYPOINT_3` | private tier (`asDefault`), LAN only via `traefik-private-forwarder` | `TRAEFIK_PORT_3` | 8444 |
 | `TRAEFIK_ENTRYPOINT_6` | internal, ping/dashboard-API only, no host port | `TRAEFIK_PORT_6` | 8080 |
-| `TRAEFIK_ENTRYPOINT_7` | tailnet-admin - admin-gated, no host port (see below) | n/a | n/a |
+| `TRAEFIK_ENTRYPOINT_7` | tailnet-admin - admin-gated, no host port (see below) | `TRAEFIK_PORT_7` | 8446 |
 
-**Ask the user, every time a new service is added: does this need to be
-reachable beyond your own private access (family/guest/friends), or is
-private-only (the default) correct?** If they want an additional tier, add
-a **separate router label block per entrypoint** - e.g.
-`traefik.http.routers.<service>-family.*` alongside
-`traefik.http.routers.<service>.*` (which stays `private`) - never a single
-router with a comma-separated `entrypoints` value (Traefik GitHub issue
-#11889: this doesn't bind cleanly to a single router in practice). Each
-additional router block needs its own `tls.certresolver` label too, per the
-gotcha above.
+Numbers 1, 2, 4 and 5 are retired (the family, guest, friends and `cloudflared`
+tiers were removed 2026-11-03); the other numbers were kept so no stack's
+variables had to change. Public access does not use this Traefik at all: it
+goes through `traefik-public` (see `traefik-public/README.md`).
+
+**Every service gets exactly two routers, and no confirmation is needed:**
+`<service>-private` on `${TRAEFIK_ENTRYPOINT_3}` and `<service>-tailnet` on
+`${TRAEFIK_ENTRYPOINT_7}`. The LAN wildcard in `dnsmasq` points every
+hostname at the private tier and the tailnet wildcard in `dnsmasq-tailnet`
+points every hostname at the tailnet-admin gateway, so a hostname without
+both routers answers Traefik's own 404 on that path. If a service must also
+be public, that is a router in `traefik-public/docker-compose.yml`, not a
+label here. Never use a single router with a comma-separated `entrypoints`
+value (Traefik GitHub issue #11889).
 
 ## Tailnet-admin clean-URL router (default, additive on top of `private`)
 
-**Every private-tier-only service also gets a second router on
+**Every service gets a second router on
 `${TRAEFIK_ENTRYPOINT_7}` (`tailnet-admin`) by default, no confirmation
 needed** - this became standard for all 53+ private-tier services in
 2026-08-23's rollout (GitHub PR #2) and applies to every new one going
@@ -162,7 +162,7 @@ Tailscale identity + PROXY protocol, not just a plain Tailscale IP bind) is
 in `.claude/rules/core-infra-topology.md` - read it before touching any of
 the stacks that implement this path (`tailscale-admin_traefik-tailnet-forwarder`
 - one merged stack since 2026-09-08, was two separate ones before -
-and `dnsmasq-tailnet`'s admin override list), though adding this router
+and `dnsmasq-tailnet`), though adding this router
 block to an ordinary new service needs none of that caution.
 
 ## Host references (NAS)
