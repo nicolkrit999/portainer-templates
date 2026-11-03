@@ -74,10 +74,13 @@ services:
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--providers.file.watch=true"
       - "--entryPoints.websecure.address=:443"
-      # Finite on purpose: a stalled connection is bounded to this budget (0s removes the
-      # bound). Not a per-source limit; see the README's planned hardening.
-      - "--entryPoints.websecure.transport.respondingTimeouts.readTimeout=3600s"
-      - "--entryPoints.websecure.transport.respondingTimeouts.writeTimeout=7200s"
+      # Total per-request budgets, not inactivity timers: 24h covers about 100 GB at 10 Mbit/s in a
+      # single request. Finite on purpose (0s removes the bound). Slow-client limits come from the
+      # planned per-source controls (see README), not from these values. Resumable/chunked clients
+      # (Gokapi, OpenCloud/TUS) remain the robust way to move huge files: a dropped single-request
+      # upload restarts from zero.
+      - "--entryPoints.websecure.transport.respondingTimeouts.readTimeout=86400s"
+      - "--entryPoints.websecure.transport.respondingTimeouts.writeTimeout=86400s"
       - "--entryPoints.websecure.transport.respondingTimeouts.idleTimeout=180s"
       - "--entryPoints.websecure.http.tls.certResolver=cf_dns_public"
       # Loopback only: macvlan exposes every listening port on the LAN IP.
