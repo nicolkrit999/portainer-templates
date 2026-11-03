@@ -1,6 +1,6 @@
 services:
   kavita:
-    image: jvmilazz0/kavita:latest
+    image: jvmilazz0/kavita:0.9.1
     container_name: kavita
     volumes:
       - ${DOCKER_DATA_DIR}/kavita/manga:/manga
@@ -8,11 +8,11 @@ services:
       - ${DOCKER_DATA_DIR}/kavita/books:/books
       - ${DOCKER_DATA_DIR}/kavita/data:/kavita/config
     environment:
-      - TZ=${TZ}
+      TZ: "${TZ}"
     restart: unless-stopped
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_kavita_network
     labels:
       traefik.enable: "true"
       traefik.http.routers.kavita.rule: "Host(`${KAVITA_SUBDOMAIN}.${DOMAIN}`)"
@@ -29,9 +29,10 @@ services:
       traefik.docker.network: "traefik-proxy"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_kavita_network:
+    name: public-kavita
     external: true

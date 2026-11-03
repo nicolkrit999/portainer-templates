@@ -1,7 +1,7 @@
 services:
   homebox:
     container_name: homebox
-    image: ghcr.io/sysadminsmedia/homebox:latest
+    image: ghcr.io/sysadminsmedia/homebox:0.27.1
     mem_limit: 3g
     cpu_shares: 2048
     security_opt:
@@ -13,6 +13,11 @@ services:
       HBOX_LOG_LEVEL: "info"
       HBOX_LOG_FORMAT: "text"
       HBOX_WEB_MAX_UPLOAD_SIZE: "5000"
+      HBOX_WEB_READ_TIMEOUT: "24h"
+      HBOX_WEB_WRITE_TIMEOUT: "24h"
+      HBOX_WEB_IDLE_TIMEOUT: "180s"
+      HBOX_OPTIONS_ALLOW_REGISTRATION: "false"
+      HBOX_OPTIONS_TRUST_PROXY: "true"
       HBOX_AUTH_API_KEY_PEPPER: "${HBOX_AUTH_API_KEY_PEPPER}"
       TZ: "${TZ}"
     labels:
@@ -31,13 +36,14 @@ services:
       traefik.http.services.homebox-private.loadbalancer.server.port: "7745"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_homebox_network
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_homebox_network:
+    name: public-homebox
     external: true

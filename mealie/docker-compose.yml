@@ -1,6 +1,6 @@
 services:
   mealie:
-    image: ghcr.io/mealie-recipes/mealie:latest
+    image: ghcr.io/mealie-recipes/mealie:v3.30.0
     container_name: mealie
     restart: unless-stopped
     cpu_shares: 2048
@@ -11,25 +11,24 @@ services:
     volumes:
       - ${DOCKER_DATA_DIR}/mealie/mealie_data:/app/data/
     environment:
-      - ALLOW_SIGNUP=true
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - MAX_WORKERS=1
-      - WEB_CONCURRENCY=1
-      - BASE_URL=${MEALIE_BASE_URL}
-      # --- OIDC Configuration ---
-      - OIDC_AUTH_ENABLED=true
-      - OIDC_SIGNUP_ENABLED=true
-      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
-      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
-      - OIDC_SCOPES=openid profile email groups
-      - OIDC_USER_CLAIM=preferred_username
-      - OAUTH_PROVIDER_NAME=Pocket ID
-      - OIDC_CONFIGURATION_URL=${OIDC_CONFIGURATION_URL}
+      ALLOW_SIGNUP: "false"
+      PUID: "${PUID}"
+      PGID: "${PGID}"
+      TZ: "${TZ}"
+      MAX_WORKERS: "1"
+      WEB_CONCURRENCY: "1"
+      BASE_URL: "https://${MEALIE_SUBDOMAIN}.${DOMAIN}"
+      HOST_IP: "${MEALIE_TRUSTED_PROXIES:-172.27.0.0/16,172.16.83.0/28}"
+      OIDC_AUTH_ENABLED: "true"
+      OIDC_SIGNUP_ENABLED: "true"
+      OIDC_CLIENT_ID: "${OIDC_CLIENT_ID}"
+      OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET}"
+      OIDC_USER_CLAIM: "preferred_username"
+      OIDC_PROVIDER_NAME: "Pocket ID"
+      OIDC_CONFIGURATION_URL: "${OIDC_CONFIGURATION_URL}"
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_mealie_network
     labels:
       traefik.enable: "true"
       traefik.http.routers.mealie-family.rule: "Host(`${MEALIE_SUBDOMAIN}.${DOMAIN}`)"
@@ -52,9 +51,10 @@ services:
       traefik.docker.network: "traefik-proxy"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_mealie_network:
+    name: public-mealie
     external: true
