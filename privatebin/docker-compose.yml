@@ -10,13 +10,22 @@ services:
       - PHP_UPLOAD_MAX_FILESIZE=10G
 
     volumes:
-      - ./conf.php:/srv/cfg/conf.php:ro
+      # Portainer runs compose inside its own container, so a relative ./conf.php resolves to a
+      # path the Docker daemon does not have; Docker then creates an empty directory there and
+      # PrivateBin answers 500. This is the git checkout's real host path.
+      - "${DOCKER_CONFIG_DIR}/portainer/compose/${PORTAINER_STACK_ID:?set PORTAINER_STACK_ID}/privatebin/conf.php:/srv/cfg/conf.php:ro"
 
       - ${DOCKER_CONFIG_DIR}/privatebin/data:/srv/data
 
+      # Request-body buffering for very large uploads needs a real disk, not RAM.
       - ${DOCKER_CONFIG_DIR}/privatebin/tmp:/tmp
       - ${DOCKER_CONFIG_DIR}/privatebin/tmp:/var/lib/nginx/tmp
-      - ${DOCKER_CONFIG_DIR}/privatebin/tmp:/run
+
+    # The image copies its s6 service definitions into /run on every start and the copy merges
+    # into whatever is already there, so /run must start empty: a persistent /run kept a removed
+    # php-fpm service alive across an image upgrade. exec is required, s6 runs the scripts from here.
+    tmpfs:
+      - "/run:exec,uid=${PUID},gid=${PGID},mode=0755,size=16m"
 
     ports:
       - "127.0.0.1:${PRIVATEBIN_HOST_PORT}:8080"
