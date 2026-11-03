@@ -96,3 +96,24 @@ host-namespace address on the same segment; check after deploy).
 - Pre-existing finding: live `grafana_default` (192.168.16.0/20) overlaps LAN VLANs 192.168.20.0/24 and 30.0/24.
 - immich_server resolver upstreams (read-only): host 127.0.0.1 first, then 9.9.9.9, 149.112.112.112, 62.2.17.60,
   62.2.24.162 -> its OAuth back-channel to the issuer URL depends on what the NAS's local resolver returns.
+
+## Egress guard (written 2026-11-03, uncommitted at write time): design B', not the literal B
+`traefik-public-net` (holder) owns networks/ipv4_address/dns/sysctl and applies the iptables guard itself at every start; the proxy
+joins it with `network_mode: "service:traefik-public-net"` and `depends_on: traefik-public-net: service_healthy`. Image
+`registry.k8s.io/build-image/distroless-iptables:v0.11.2@sha256:5517fe2d...` (26 MB, maintained; NOT the abandoned debian-iptables; no
+sleep/ip/awk/grep/head in it: default iface read from /proc/net/route in dash, final block = `read _` with `stdin_open: true`).
+- Measured (nft backend on the laptop): A sidecar = proxy restart leaves the guard in the dead netns -> proxy fully OPEN until the sidecar is
+  restarted (Compose does recreate both when the proxy's config changes). Literal B (pause holder + one-shot rules container) = perfect at
+  `compose up` but after holder/host restart the one-shot (restart: no) never re-runs -> proxy OPEN. B' fixes that (rules in place 0.12-0.21 s
+  after holder start). Restart of the proxy alone keeps netns+rules; restart of the holder alone leaves the proxy with only `lo` and still
+  "healthy" (loopback ping) -> restart the proxy. Compose 5.6 recreates holder+proxy together when the holder config changes. A proxy start
+  while the holder is down is refused by Docker ("cannot join network namespace of a non running container").
+- Caps: nft backend needs only NET_ADMIN (no NET_RAW, root uid required, non-root fails). read_only + tmpfs /run fine.
+- Backend detection = the one whose `-t nat` save contains DOCKER_OUTPUT (what dockerd used in that netns), else the first that works.
+  NAS: kernel 6.18.15, Debian 12 userland, Docker 29.6.2, FirewallBackend driver "iptables"; nft-vs-legacy there is unknown (laptop kernel has
+  no legacy filter table, so legacy could not be tested locally).
+- IPv6: Docker sets disable_ipv6=1 on IPv4-only network interfaces by default, so no sysctl from me (a net.ipv6 sysctl would fail on a
+  kernel without IPv6); the guard instead REFUSES to start if the guarded interface has any IPv6 address (/proc/net/if_inet6).
+- Upgrade from the old layout works in ONE `up -d` (Compose replaces the old proxy first, freeing the macvlan address; a few seconds of
+  proxy downtime). busybox `nc -z -w2` exists in the traefik image (used for the verification recipe).
+- Compose gotcha: `docker compose config` prints `$$`; the container sees single `$` (verified via docker inspect).
