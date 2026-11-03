@@ -32,7 +32,6 @@ services:
       - database
     restart: always
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
       - public_apps_network
       - immich_backend_network
@@ -141,9 +140,6 @@ services:
       start_period: 1m
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true

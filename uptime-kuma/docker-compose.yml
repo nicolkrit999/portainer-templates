@@ -12,7 +12,6 @@ services:
       - ${DOCKER_CONFIG_DIR}/uptime-kuma:/app/data
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
@@ -37,9 +36,6 @@ services:
 
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true
