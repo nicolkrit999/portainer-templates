@@ -1,68 +1,90 @@
 services:
-  # Init container: fixes app perms (uid 33 for php-fpm/nginx) on /data,
-  # then re-fixes mysql data dir to uid 999 (mysql 8 requires it).
   permissions-init:
-    image: alpine:3.19
+    image: alpine:3.24.3
     container_name: easy-appointments-permissions-init
     restart: "no"
+    network_mode: none
     volumes:
-      - '${DOCKER_CONFIG_DIR}/easyappointments:/data'
-    command: >
-      sh -c "
-      chown -R 33:33 /data &&
-      find /data -type d -exec chmod 755 {} + &&
-      find /data -type f -exec chmod 644 {} + &&
-      if [ -d /data/storage ]; then chmod -R 775 /data/storage; fi &&
-      if [ -d /data/application/cache ]; then chmod -R 775 /data/application/cache; fi &&
-      if [ -d /data/application/logs ]; then chmod -R 775 /data/application/logs; fi &&
-      if [ -d /data/docker/mysql ]; then chown -R 999:999 /data/docker/mysql && chmod 700 /data/docker/mysql; fi &&
-      echo 'permissions-init complete'
-      "
+      - '${DOCKER_CONFIG_DIR}/easyappointments-app:/app'
+    command: ["sh", "-c", "chown -R 33:33 /app/storage && chmod -R u=rwX,g=rX,o= /app/storage && chown 0:33 /app/config.php /app/application/config/email.php && chmod 640 /app/config.php /app/application/config/email.php && echo permissions-init complete"]
 
   php-fpm:
-    image: easyappointments-php-fpm:latest
+    build: ./php-fpm
+    image: easy-appointments-php-fpm:8.4.27
+    pull_policy: build
     container_name: php-fpm
-    pull_policy: never
+    restart: unless-stopped
     working_dir: /var/www/html
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    environment:
+      TZ: "${TZ}"
+      PROXY_IPS: "${EASY_APPOINTMENTS_PROXY_IPS:-172.16.88.0/28,172.27.0.0/16}"
     volumes:
-      - '${DOCKER_CONFIG_DIR}/easyappointments:/var/www/html'
-      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini'
+      - '${DOCKER_CONFIG_DIR}/easyappointments-app:/var/www/html:ro'
+      - '${DOCKER_CONFIG_DIR}/easyappointments-app/storage:/var/www/html/storage'
     networks:
-      - cloudflare_web_network
+      - easy_appointments_backend_network
+      - default
     depends_on:
       permissions-init:
         condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "php-fpm", "-t"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
-    image: 'nginx:1.23.3-alpine'
-    working_dir: /var/www/html
+    build: ./nginx
+    image: easy-appointments-nginx:1.30.6
+    pull_policy: build
+    container_name: easy-appointments-nginx
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    environment:
+      TZ: "${TZ}"
+      EASY_APPOINTMENTS_SUBDOMAIN: "${EASY_APPOINTMENTS_SUBDOMAIN:?}"
+      DOMAIN: "${DOMAIN:?}"
     volumes:
-      - '${DOCKER_CONFIG_DIR}/easyappointments:/var/www/html'
-      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf'
-    ports:
-      - "${NGINX_PORT}:80"
+      - '${DOCKER_CONFIG_DIR}/easyappointments-app/assets:/var/www/html/assets:ro'
     networks:
-      - cloudflare_web_network
+      - easy_appointments_backend_network
       - traefik_proxy_network
+      - public_easy_appointments_network
     depends_on:
       php-fpm:
-        condition: service_started
-      permissions-init:
-        condition: service_completed_successfully
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null --header \"Host: $${EASY_APPOINTMENTS_SUBDOMAIN}.$${DOMAIN}\" http://127.0.0.1:80/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       traefik.enable: "true"
       traefik.http.routers.easy-appointments-family.rule: "Host(`${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN}`)"
@@ -85,37 +107,34 @@ services:
       traefik.docker.network: "traefik-proxy"
 
   mysql:
-    image: 'mysql:8.0'
+    image: 'mysql:8.0.46'
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
     volumes:
       - '${DOCKER_CONFIG_DIR}/easyappointments/docker/mysql:/var/lib/mysql'
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-    ports:
-      - "${MYSQL_PORT}:3306"
     networks:
-      - cloudflare_web_network
-    depends_on:
-      permissions-init:
-        condition: service_completed_successfully
+      - easy_appointments_backend_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 40s
 
   phpmyadmin:
-    image: 'phpmyadmin:5.2.1'
-    ports:
-      - "${PHPMYADMIN_PORT}:80"
+    image: 'phpmyadmin:5.2.3-apache'
+    restart: unless-stopped
     environment:
-      - 'PMA_HOST=mysql'
-      - 'UPLOAD_LIMIT=${PMA_UPLOAD_LIMIT}'
+      TZ: "${TZ}"
+      PMA_HOST: "mysql"
+      UPLOAD_LIMIT: "${PMA_UPLOAD_LIMIT}"
     networks:
-      - cloudflare_web_network
+      - easy_appointments_backend_network
       - traefik_proxy_network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://127.0.0.1:80/ || exit 1"]
@@ -139,16 +158,14 @@ services:
       traefik.docker.network: "traefik-proxy"
 
   swagger-ui:
+    build: ./swagger-ui
     platform: linux/amd64
-    image: swaggerapi/swagger-ui:v5.10.5
-    ports:
-      - "${SWAGGER_UI_PORT}:8080"
-    volumes:
-      - ${DOCKER_CONFIG_DIR}/easyappointments/openapi.yml:/usr/share/nginx/html/openapi.yml
+    image: easy-appointments-swagger-ui:5.34.1
+    pull_policy: build
+    restart: unless-stopped
     environment:
-      API_URL: openapi.yml
+      API_URL: "openapi.yml"
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/ || exit 1"]
@@ -171,43 +188,16 @@ services:
       traefik.http.services.easy-appointments-swagger.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
 
-  baikal:
-    image: easyappointments-baikal:latest
-    pull_policy: never
-    ports:
-        - "${BAIKAL_PORT}:80"
-    volumes:
-        - ${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/html:/var/www/html
-        - ${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/config:/var/www/baikal/config
-        - ${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/data:/var/www/baikal/Specific
-    networks:
-        - cloudflare_web_network
-        - traefik_proxy_network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:80/ || wget -q --spider http://127.0.0.1:80/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.easy-appointments-baikal.rule: "Host(`${EASY_APPOINTMENTS_BAIKAL_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.easy-appointments-baikal.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
-      traefik.http.routers.easy-appointments-baikal.tls: "true"
-      traefik.http.routers.easy-appointments-baikal.service: "easy-appointments-baikal"
-      traefik.http.routers.easy-appointments-baikal.middlewares: "hsts-headers@docker"
-      traefik.http.routers.easy-appointments-baikal-tailnet.rule: "Host(`${EASY_APPOINTMENTS_BAIKAL_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.easy-appointments-baikal-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
-      traefik.http.routers.easy-appointments-baikal-tailnet.tls: "true"
-      traefik.http.routers.easy-appointments-baikal-tailnet.service: "easy-appointments-baikal"
-      traefik.http.routers.easy-appointments-baikal-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
-      traefik.http.services.easy-appointments-baikal.loadbalancer.server.port: "80"
-      traefik.docker.network: "traefik-proxy"
-
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  easy_appointments_backend_network:
+    name: easy-appointments-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${EASY_APPOINTMENTS_BACKEND_SUBNET:-172.16.88.16/28}"
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  public_easy_appointments_network:
+    name: public-easy-appointments
     external: true

@@ -1,6 +1,6 @@
 services:
   trek:
-    image: mauriceboe/trek:latest
+    image: mauriceboe/trek:5.1.0
     container_name: trek
     restart: unless-stopped
     healthcheck:
@@ -9,16 +9,24 @@ services:
       timeout: 5s
       retries: 3
       start_period: 90s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
     cap_drop:
       - ALL
     cap_add:
       - CHOWN
       - SETUID
       - SETGID
+      - KILL
+    # The entrypoint chowns the data dirs and then drops to the node user with
+    # gosu, so it has to start as root. KILL lets dumb-init signal node on stop.
     user: "0:0"
+    tmpfs:
+      - /tmp:noexec,nosuid,size=128m
     volumes:
-      - /volume2/docker/trek/data:/app/data:rw
-      - /volume1/Default-volume-1/0001_Docker/trek/uploads:/app/uploads:rw
+      - ${VOLUME_CONFIG:?VOLUME_CONFIG must be set}/trek/data:/app/data:rw
+      - ${VOLUME_DATA:?VOLUME_DATA must be set}/trek/uploads:/app/uploads:rw
     environment:
       NODE_ENV: "production"
       ENCRYPTION_KEY: "${TREK_ENCRYPTION_KEY}"
@@ -36,8 +44,8 @@ services:
       #OIDC_DISPLAY_NAME: "SSO"
       #OIDC_ONLY: "false"
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_trek_network
     labels:
       traefik.enable: "true"
       traefik.http.routers.trek-family.rule: "Host(`${TREK_SUBDOMAIN}.${DOMAIN}`)"
@@ -69,9 +77,10 @@ services:
         max-file: "3"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_trek_network:
+    name: public-trek
     external: true

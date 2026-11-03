@@ -19,3 +19,7 @@
 - [privatebin 500 fix](privatebin_service.md) - 2026-11-03: relative ./conf.php mount never reached the Portainer checkout (daemon host-path), /run tmpfs needs exec, latest=nightly image
 - [PrivateBin image ignores PHP size env](privatebin-image-ignores-php-size-env.md) - hard 15M caps, only conf.php sizelimit matters; purge-on-create works, no TZ
 - [Gokapi file requests are a user permission](gokapi-file-requests-are-a-user-permission.md) - no env switch; "0" guest limits = unlimited
+- [Batch 2 public wiring (opencloud, trek, hi-events)](batch2-opencloud-trek-hi-events-public-wiring.md) - proxy-header ownership, root-entrypoint TREK, auto-migrating Hi.Events, basic auth vs app tokens, tunnel caveat
+
+- [Easy!Appointments public wiring](easy-appointments-public-wiring.md) - dev-layout rebuild, zip gaps, PROXY_IPS, php2shell, fixed-.2 IPAM hazard, local test recipe
+- [Public proxy batch lessons](reference_public-proxy-batch-lessons.md) - ip_range+gateway quirk, Traefik path-block limits, CodeIgniter `?/` bypass, local test recipe
