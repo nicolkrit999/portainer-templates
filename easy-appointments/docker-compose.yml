@@ -188,38 +188,6 @@ services:
       traefik.http.services.easy-appointments-swagger.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
 
-  baikal:
-    build: ./baikal
-    image: easy-appointments-baikal:0.10.1
-    pull_policy: build
-    restart: unless-stopped
-    volumes:
-      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/html:/var/www/html'
-      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/config:/var/www/baikal/config'
-      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/data:/var/www/baikal/Specific'
-    networks:
-      - traefik_proxy_network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:80/ || wget -q --spider http://127.0.0.1:80/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.easy-appointments-baikal.rule: "Host(`${EASY_APPOINTMENTS_BAIKAL_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.easy-appointments-baikal.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
-      traefik.http.routers.easy-appointments-baikal.tls: "true"
-      traefik.http.routers.easy-appointments-baikal.service: "easy-appointments-baikal"
-      traefik.http.routers.easy-appointments-baikal.middlewares: "hsts-headers@docker"
-      traefik.http.routers.easy-appointments-baikal-tailnet.rule: "Host(`${EASY_APPOINTMENTS_BAIKAL_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.easy-appointments-baikal-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
-      traefik.http.routers.easy-appointments-baikal-tailnet.tls: "true"
-      traefik.http.routers.easy-appointments-baikal-tailnet.service: "easy-appointments-baikal"
-      traefik.http.routers.easy-appointments-baikal-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
-      traefik.http.services.easy-appointments-baikal.loadbalancer.server.port: "80"
-      traefik.docker.network: "traefik-proxy"
-
 networks:
   easy_appointments_backend_network:
     name: easy-appointments-backend
