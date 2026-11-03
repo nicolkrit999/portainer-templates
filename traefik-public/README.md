@@ -4,7 +4,7 @@ Internet-facing Traefik for services that must be reachable from the public inte
 
 ## Address
 
-Own macvlan LAN IP `${TRAEFIK_PUBLIC_IP}` (this instance: `192.168.1.94`), TCP **443** only - no port 80, no HTTP/3, no published host ports. The UniFi gateway forwards WAN TCP 443 to that IP. Clients connect directly, so Traefik logs the real client IP (to be confirmed with the first real access-log lines).
+Own macvlan LAN IP `${TRAEFIK_PUBLIC_IP}` (this instance: `192.168.1.94`), TCP **443** only - no port 80, no HTTP/3, no published host ports. The UniFi gateway forwards WAN TCP 443 to that IP. Clients connect directly, so Traefik logs the real client IP (confirmed 2026-11-03 with a request through the UniFi forward).
 
 The container joins the existing macvlan network `traefik-private-forwarder_traefik_forwarder_net` (Docker allows only one per parent/subnet - see `.claude/rules/networking.md`). The NAS host itself cannot reach a macvlan IP on its own parent interface; test from another LAN device or from outside the LAN.
 
@@ -73,6 +73,6 @@ Before widening exposure beyond the first service:
 - Per-source connection cap (CrowdSec or an nftables `ct count` rule) and a country allow-list on the gateway; rate limiting and forward-auth once real client IPs are confirmed in the access log, since they can break Immich bulk uploads and the mobile apps.
 - Watch the UniFi gateway's conntrack table under load.
 - Alert on certificate expiry (renewal failures are otherwise silent until a certificate lapses).
-- Check from inside the proxy container what host-side addresses on the macvlan segment it can reach (for example the `macvlan-host-shim` IP) and restrict them with a host firewall rule if anything answers.
+- **Move the container into a DMZ network on the NAS's second 2.5G port before widening the forward beyond a test source IP.** Probed from inside the container (2026-11-03): the `macvlan-host-shim` (`.95`) and the NAS host (`.98`) answer on none of the tested ports, but the AdGuard macvlan IP answers on :53 and :80, the private-tier forwarder on :443 and the gateway on :22 and :443. Macvlan siblings talk inside the NAS, so the UniFi firewall never sees that traffic and cannot block it. A DMZ network puts the traffic through the gateway, where a zone rule can.
 
 Before real services move over, narrow the DNS-01 credential. The Cloudflare token can edit every record in the zone. Option: delegate `_acme-challenge.<host>` by CNAME to a dedicated acme-dns zone so this host holds no Cloudflare token at all. TLS-ALPN-01 and HTTP-01 are not alternatives while a country allow-list on the gateway blocks Let's Encrypt's validators.
