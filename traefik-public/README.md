@@ -14,7 +14,7 @@ The container joins the existing macvlan network `traefik-private-forwarder_trae
 - **Routers** (single entrypoint `websecure`): `${PUBLIC_TEST_SUBDOMAIN}.${DOMAIN}` and `${IMMICH_SUBDOMAIN}.${DOMAIN}`, both to `http://immich_server:2283`. Any other hostname gets Traefik's default 404, and `sniStrict` rejects TLS handshakes for names without a certificate. Each router sets `certResolver` explicitly: a router-level `tls` section replaces the entrypoint's TLS settings entirely.
 - **Certificates:** one per router hostname via ACME DNS-01 (resolver `cf_dns_public`, Cloudflare), EC256 keys, own `acme.json`, own token. No wildcard. These count against the same Let's Encrypt registered-domain quota (50 per week) as the core Traefik, so keep the hostname count small and keep `acme.json` backed up.
 - **Headers and TLS:** `public-secure-headers` (HSTS 1 year + subdomains + preload, nosniff, frame deny, `same-origin` referrer policy). TLS 1.2 minimum, AEAD cipher suites only. Request headers with aliasing names (`X_Foo`, `X.Foo`) are stripped.
-- **Timeouts:** read 3600s, write 7200s, idle 180s. They bound a stalled connection to that budget; they are not a per-source limit (see planned hardening below).
+- **Timeouts:** read and write 86400s (24h), idle 180s. The read and write values are total per-request budgets, not inactivity timers; 24h covers about 100 GB at 10 Mbit/s in a single request. Slow-client limits come from the planned per-source controls below, not from these values. Resumable/chunked clients (Gokapi chunks, OpenCloud/TUS) remain the robust way to move very large files, because a dropped single-request upload restarts from zero.
 - **Logs:** JSON access log on stdout. Headers are dropped except `User-Agent`; query strings are dropped. The request path is kept on purpose and contains Immich share keys (`/share/<key>`), so treat the logs as sensitive. Docker rotation keeps ~30 MB, so ship the logs elsewhere if they are needed for forensics.
 - **Hardening:** non-root (UID 65532), read-only rootfs, `no-new-privileges`, all capabilities dropped (port 443 binds through the `net.ipv4.ip_unprivileged_port_start` sysctl), ping endpoint on loopback only, `public-apps` has no default route. Resource limits: `cpu_shares: 2048`, `cpus: 2.0`, `mem_limit: 512m`, `pids_limit: 512`, `nofile` 65536, `oom_score_adj: 500` (first to be sacrificed under memory pressure). The init container is digest-pinned, read-only, capability-limited and has no network.
 - **Restart policy:** `unless-stopped`, so a manual stop sticks.
@@ -70,7 +70,7 @@ To delete the stack entirely, first revert the `public-apps` network entries in 
 
 Before widening exposure beyond the first service:
 
-- Per-source connection cap (CrowdSec or an nftables `ct count` rule); rate limiting and forward-auth once real client IPs are confirmed in the access log, since they can break Immich bulk uploads and the mobile apps.
+- Per-source connection cap (CrowdSec or an nftables `ct count` rule) and a country allow-list on the gateway; rate limiting and forward-auth once real client IPs are confirmed in the access log, since they can break Immich bulk uploads and the mobile apps.
 - Watch the UniFi gateway's conntrack table under load.
 - Alert on certificate expiry (renewal failures are otherwise silent until a certificate lapses).
 - Check from inside the proxy container what host-side addresses on the macvlan segment it can reach (for example the `macvlan-host-shim` IP) and restrict them with a host firewall rule if anything answers.
