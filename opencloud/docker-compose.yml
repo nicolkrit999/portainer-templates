@@ -25,6 +25,9 @@ services:
       # mobile apps use OIDC against the built-in IdP; WebDAV clients that
       # cannot (rclone, davfs2) can use per-user app tokens as the password.
       PROXY_ENABLE_BASIC_AUTH: "${OPENCLOUD_ENABLE_BASIC_AUTH:-false}"
+      # App tokens (account settings > App Tokens) work as the password of a WebDAV mount
+      # (username + token) without accepting the real account password on every endpoint.
+      PROXY_ENABLE_APP_AUTH: "true"
       IDM_CREATE_DEMO_USERS: "false"
       IDM_ADMIN_PASSWORD: "${OPENCLOUD_ADMIN_PASSWORD}"
       # SMTP - Gmail relay via an app password (requires 2FA enabled on the
