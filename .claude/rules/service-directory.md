@@ -62,6 +62,7 @@ specific service.
 | `glance` | glance | private, tailnet-admin | yes |
 | `glances` | glances | private, tailnet-admin | yes |
 | `gocron` | gocron | private, tailnet-admin | no |
+| `gokapi` | gokapi | family, private, friends, tailnet-admin | no |
 | `gotify` | gotify | private, tailnet-admin | yes |
 | `grafana` | grafana | private, tailnet-admin | yes |
 | `grocy` | grocy | family, private | yes |
