@@ -9,6 +9,7 @@ services:
     devices:
       - /dev/dri:/dev/dri
     group_add: ["105"]
+    security_opt: ["no-new-privileges:true"]
     environment:
       - IMMICH_HOST=0.0.0.0
       - HOST=0.0.0.0
@@ -34,6 +35,7 @@ services:
       - cloudflare_web_network
       - traefik_proxy_network
       - public_apps_network
+      - immich_backend_network
     labels:
       traefik.enable: "true"
       traefik.http.routers.immich-family.rule: "Host(`${IMMICH_SUBDOMAIN}.${DOMAIN}`)"
@@ -93,7 +95,8 @@ services:
       - "${UPLOAD_LOCATION}:/data"
     restart: always
     networks:
-      - cloudflare_web_network
+      - immich_backend_network
+      - immich_ml_egress_network
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect(('127.0.0.1', 3003)); s.close()\" || exit 1"]
       interval: 30s
@@ -108,7 +111,7 @@ services:
       - ${DOCKER_CONFIG_DIR}/immich/redis:/data
     restart: always
     networks:
-      - cloudflare_web_network
+      - immich_backend_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -129,7 +132,7 @@ services:
     shm_size: 128mb
     restart: always
     networks:
-      - cloudflare_web_network
+      - immich_backend_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U immich -d immich"]
       interval: 30s
@@ -148,3 +151,12 @@ networks:
   public_apps_network:
     name: public-apps
     external: true
+  # Created by this stack. internal: true gives it no default route and no egress, so the
+  # database, redis and machine-learning containers cannot reach the internet or other stacks.
+  immich_backend_network:
+    name: immich-backend
+    internal: true
+  # Created by this stack. Machine-learning downloads models from the internet; it gets its own
+  # non-internal network instead of a shared one.
+  immich_ml_egress_network:
+    name: immich-ml-egress
