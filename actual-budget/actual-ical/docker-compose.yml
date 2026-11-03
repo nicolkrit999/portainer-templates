@@ -1,43 +1,36 @@
 services:
   actual-ical:
-    image: ghcr.io/matheusvellone/actual-ical:latest
+    image: ghcr.io/matheusvellone/actual-ical:v0.6.10
     container_name: actual-ical
-    restart: always
-    ports:
-      - "3000:3000"
+    restart: unless-stopped
     environment:
-      - TZ=${TZ}
-      - ACTUAL_SERVER=${ACTUAL_SERVER}
-      - ACTUAL_MAIN_PASSWORD=${ACTUAL_PASSWORD}
-      - ACTUAL_SYNC_PASSWORD=${ACTUAL_ENCRYPTION_PASSWORD}
-      - ACTUAL_SYNC_ID=${ACTUAL_SYNC_ID}
-      - SYNC_ID_AS_URL=true
-      - CURRENCY=${CURRENCY}
+      TZ: "${TZ}"
+      ACTUAL_SERVER: "${ACTUAL_SERVER}"
+      ACTUAL_MAIN_PASSWORD: "${ACTUAL_PASSWORD}"
+      ACTUAL_SYNC_PASSWORD: "${ACTUAL_ENCRYPTION_PASSWORD}"
+      ACTUAL_SYNC_ID: "${ACTUAL_SYNC_ID}"
+      SYNC_ID_AS_URL: "true"
+      CURRENCY: "${CURRENCY}"
     volumes:
       - ${DOCKER_CONFIG_DIR}/actualical:/app/.actual-cache
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.actual-ical.rule: "Host(`${ACTUAL_ICAL_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.actual-ical.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.actual-ical.tls: "true"
-      traefik.http.routers.actual-ical.service: "actual-ical"
-      traefik.http.routers.actual-ical.middlewares: "hsts-headers@docker"
-      traefik.http.services.actual-ical.loadbalancer.server.port: "3000"
       traefik.http.routers.actual-ical-private.rule: "Host(`${ACTUAL_ICAL_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.actual-ical-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.actual-ical-private.tls: "true"
       traefik.http.routers.actual-ical-private.service: "actual-ical-private"
       traefik.http.routers.actual-ical-private.middlewares: "hsts-headers@docker"
       traefik.http.services.actual-ical-private.loadbalancer.server.port: "3000"
+      traefik.http.routers.actual-ical-tailnet.rule: "Host(`${ACTUAL_ICAL_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-ical-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.actual-ical-tailnet.tls: "true"
+      traefik.http.routers.actual-ical-tailnet.service: "actual-ical-private"
+      traefik.http.routers.actual-ical-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.docker.network: "traefik-proxy"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true

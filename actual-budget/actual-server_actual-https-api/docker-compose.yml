@@ -1,17 +1,25 @@
 services:
   actual_server:
-    image: actualbudget/actual-server:26.10.0
+    image: actualbudget/actual-server:26.11.0
     container_name: ActualBudget
     restart: always
     environment:
       TZ: "${TZ}"
+      ACTUAL_USER_CREATION_MODE: "manual"
+      ACTUAL_OPENID_ENFORCE: "true"
+      ACTUAL_TRUSTED_PROXIES: "${ACTUAL_TRUSTED_PROXIES:-172.16.93.2}"
+    healthcheck:
+      test: ["CMD", "node", "scripts/health-check.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     volumes:
       - ${DOCKER_CONFIG_DIR}/actual-budget/actual-data:/data
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
-    ports:
-      - "5006:5006"
+      - public_budget_network
+      - actual_backend_network
     labels:
       traefik.enable: "true"
       # --- SAN-bundle cert (group "budgeting", 1 of 6 repo-wide groups) ---
@@ -46,43 +54,58 @@ services:
       traefik.docker.network: "traefik-proxy"
 
   actual_api:
-    image: jhonderson/actual-http-api:26.10.0
+    image: jhonderson/actual-http-api:26.11.0
     container_name: ActualAPI
     restart: always
-    ports:
-      - "5007:5007"
+    depends_on:
+      actual_server:
+        condition: service_healthy
     environment:
       PORT: "5007"
       ACTUAL_SERVER_URL: "http://ActualBudget:5006"
-      ACTUAL_SERVER_PASSWORD: "${ACTUAL_SERVER_PASSWORD}"
-      API_KEY: "${ACTUAL_API_PASSWORD}"
+      ACTUAL_SERVER_PASSWORD: "${ACTUAL_SERVER_PASSWORD:?set ACTUAL_SERVER_PASSWORD}"
+      API_KEY: "${ACTUAL_API_PASSWORD:?set ACTUAL_API_PASSWORD}"
+      ALLOWED_BUDGET_SYNC_IDS: "${ACTUAL_API_ALLOWED_BUDGET_SYNC_IDS:-}"
       NODE_OPTIONS: "--max-old-space-size=4096"
       ACTUAL_DATA_DIR: "/data"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5007/v1/actualhttpapiversion || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     volumes:
       - ${DOCKER_CONFIG_DIR}/actual-budget/api-data:/data
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - actual_backend_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.actual-api.rule: "Host(`${ACTUAL_API_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.actual-api.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.actual-api.tls: "true"
-      traefik.http.routers.actual-api.service: "actual-api"
-      traefik.http.routers.actual-api.middlewares: "hsts-headers@docker"
-      traefik.http.services.actual-api.loadbalancer.server.port: "5007"
       traefik.http.routers.actual-api-private.rule: "Host(`${ACTUAL_API_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.actual-api-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.actual-api-private.tls: "true"
       traefik.http.routers.actual-api-private.service: "actual-api-private"
       traefik.http.routers.actual-api-private.middlewares: "hsts-headers@docker"
       traefik.http.services.actual-api-private.loadbalancer.server.port: "5007"
+      traefik.http.routers.actual-api-tailnet.rule: "Host(`${ACTUAL_API_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-api-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.actual-api-tailnet.tls: "true"
+      traefik.http.routers.actual-api-tailnet.service: "actual-api-private"
+      traefik.http.routers.actual-api-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.docker.network: "traefik-proxy"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  actual_backend_network:
+    name: actual-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${ACTUAL_BACKEND_SUBNET:-172.16.93.16/28}"
+          gateway: "${ACTUAL_BACKEND_GATEWAY:-172.16.93.17}"
+          ip_range: "${ACTUAL_BACKEND_IP_RANGE:-172.16.93.24/29}"
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  public_budget_network:
+    name: public-budget
     external: true
