@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `nginx` | built from `nginx/` (nginx 1.30.6) | backend, `traefik-proxy`, `public-easy-appointments` | Serves only `/assets/*` and `/index.php`; every other path is routed to the app, so `.git`, `config.php`, `storage/`, `vendor/` etc. are never served. Unknown `Host` headers get no answer (444), which pins the host the app builds links from. |
 | `php-fpm` | built from `php-fpm/` (PHP 8.4.27) | backend, default (SMTP egress) | App source mounted **read-only**; only `storage/` is writable. No Xdebug, `session.upload_progress` off. |
-| `mysql` | `mysql:8.0.46` | backend | No published port. |
+| `mysql` | `mysql:8.4.13` | backend | No published port. Data bind mount refuses to create a missing host directory. |
 | `phpmyadmin` | `phpmyadmin:5.2.3-apache` | backend, `traefik-proxy` | Private/tailnet only. |
 | `swagger-ui` | built from `swagger-ui/` (v5.34.1, API spec of 1.6.1 baked in) | `traefik-proxy` | Private/tailnet only. |
 
@@ -21,7 +21,7 @@ The public path needs, in `../traefik-public/`: the network `public-easy-appoint
 | Path | Content |
 |---|---|
 | `${DOCKER_CONFIG_DIR}/easyappointments-app/` | The Easy!Appointments release (`index.php`, `application/`, `assets/`, `storage/`, `vendor/`, `config.php`). Source of truth for the app version. Nothing else lives here. |
-| `${DOCKER_CONFIG_DIR}/easyappointments/docker/mysql` | MySQL data (unchanged location). |
+| `${DOCKER_CONFIG_DIR}/easyappointments-mysql/` | MySQL data. Moved here on 2026-11-04; the compose file mounts it with `create_host_path: false`, so a missing directory fails the start instead of silently creating an empty database. |
 
 `permissions-init` only fixes `storage/` (owner `33:33`, mode 750) and the two files holding secrets (`config.php`, `application/config/email.php`: `root:33`, mode 640). It never touches the MySQL data.
 
@@ -32,6 +32,8 @@ See `.env.example`. New compared with the old stack: `TZ`. Optional (defaults ar
 `EASY_APPOINTMENTS_PROXY_IPS` feeds `PROXY_IPS` (Easy!Appointments 1.6.x): without it every visitor looks like the proxy, so the app's rate limits (100 requests per 2 minutes, 5 failed logins per 5 minutes) would be shared by all customers and one attacker could lock everybody out.
 
 ## Moving to 1.6.1 (required before the stack is exposed)
+
+> **Done on 2026-11-03/04, kept as a record.** The old `${DOCKER_CONFIG_DIR}/easyappointments/` tree and the `easyappointments-backup-2026-11-03/` folder it mentions were removed or replaced afterwards (MySQL data now lives in `easyappointments-mysql/`, see below); the paths in the steps are the pre-move ones.
 
 Versions up to 1.6.0 are vulnerable to unauthenticated attacks (GHSA-7pw2-6g72-9v52 appointment overwrite, GHSA-c5rh-f2vc-2qvj password-reset takeover, CAPTCHA skip, login throttle, more). The release notes of 1.6.1 list the fixes; the reset-link fix is in `Recovery.php` (`trusted_site_url()`).
 
@@ -74,18 +76,15 @@ Later updates are the same three moves: back up, replace the contents of `easyap
 - **SMTP**: send a test booking and check the confirmation mail arrives.
 - Public router hardening (already in `../traefik-public/`): the REST API answers on both `/index.php/api/` and `/api/`; the public router excludes both prefixes (see that README for the query-string limit). The proxy's `frameDeny` header also stops the booking page from being embedded in another site.
 
-## Database: MySQL 8.0 to 8.4 LTS (not done, your decision)
+## Database: MySQL 8.4 LTS
 
-MySQL 8.0 reached end of life in April 2026; 8.0.46 is its last release, so the pinned tag gets no more fixes. 8.4 LTS is supported until 2032 and starts in place on an 8.0 data directory. Rehearsed locally (a fresh `mysql:8.0.46` data directory started with `mysql:8.4.13`: "Server upgrade from '80046' to '80413' completed" within seconds, data and a `caching_sha2_password` user intact; an application-only dump also restores into a fresh 8.4). Not rehearsed: this instance's own data directory.
+Upgraded in place from 8.0.46 to 8.4.13 on 2026-11-04 (8.0 reached end of life in April 2026). The log reported "Server upgrade from '80046' to '80413' completed" within seconds; afterwards the database still had 14 tables, 3 users and the existing appointment, and the booking page, phpMyAdmin and Swagger UI answered. All accounts use `caching_sha2_password` (8.4 disables `mysql_native_password` by default). Verified by SQL through `docker exec` and by HTTP.
 
-1. Do it after 1.6.1 is running. Check no account uses `mysql_native_password` (disabled by default in 8.4): `SELECT user, host, plugin FROM mysql.user;`. The default plugin on this instance is `caching_sha2_password`.
-2. Take a fresh dump (step 1 above), stop `nginx`, `php-fpm`, `phpmyadmin`, then `docker stop easy-appointments-mysql-1` (clean shutdown) and copy the data directory as root (the files belong to uid 999): `cp -a $D/easyappointments/docker/mysql $D/easyappointments/docker/mysql-8.0-backup`.
-3. Change `mysql:8.0.46` to `mysql:8.4.13` in `docker-compose.yml` and redeploy. Check `docker logs easy-appointments-mysql-1 | grep -i upgrade`, then the booking page, a login and a test booking.
-4. Rollback: stop MySQL, `rm -rf docker/mysql && mv docker/mysql-8.0-backup docker/mysql`, set the tag back to `mysql:8.0.46`, redeploy. An upgraded data directory cannot be opened by 8.0.
+An upgraded data directory cannot be opened by 8.0. The rollback copy is a cold copy of the 8.0 data taken with MySQL stopped: `${DOCKER_CONFIG_DIR}/easyappointments-mysql-cold-8.0-2026-11-04/`. To roll back: stop MySQL, replace `easyappointments-mysql` with that copy (as root), set the tag back to `mysql:8.0.46`, redeploy. Anything written after the copy is lost. Delete the copy once you no longer need the rollback path.
 
 ## Open points
 
-- **Baikal removed.** The CalDAV server was never used, so its service, routers, build directory and variables are gone from the stack. What is left on the NAS is inert and belongs in the final cleanup: the data under `${DOCKER_CONFIG_DIR}/easyappointments/docker/baikal/`, the old image `easyappointments-baikal:latest` (delete it once the rollback window above has closed) and any stopped old Baikal container. Nothing was deleted automatically.
+- **Baikal removed.** The CalDAV server was never used, so its service, routers, build directory and variables are gone from the stack. Its data, the old image and the old container were deleted from the NAS on 2026-11-04.
 - **php-fpm egress.** php-fpm needs outbound SMTP, so it keeps an ordinary network and can reach the LAN. Narrowing that needs an egress proxy or a gateway rule.
 - **Rebuilding for security fixes.** The three built images use `pull_policy: build`. To pick up a new PHP or nginx patch release, change the version in the `Dockerfile` and in the `image:` tag, then redeploy.
 - **Leftovers in the old tree.** `${DOCKER_CONFIG_DIR}/easyappointments/` still contains the old git checkout, a stale MySQL data directory in `mysql/` (from 2025-09-26, with TLS private keys) and the old nginx/php files. They were web-readable through the old nginx configuration, so treat the database passwords as exposed and rotate them (`ALTER USER`, then `config.php` and the stack environment), then archive and delete the old tree once everything runs.
