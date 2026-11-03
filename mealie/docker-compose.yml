@@ -20,7 +20,7 @@ services:
       BASE_URL: "https://${MEALIE_SUBDOMAIN}.${DOMAIN}"
       HOST_IP: "${MEALIE_TRUSTED_PROXIES:-172.27.0.0/16,172.16.83.0/28}"
       OIDC_AUTH_ENABLED: "true"
-      OIDC_SIGNUP_ENABLED: "true"
+      OIDC_SIGNUP_ENABLED: "false"
       OIDC_CLIENT_ID: "${OIDC_CLIENT_ID}"
       OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET}"
       OIDC_USER_CLAIM: "preferred_username"

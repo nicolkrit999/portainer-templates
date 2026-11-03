@@ -31,7 +31,7 @@ services:
     image: alpine:3.19
     container_name: all-in-one-permissions-init
     restart: "no"
-    command: sh -c "mkdir -p /app/backend/storage/app/public && chmod -R 777 /app/backend/storage/app/public"
+    command: sh -c "mkdir -p /app/backend/storage/app/public && chmod 775 /app/backend/storage/app/public"
     volumes:
       # hi_events (underscore) - see note above. Assumes the NAS folder has
       # already been renamed from the old "hi.events" (dotted) to
@@ -66,7 +66,7 @@ services:
         max-file: "3"
 
   redis:
-    image: redis:latest
+    image: redis:8.10.3
     container_name: hi-events-redis
     restart: unless-stopped
     healthcheck:
@@ -86,7 +86,7 @@ services:
         max-file: "3"
 
   all-in-one:
-    image: daveearley/hi.events-all-in-one:latest
+    image: daveearley/hi.events-all-in-one:v2.0.0
     container_name: all-in-one
     restart: unless-stopped
     healthcheck:
@@ -110,7 +110,8 @@ services:
       APP_CDN_URL: "https://${HI_EVENTS_SUBDOMAIN}.${DOMAIN}"
       APP_FRONTEND_URL: "https://${HI_EVENTS_SUBDOMAIN}.${DOMAIN}"
       JWT_SECRET: "${JWT_SECRET}"
-      APP_DISABLE_REGISTRATION: "${APP_DISABLE_REGISTRATION}"
+      APP_DISABLE_REGISTRATION: "true"
+      APP_TRUSTED_PROXIES: "${APP_TRUSTED_PROXIES:-*}"
       APP_SAAS_MODE_ENABLED: "${APP_SAAS_MODE_ENABLED}"
       APP_SAAS_STRIPE_APPLICATION_FEE_PERCENT: "${APP_SAAS_STRIPE_APPLICATION_FEE_PERCENT}"
       APP_SAAS_STRIPE_APPLICATION_FEE_FIXED: "${APP_SAAS_STRIPE_APPLICATION_FEE_FIXED}"
@@ -147,8 +148,8 @@ services:
       - ${VOLUME_CONFIG}/hi_events/uploads:/app/backend/storage/app/public
     networks:
       - default
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_hi_events_network
     labels:
       traefik.enable: "true"
       # SAN-bundle group "productivity-creative", anchored by
@@ -184,9 +185,10 @@ services:
         max-file: "3"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_hi_events_network:
+    name: public-hi-events
     external: true
