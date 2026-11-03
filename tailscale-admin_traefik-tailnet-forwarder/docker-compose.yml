@@ -266,9 +266,8 @@ services:
   # the compose file is the only source of truth - never hand-edit that file.
   # haproxy itself only re-reads it when its container is restarted.
   #
-  # Deliberately NOT attached to cloudflare-web (not tunnel-reachable - same
-  # reasoning as traefik-private-forwarder) and has no Traefik router labels
-  # of its own (pure infrastructure, not a routed application).
+  # Has no Traefik router labels of its own (pure infrastructure, not a routed
+  # application).
   haproxy-config-init:
     image: alpine:latest
     container_name: traefik-tailnet-forwarder-init

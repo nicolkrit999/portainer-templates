@@ -17,8 +17,7 @@ services:
   # terminate, inspect, or touch the TLS handshake in any way. All TLS/cert
   # work still happens on Traefik's end, exactly as it does today.
   #
-  # Deliberately NOT attached to cloudflare-web (this sidecar isn't meant to
-  # be reached via the tunnel - only via its own dedicated LAN IP) and has
+  # This sidecar is reached only via its own dedicated LAN IP and has
   # no Traefik router labels on itself (it's infrastructure that exposes an
   # IP, not a routed application - Traefik on the other end of the forward
   # already owns routing/TLS for whatever it forwards to).
