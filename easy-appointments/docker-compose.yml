@@ -110,7 +110,13 @@ services:
       MYSQL_USER: "${MYSQL_USER}"
       MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
     volumes:
-      - '${DOCKER_CONFIG_DIR}/easyappointments/docker/mysql:/var/lib/mysql'
+      # Long syntax with create_host_path: false so a missing host directory fails the
+      # start instead of silently creating an empty database directory.
+      - type: bind
+        source: "${DOCKER_CONFIG_DIR}/easyappointments-mysql"
+        target: /var/lib/mysql
+        bind:
+          create_host_path: false
     networks:
       - easy_appointments_backend_network
     healthcheck:
