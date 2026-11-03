@@ -17,3 +17,5 @@
 - [traefik-public service](traefik_public_service.md) - internet-facing Traefik (2026-11-03, undeployed): init-generated file provider, non-root via sysctl, loopback ping, public-apps internal net, local test recipe; batch 1 (5 apps, header-strip middleware, Traefik XFF/X-Real-IP behavior, fixed proxy IPs, git-path tooling gotcha)
 - [immich backend isolation](immich_backend_isolation.md) - 2026-11-03: internal backend net + ML egress net; cross-network DNS precedence finding (gw_priority option), redeploy order, live stack/pool facts
 - [privatebin 500 fix](privatebin_service.md) - 2026-11-03: relative ./conf.php mount never reached the Portainer checkout (daemon host-path), /run tmpfs needs exec, latest=nightly image
+- [PrivateBin image ignores PHP size env](privatebin-image-ignores-php-size-env.md) - hard 15M caps, only conf.php sizelimit matters; purge-on-create works, no TZ
+- [Gokapi file requests are a user permission](gokapi-file-requests-are-a-user-permission.md) - no env switch; "0" guest limits = unlimited
