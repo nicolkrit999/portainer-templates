@@ -8,7 +8,7 @@ services:
     command: "chmod 1777 /transcodes"
 
   jellyfin:
-    image: jellyfin/jellyfin:12.4
+    image: jellyfin/jellyfin:12.4.20261026-211555
     container_name: jellyfin
     cpu_shares: 2048
     cpus: 4.0
@@ -46,14 +46,13 @@ services:
     restart: 'always'
     environment:
       - TZ=${TZ}
-    ports:
-      - "${JELLYFIN_HOST_PORT}:8096"
     depends_on:
       jellyfin-init:
         condition: service_completed_successfully
     networks:
       - cloudflare_web_network
       - traefik_proxy_network
+      - public_jellyfin_network
     devices:
       - /dev/dri/renderD128:/dev/dri/renderD128
       - /dev/dri/card0:/dev/dri/card0
@@ -115,4 +114,8 @@ networks:
     external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_jellyfin_network:
+    name: public-jellyfin
     external: true

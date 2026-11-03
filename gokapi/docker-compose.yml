@@ -1,6 +1,6 @@
 services:
   gokapi-init:
-    image: alpine
+    image: alpine:3.24
     container_name: gokapi-init
     restart: "no"
     user: "0"
@@ -24,15 +24,15 @@ services:
     environment:
       TZ: "${TZ}"
       GOKAPI_LOG_STDOUT: "true"
-      GOKAPI_USE_CLOUDFLARE: "true"
+      GOKAPI_USE_CLOUDFLARE: "false"
       GOKAPI_TRUSTED_PROXIES: "${GOKAPI_TRUSTED_PROXIES}"
       GOKAPI_MAX_FILESIZE: "10485760"
-      GOKAPI_MAX_FILES_GUESTUPLOAD: "0"
-      GOKAPI_MAX_SIZE_GUESTUPLOAD: "0"
+      GOKAPI_MAX_FILES_GUESTUPLOAD: "100"
+      GOKAPI_MAX_SIZE_GUESTUPLOAD: "10240"
       GOKAPI_CHUNK_SIZE_MB: "45"
       GOKAPI_MAX_PARALLEL_UPLOADS: "3"
       GOKAPI_MAX_MEMORY_UPLOAD: "50"
-      GOKAPI_GUEST_UPLOAD_BY_DEFAULT: "true"
+      GOKAPI_GUEST_UPLOAD_BY_DEFAULT: "false"
       GOKAPI_DISABLE_API_MENU: "true"
       GOKAPI_ENABLE_HOTLINK_VIDEOS: "true"
     volumes:
@@ -49,46 +49,41 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_gokapi_network
     labels:
       traefik.enable: "true"
       # Deliberately absent from dnsmasq-tailnet's tailnet-admin DNS
       # override list: this is a multi-tier service, and listing it would
       # send family/friends tailnet devices to the admin-only entrypoint (403).
-      #
-      # GOKAPI_USE_CLOUDFLARE trusts CF-Connecting-IP unconditionally, so the
-      # middleware below strips it on every Traefik-routed path. Real
-      # Cloudflare traffic reaches the container directly via cloudflared and
-      # never passes through Traefik, so it is unaffected.
       traefik.http.routers.gokapi.rule: "Host(`${GOKAPI_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.gokapi.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.gokapi.tls: "true"
       traefik.http.routers.gokapi.service: "gokapi"
-      traefik.http.routers.gokapi.middlewares: "hsts-headers@docker,gokapi-strip-cf@docker"
+      traefik.http.routers.gokapi.middlewares: "hsts-headers@docker"
       traefik.http.routers.gokapi-family.rule: "Host(`${GOKAPI_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.gokapi-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
       traefik.http.routers.gokapi-family.tls: "true"
       traefik.http.routers.gokapi-family.service: "gokapi"
-      traefik.http.routers.gokapi-family.middlewares: "hsts-headers@docker,gokapi-strip-cf@docker"
+      traefik.http.routers.gokapi-family.middlewares: "hsts-headers@docker"
       traefik.http.routers.gokapi-friends.rule: "Host(`${GOKAPI_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.gokapi-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
       traefik.http.routers.gokapi-friends.tls: "true"
       traefik.http.routers.gokapi-friends.service: "gokapi"
-      traefik.http.routers.gokapi-friends.middlewares: "hsts-headers@docker,gokapi-strip-cf@docker"
+      traefik.http.routers.gokapi-friends.middlewares: "hsts-headers@docker"
       traefik.http.routers.gokapi-tailnet.rule: "Host(`${GOKAPI_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.gokapi-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.gokapi-tailnet.tls: "true"
       traefik.http.routers.gokapi-tailnet.service: "gokapi"
-      traefik.http.routers.gokapi-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker,gokapi-strip-cf@docker"
-      traefik.http.middlewares.gokapi-strip-cf.headers.customrequestheaders.CF-Connecting-IP: ""
+      traefik.http.routers.gokapi-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.gokapi.loadbalancer.server.port: "53842"
       traefik.docker.network: "traefik-proxy"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_gokapi_network:
+    name: public-gokapi
     external: true

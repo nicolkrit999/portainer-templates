@@ -1,13 +1,9 @@
 services:
   privatebin:
-    image: privatebin/nginx-fpm-alpine
+    image: privatebin/nginx-fpm-alpine:2.1.0
     container_name: privatebin
     restart: unless-stopped
     user: "${PUID}:${PGID}"
-
-    environment:
-      - PHP_POST_MAX_SIZE=10G
-      - PHP_UPLOAD_MAX_FILESIZE=10G
 
     volumes:
       # Portainer runs compose inside its own container, so a relative ./conf.php resolves to a
@@ -17,7 +13,7 @@ services:
 
       - ${DOCKER_CONFIG_DIR}/privatebin/data:/srv/data
 
-      # Request-body buffering for very large uploads needs a real disk, not RAM.
+      # Scratch space for nginx request-body buffering and PHP temp files.
       - ${DOCKER_CONFIG_DIR}/privatebin/tmp:/tmp
       - ${DOCKER_CONFIG_DIR}/privatebin/tmp:/var/lib/nginx/tmp
 
@@ -31,13 +27,10 @@ services:
       - "127.0.0.1:${PRIVATEBIN_HOST_PORT}:8080"
 
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_privatebin_network
 
     labels:
-      ofelia.enabled: "true"
-      ofelia.job-exec.purge.schedule: "@daily"
-      ofelia.job-exec.purge.command: "php /srv/bin/administration --purge"
       traefik.enable: "true"
       traefik.http.routers.privatebin.rule: "Host(`${PRIVATEBIN_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.privatebin.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
@@ -52,32 +45,11 @@ services:
       traefik.http.services.privatebin.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
 
-  ofelia:
-    image: mcuadros/ofelia:0.3.22
-    container_name: privatebin-ofelia
-    restart: unless-stopped
-    depends_on:
-      - privatebin
-    command: daemon --docker
-    environment:
-      TZ: "${TZ}"
-    volumes:
-      # Read-only is sufficient: ofelia's job-exec talks to the Docker API over
-      # this unix socket, which isn't gated by the bind mount's ro/rw flag the
-      # way a regular file write would be - upstream's own job-exec examples
-      # use :ro. No more-restrictive alternative exists for label-driven
-      # docker exec against the privatebin container.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "3"
-
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  # Backend network of the public Traefik; the traefik-public stack must be deployed first.
+  public_privatebin_network:
+    name: public-privatebin
     external: true
