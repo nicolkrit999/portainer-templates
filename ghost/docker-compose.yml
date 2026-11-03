@@ -57,7 +57,7 @@ services:
             traefik.http.routers.ghost-private.service: "ghost-private"
             traefik.http.routers.ghost-private.middlewares: "hsts-headers@docker"
             traefik.http.routers.ghost-tailnet.rule: "Host(`${GHOST_SUBDOMAIN}.${DOMAIN}`)"
-            traefik.http.routers.ghost-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7:-tailnet-admin}"
+            traefik.http.routers.ghost-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
             traefik.http.routers.ghost-tailnet.tls: "true"
             traefik.http.routers.ghost-tailnet.service: "ghost-private"
             traefik.http.routers.ghost-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"

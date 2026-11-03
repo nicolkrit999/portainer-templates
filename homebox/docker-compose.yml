@@ -28,7 +28,7 @@ services:
       traefik.http.routers.homebox-private.service: "homebox-private"
       traefik.http.routers.homebox-private.middlewares: "hsts-headers@docker"
       traefik.http.routers.homebox-tailnet.rule: "Host(`${HOMEBOX_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.homebox-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7:-tailnet-admin}"
+      traefik.http.routers.homebox-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.homebox-tailnet.tls: "true"
       traefik.http.routers.homebox-tailnet.service: "homebox-private"
       traefik.http.routers.homebox-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"

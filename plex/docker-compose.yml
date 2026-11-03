@@ -26,7 +26,7 @@ services:
       traefik.http.routers.plex-private.service: "plex-private"
       traefik.http.routers.plex-private.middlewares: "hsts-headers@docker"
       traefik.http.routers.plex-tailnet.rule: "Host(`${PLEX_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.plex-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7:-tailnet-admin}"
+      traefik.http.routers.plex-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.plex-tailnet.tls: "true"
       traefik.http.routers.plex-tailnet.service: "plex-private"
       traefik.http.routers.plex-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"

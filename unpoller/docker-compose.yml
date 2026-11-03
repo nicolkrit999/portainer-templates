@@ -20,15 +20,17 @@ services:
       # DPI-capable controller. Confirmed real gap 2026-09-09 (empty DPI
       # metrics despite controller Identification already being on).
       UP_UNIFI_CONTROLLER_0_SAVE_DPI: "true"
+      # InfluxDB output is on by default and nothing listens on 127.0.0.1:8086:
+      # every write failed and the image's built-in healthcheck (`unpoller --health`
+      # validates every enabled output) reported unhealthy for weeks. Only the
+      # Prometheus output is used.
+      UP_INFLUXDB_DISABLE: "true"
       UP_PROMETHEUS_HTTP_LISTEN: "0.0.0.0:9130"
       UP_PROMETHEUS_NAMESPACE: "unpoller"
       TZ: "${TZ}"
-    # No healthcheck: this image is distroless (no /bin/sh, no curl/wget,
-    # and the unpoller binary itself has no healthcheck flag - only
-    # --config/--version), so any CMD-SHELL or CMD healthcheck can only
-    # ever report unhealthy regardless of actual service state. Confirmed
-    # via docker exec 2026-09-08. Liveness is effectively monitored by
-    # prometheus scraping http://unpoller:9130/metrics.
+    # Healthcheck: the image ships its own (`/usr/bin/unpoller --health`, no shell
+    # needed). It passes only while every enabled output is reachable, hence
+    # UP_INFLUXDB_DISABLE above. Prometheus also scrapes http://unpoller:9130/metrics.
     logging:
       options:
         max-size: "10m"

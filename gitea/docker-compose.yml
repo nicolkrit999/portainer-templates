@@ -38,7 +38,7 @@ services:
       traefik.http.routers.gitea-private.service: "gitea-private"
       traefik.http.routers.gitea-private.middlewares: "hsts-headers@docker"
       traefik.http.routers.gitea-tailnet.rule: "Host(`${GITEA_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.gitea-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7:-tailnet-admin}"
+      traefik.http.routers.gitea-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.gitea-tailnet.tls: "true"
       traefik.http.routers.gitea-tailnet.service: "gitea-private"
       traefik.http.routers.gitea-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"

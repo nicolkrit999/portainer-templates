@@ -54,7 +54,7 @@ services:
       traefik.http.routers.trek-private.service: "trek-private"
       traefik.http.routers.trek-private.middlewares: "hsts-headers@docker"
       traefik.http.routers.trek-tailnet.rule: "Host(`${TREK_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.trek-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7:-tailnet-admin}"
+      traefik.http.routers.trek-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.trek-tailnet.tls: "true"
       traefik.http.routers.trek-tailnet.service: "trek-private"
       traefik.http.routers.trek-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"

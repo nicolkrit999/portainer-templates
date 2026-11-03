@@ -64,7 +64,7 @@ services:
       traefik.http.routers.jellyfin-private.service: "jellyfin-private"
       traefik.http.routers.jellyfin-private.middlewares: "hsts-headers@docker"
       traefik.http.routers.jellyfin-tailnet.rule: "Host(`${JELLYFIN_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.jellyfin-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7:-tailnet-admin}"
+      traefik.http.routers.jellyfin-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.jellyfin-tailnet.tls: "true"
       traefik.http.routers.jellyfin-tailnet.service: "jellyfin-private"
       traefik.http.routers.jellyfin-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"

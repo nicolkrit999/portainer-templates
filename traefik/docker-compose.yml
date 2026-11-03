@@ -4,6 +4,9 @@ services:
     container_name: Traefik-init
     user: root
     restart: "no"
+    # One-shot file fix, needs no network. Without this it lands on the stack's
+    # implicit `default` network, which then lingers empty (traefik_default).
+    network_mode: none
     volumes:
       - ${VOLUME_CONFIG}/traefik/acme.json:/fix/acme.json
     command: "chown root:root /fix/acme.json && chmod 600 /fix/acme.json && echo done"
