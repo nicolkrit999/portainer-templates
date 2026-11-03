@@ -218,7 +218,7 @@ networks:
   traefik_public_net:
     external: true
     name: traefik-private-forwarder_traefik_forwarder_net
-  # internal: true removes this network's default route and egress, so the macvlan is the only way out.
+  # Immich's backend network. internal: true removes this network's default route and egress, so the macvlan is the only way out.
   public_apps_network:
     name: public-apps
     internal: true
@@ -233,37 +233,50 @@ networks:
   # Same pattern as public-pocket-id: one internal network per backend, each backend's own stack
   # declares its network as external. The proxy has a fixed address on each (the PUBLIC_*_PROXY_IP
   # variables; keep each one inside its PUBLIC_*_SUBNET and off the gateway, which is .1), so a
-  # backend that only accepts addresses in its trusted-proxy setting can name it.
+  # backend that only accepts addresses in its trusted-proxy setting can name it. Each of these
+  # sets a gateway and an ip_range (the upper half of the /28) so no backend can take the proxy's
+  # fixed .2 first, for example after a NAS reboot. Pocket-ID's network needs neither: the proxy
+  # has no fixed address on it.
   public_jellyfin_network:
     name: public-jellyfin
     internal: true
     ipam:
       config:
         - subnet: "${PUBLIC_JELLYFIN_SUBNET:-172.16.78.0/28}"
+          gateway: "${PUBLIC_JELLYFIN_GATEWAY:-172.16.78.1}"
+          ip_range: "${PUBLIC_JELLYFIN_IP_RANGE:-172.16.78.8/29}"
   public_navidrome_network:
     name: public-navidrome
     internal: true
     ipam:
       config:
         - subnet: "${PUBLIC_NAVIDROME_SUBNET:-172.16.79.0/28}"
+          gateway: "${PUBLIC_NAVIDROME_GATEWAY:-172.16.79.1}"
+          ip_range: "${PUBLIC_NAVIDROME_IP_RANGE:-172.16.79.8/29}"
   public_gokapi_network:
     name: public-gokapi
     internal: true
     ipam:
       config:
         - subnet: "${PUBLIC_GOKAPI_SUBNET:-172.16.80.0/28}"
+          gateway: "${PUBLIC_GOKAPI_GATEWAY:-172.16.80.1}"
+          ip_range: "${PUBLIC_GOKAPI_IP_RANGE:-172.16.80.8/29}"
   public_gitea_network:
     name: public-gitea
     internal: true
     ipam:
       config:
         - subnet: "${PUBLIC_GITEA_SUBNET:-172.16.81.0/28}"
+          gateway: "${PUBLIC_GITEA_GATEWAY:-172.16.81.1}"
+          ip_range: "${PUBLIC_GITEA_IP_RANGE:-172.16.81.8/29}"
   public_privatebin_network:
     name: public-privatebin
     internal: true
     ipam:
       config:
         - subnet: "${PUBLIC_PRIVATEBIN_SUBNET:-172.16.82.0/28}"
+          gateway: "${PUBLIC_PRIVATEBIN_GATEWAY:-172.16.82.1}"
+          ip_range: "${PUBLIC_PRIVATEBIN_IP_RANGE:-172.16.82.8/29}"
   # Each backend network below sets a gateway and an ip_range. Without a gateway Docker takes the first address of
   # ip_range as the gateway. The ip_range (the upper half of the /28) is where Docker hands out backend addresses, so
   # no backend can take the proxy's fixed .2 before the proxy attaches; a fixed address outside ip_range is accepted.
