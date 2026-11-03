@@ -27,10 +27,10 @@ services:
       WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN: ${WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN}
       WATCHTOWER_NOTIFICATIONS_HOSTNAME: "${WATCHTOWER_NOTIFICATIONS_HOSTNAME}"
     networks:
-      - cloudflare_web_network 
+      - gotify_notify_network
     restart: unless-stopped
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
+  gotify_notify_network:
+    name: gotify-notify
     external: true

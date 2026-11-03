@@ -24,7 +24,6 @@ services:
       traefik.http.services.mailpit.loadbalancer.server.port: "8025"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
     restart: unless-stopped
     healthcheck:
@@ -55,7 +54,7 @@ services:
       - LDAP_READONLY_USER_USERNAME=${LDAP_READONLY_USER_USERNAME}
       - LDAP_READONLY_USER_PASSWORD=${LDAP_READONLY_USER_PASSWORD}
     networks:
-      - cloudflare_web_network
+      - central_services_backend_network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost -b \"${LDAP_BASE_DN}\" -D \"cn=admin,${LDAP_BASE_DN}\" -w \"${LDAP_ADMIN_PASSWORD}\" || exit 1"]
@@ -96,7 +95,7 @@ services:
       traefik.http.services.phpldapadmin.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - cloudflare_web_network
+      - central_services_backend_network
       - traefik_proxy_network
     restart: unless-stopped
 
@@ -108,9 +107,14 @@ services:
       start_period: 30s
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  central_services_backend_network:
+    name: central-services-backend
+    # not internal: openldap publishes 389/636 and Docker skips port publishing for internal-only containers
+    ipam:
+      config:
+        - subnet: "${CENTRAL_SERVICES_BACKEND_SUBNET:-172.16.98.0/28}"
+          gateway: "${CENTRAL_SERVICES_BACKEND_GATEWAY:-172.16.98.1}"
+          ip_range: "${CENTRAL_SERVICES_BACKEND_IP_RANGE:-172.16.98.8/29}"
   traefik_proxy_network:
     name: traefik-proxy
     external: true

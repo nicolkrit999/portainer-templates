@@ -37,7 +37,7 @@ services:
       - "${DOCKER_CONFIG_DIR}/icorsi-notes/claude:/root/.claude"
 
     networks:
-      - cloudflare_web_network
+      - traefik_proxy_network
 
     logging:
       options:
@@ -45,6 +45,6 @@ services:
         max-file: "3"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

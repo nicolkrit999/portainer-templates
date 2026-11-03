@@ -67,7 +67,7 @@ services:
       traefik.http.services.harborguard.loadbalancer.server.port: "3000"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - cloudflare_web_network
+      - harborguard_backend_network
       - traefik_proxy_network
     depends_on:
       - harborguard-db
@@ -91,7 +91,7 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/harborguard/db:/var/lib/postgresql/data
     networks:
-      - cloudflare_web_network
+      - harborguard_backend_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U harborguard"]
       interval: 10s
@@ -99,9 +99,14 @@ services:
       retries: 5
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  harborguard_backend_network:
+    name: harborguard-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${HARBORGUARD_BACKEND_SUBNET:-172.16.102.0/28}"
+          gateway: "${HARBORGUARD_BACKEND_GATEWAY:-172.16.102.1}"
+          ip_range: "${HARBORGUARD_BACKEND_IP_RANGE:-172.16.102.8/29}"
   traefik_proxy_network:
     name: traefik-proxy
     external: true

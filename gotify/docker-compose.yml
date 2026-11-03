@@ -7,8 +7,7 @@ services:
     volumes:
       - ${DOCKER_DATA_DIR}/gotify/data:/app/data
     restart: "no"
-    networks:
-      - cloudflare_web_network
+    network_mode: none
 
   server:
     container_name: gotify
@@ -22,7 +21,7 @@ services:
     volumes:
       - ${DOCKER_DATA_DIR}/gotify/data:/app/data
     networks:
-      - cloudflare_web_network
+      - gotify_notify_network
       - traefik_proxy_network
 
     labels:
@@ -46,9 +45,13 @@ services:
 
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  gotify_notify_network:
+    name: gotify-notify
+    ipam:
+      config:
+        - subnet: "${GOTIFY_NOTIFY_SUBNET:-172.16.101.0/28}"
+          gateway: "${GOTIFY_NOTIFY_GATEWAY:-172.16.101.1}"
+          ip_range: "${GOTIFY_NOTIFY_IP_RANGE:-172.16.101.8/29}"
   traefik_proxy_network:
     name: traefik-proxy
     external: true

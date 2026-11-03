@@ -19,7 +19,7 @@ services:
             - ${DOCKER_DATA_DIR}/sosse/db:/var/lib/postgresql
         restart: unless-stopped
         networks:
-            - cloudflare_web_network
+            - sosse_backend_network
 
     sosse:
         image: biolds/sosse:pip-compose
@@ -63,13 +63,18 @@ services:
             - db
         restart: unless-stopped
         networks:
-            - cloudflare_web_network
+            - sosse_backend_network
             - traefik_proxy_network
 
 networks:
-    cloudflare_web_network:
-        name: cloudflare-web
-        external: true
+    sosse_backend_network:
+        name: sosse-backend
+        internal: true
+        ipam:
+            config:
+                - subnet: "${SOSSE_BACKEND_SUBNET:-172.16.106.0/28}"
+                  gateway: "${SOSSE_BACKEND_GATEWAY:-172.16.106.1}"
+                  ip_range: "${SOSSE_BACKEND_IP_RANGE:-172.16.106.8/29}"
     traefik_proxy_network:
         name: traefik-proxy
         external: true

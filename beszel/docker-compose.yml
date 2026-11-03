@@ -24,7 +24,7 @@ services:
       traefik.http.services.beszel.loadbalancer.server.port: "8090"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - cloudflare_web_network
+      - beszel_backend_network
       - traefik_proxy_network
 
   beszel-agent:
@@ -41,12 +41,17 @@ services:
       FILESYSTEM: "${BESZEL_FILESYSTEM}"
     restart: unless-stopped
     networks:
-      - cloudflare_web_network
+      - beszel_backend_network
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  beszel_backend_network:
+    name: beszel-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${BESZEL_BACKEND_SUBNET:-172.16.97.0/28}"
+          gateway: "${BESZEL_BACKEND_GATEWAY:-172.16.97.1}"
+          ip_range: "${BESZEL_BACKEND_IP_RANGE:-172.16.97.8/29}"
   traefik_proxy_network:
     name: traefik-proxy
     external: true

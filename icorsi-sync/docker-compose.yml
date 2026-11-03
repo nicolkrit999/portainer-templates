@@ -42,7 +42,7 @@ services:
       - ${VOLUME_CONFIG}/icorsi-sync/data:/data
       - ${VOLUME_CONFIG}/icorsi-sync/auth:/auth
     networks:
-      - cloudflare_web_network
+      - traefik_proxy_network
     healthcheck:
       # unhealthy if state.json's last_run is older than 2x the sync interval (i.e. a run was missed)
       test: ["CMD", "python", "-c", "import json,time,os,sys; d=json.load(open('/data/state.json')); t=time.mktime(time.strptime(d['last_run'],'%Y-%m-%d %H:%M:%S')); iv=int(os.environ.get('SYNC_INTERVAL_SECONDS','21600')) or 21600; sys.exit(0 if time.time()-t < 2*iv else 1)"]
@@ -100,6 +100,6 @@ services:
         max-file: "3"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
+  traefik_proxy_network:
+    name: traefik-proxy
     external: true

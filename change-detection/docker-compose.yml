@@ -35,7 +35,7 @@ services:
       traefik.http.services.changedetection.loadbalancer.server.port: "5000"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - cloudflare_web_network
+      - change_detection_backend_network
       - traefik_proxy_network
 
   sockpuppetbrowser:
@@ -58,12 +58,16 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - cloudflare_web_network
+      - change_detection_backend_network
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  change_detection_backend_network:
+    name: change-detection-backend
+    ipam:
+      config:
+        - subnet: "${CHANGE_DETECTION_BACKEND_SUBNET:-172.16.99.0/28}"
+          gateway: "${CHANGE_DETECTION_BACKEND_GATEWAY:-172.16.99.1}"
+          ip_range: "${CHANGE_DETECTION_BACKEND_IP_RANGE:-172.16.99.8/29}"
   traefik_proxy_network:
     name: traefik-proxy
     external: true

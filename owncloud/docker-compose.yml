@@ -32,7 +32,7 @@ services:
       timeout: 10s
       retries: 5
     networks:
-      - cloudflare_web_network
+      - owncloud_backend_network
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
@@ -73,7 +73,7 @@ services:
       fix-permissions:
         condition: service_completed_successfully
     networks:
-      - cloudflare_web_network
+      - owncloud_backend_network
 
   redis:
     image: redis:6
@@ -92,7 +92,7 @@ services:
       fix-permissions:
         condition: service_completed_successfully
     networks:
-      - cloudflare_web_network
+      - owncloud_backend_network
 
   fix-permissions:
     image: alpine:latest
@@ -119,13 +119,17 @@ services:
       - ${DOCKER_CONFIG_DIR}/owncloud/redis:/fix/redis
       - ${DOCKER_CONFIG_DIR}/owncloud/mariadb:/fix/mariadb
       - ${DOCKER_DATA_DIR}/owncloud/data:/fix/data
-    networks:
-      - cloudflare_web_network
+    network_mode: none
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  owncloud_backend_network:
+    name: owncloud-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${OWNCLOUD_BACKEND_SUBNET:-172.16.105.0/28}"
+          gateway: "${OWNCLOUD_BACKEND_GATEWAY:-172.16.105.1}"
+          ip_range: "${OWNCLOUD_BACKEND_IP_RANGE:-172.16.105.8/29}"
   traefik_proxy_network:
     name: traefik-proxy
     external: true

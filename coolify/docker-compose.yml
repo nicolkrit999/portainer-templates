@@ -77,7 +77,7 @@ services:
       coolify-realtime:
         condition: service_healthy
     networks:
-      - cloudflare_web_network
+      - coolify_backend_network
       - traefik_proxy_network
     logging:
       options:
@@ -101,7 +101,7 @@ services:
       retries: 10
       timeout: 2s
     networks:
-      - cloudflare_web_network
+      - coolify_backend_network
     logging:
       options:
         max-size: "10m"
@@ -123,7 +123,7 @@ services:
       retries: 10
       timeout: 2s
     networks:
-      - cloudflare_web_network
+      - coolify_backend_network
     logging:
       options:
         max-size: "10m"
@@ -168,7 +168,7 @@ services:
       traefik.http.services.coolify-realtime.loadbalancer.server.url: "http://host.docker.internal:${SOKETI_PORT:-6001}"
       traefik.docker.network: "traefik-proxy"
     networks:
-      - cloudflare_web_network
+      - coolify_backend_network
       - traefik_proxy_network
     logging:
       options:
@@ -176,9 +176,14 @@ services:
         max-file: "3"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  coolify_backend_network:
+    name: coolify-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${COOLIFY_BACKEND_SUBNET:-172.16.100.0/28}"
+          gateway: "${COOLIFY_BACKEND_GATEWAY:-172.16.100.1}"
+          ip_range: "${COOLIFY_BACKEND_IP_RANGE:-172.16.100.8/29}"
   traefik_proxy_network:
     name: traefik-proxy
     external: true
