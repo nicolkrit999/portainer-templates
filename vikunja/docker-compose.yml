@@ -18,7 +18,7 @@ services:
     environment:
       POSTGRES_DB: vikunja
       POSTGRES_USER: vikunjauser
-      POSTGRES_PASSWORD: vikunjapass
+      POSTGRES_PASSWORD: "${VIKUNJA_DB_PASSWORD:?set VIKUNJA_DB_PASSWORD}"
     volumes:
       - ${DOCKER_CONFIG_DIR}/vikunja/db:/var/lib/postgresql
     healthcheck:
@@ -51,7 +51,7 @@ services:
       VIKUNJA_MAILER_PASSWORD: ${VIKUNJA_MAILER_PASSWORD}
       VIKUNJA_MAILER_FROMEMAIL: ${VIKUNJA_MAILER_FROMEMAIL}
       VIKUNJA_DATABASE_HOST: vikunja-db
-      VIKUNJA_DATABASE_PASSWORD: vikunjapass
+      VIKUNJA_DATABASE_PASSWORD: "${VIKUNJA_DB_PASSWORD:?set VIKUNJA_DB_PASSWORD}"
       VIKUNJA_DATABASE_TYPE: postgres
       VIKUNJA_DATABASE_USER: vikunjauser
       VIKUNJA_DATABASE_DATABASE: vikunja

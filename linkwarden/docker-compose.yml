@@ -15,7 +15,7 @@ services:
     environment:
       POSTGRES_DB: "linkwarden"
       POSTGRES_USER: "linkwardenuser"
-      POSTGRES_PASSWORD: "${LINKWARDEN_DB_PASSWORD:-linkwardenpass}"
+      POSTGRES_PASSWORD: "${LINKWARDEN_DB_PASSWORD:?set LINKWARDEN_DB_PASSWORD}"
       TZ: "${TZ}"
     restart: unless-stopped
     networks:
@@ -41,7 +41,7 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/linkwarden/data:/data/data:rw
     environment:
-      DATABASE_URL: "postgres://linkwardenuser:${LINKWARDEN_DB_PASSWORD:-linkwardenpass}@linkwarden-db:5432/linkwarden"
+      DATABASE_URL: "postgres://linkwardenuser:${LINKWARDEN_DB_PASSWORD:?set LINKWARDEN_DB_PASSWORD}@linkwarden-db:5432/linkwarden"
       NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?set NEXTAUTH_SECRET}"
       NEXTAUTH_URL: "https://${LINKWARDEN_SUBDOMAIN}.${DOMAIN}/api/v1/auth"
       NEXT_PUBLIC_DISABLE_REGISTRATION: "true"
