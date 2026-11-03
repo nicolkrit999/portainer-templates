@@ -72,6 +72,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # The proxy verifies OIDC tokens by fetching the discovery document from the public issuer URL
+    # (OC_URL), so the container must reach its own public hostname. This pins that name to the
+    # public Traefik's fixed address on public-opencloud: the call stays inside the host, needs no
+    # public DNS, tunnel or router hairpin NAT, and the certificate is the publicly valid one.
+    # Keep PUBLIC_OPENCLOUD_PROXY_IP equal to the value in the traefik-public stack.
+    extra_hosts:
+      - "${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}:${PUBLIC_OPENCLOUD_PROXY_IP:-172.16.86.2}"
     networks:
       - traefik_proxy_network
       - public_opencloud_network
