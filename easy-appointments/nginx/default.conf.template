@@ -12,6 +12,13 @@ server {
     client_max_body_size 10m;
     root /var/www/html;
 
+    # CodeIgniter also takes the route from a query string that starts with a
+    # slash ("/?/api/v1/..."), which a path rule in the proxy cannot see.
+    # Nothing here uses that form, so refuse it.
+    if ($args ~ "^/") {
+        return 404;
+    }
+
     location ^~ /assets/ {
         try_files $uri =404;
     }
