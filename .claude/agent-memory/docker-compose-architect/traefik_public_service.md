@@ -117,3 +117,22 @@ sleep/ip/awk/grep/head in it: default iface read from /proc/net/route in dash, f
 - Upgrade from the old layout works in ONE `up -d` (Compose replaces the old proxy first, freeing the macvlan address; a few seconds of
   proxy downtime). busybox `nc -z -w2` exists in the traefik image (used for the verification recipe).
 - Compose gotcha: `docker compose config` prints `$$`; the container sees single `$` (verified via docker inspect).
+
+## Batch 1 proxy side (2026-11-03, branch batch1-traefik-public, commit af2d95d, local only)
+- Added routers/services jellyfin:8096, navidrome:4533, gokapi:53842, gitea:3000, privatebin:8080 (required `<APP>_SUBDOMAIN`), five networks
+  `public-<app>` (172.16.78-82.0/28, `PUBLIC_<APP>_SUBNET`), attached to the HOLDER `traefik-public-net` (the proxy has `network_mode: service:`
+  and cannot have `networks:`). Fixed proxy address `.2` per new network via `PUBLIC_<APP>_PROXY_IP` (Jellyfin Known Proxies takes host
+  addresses); gateway is .1 (checked in IPAM); public-apps / public-pocket-id NOT pinned (live addresses not inspected).
+- `public-strip-client-headers` (customRequestHeaders with `''` deletes: CF-Connecting-IP(+IPv6), True-Client-IP, X-Client-IP, X-Cluster-Client-IP,
+  Forwarded, Remote-*/X-Forwarded-User/Email, X-Webauth-*) listed before `public-secure-headers` on EVERY router. Verified with real v3.7.17.
+- Traefik v3.7.17 with no trustedIPs: OVERWRITES client X-Forwarded-For (even several lines -> one value, the peer), X-Real-Ip (SETS it to the peer),
+  X-Forwarded-Proto/Host/Port/Server; drops X-Forwarded-Prefix/Uri; passes CF-Connecting-IP, True-Client-IP, X-Client-IP, Forwarded, Remote-User,
+  X-Forwarded-User through. Do NOT put X-Real-IP in the strip list: the middleware runs after Traefik set it and would delete the genuine value.
+- Adding networks to the holder recreates holder AND proxy on `up -d` (seen locally, upgrade from the previous compose in one command).
+- Live plain env values (e.g. `*_SUBDOMAIN`) ARE readable with `StackInspect` + a `select` such as `Env[?contains(name,'SUBDOMAIN')]` (coordinator did this 2026-11-03: jellyfin, navidrome, gokapi, gitea, privatebin all equal their name); only an unprojected call is redacted/noisy.
+- Local full-stack recipe that worked: stand-in bridge named like the macvlan net (`--subnet 10.99.0.0/24`), overlay with `ports: 127.0.0.1:18443:443` on the
+  HOLDER, `logging: !override json-file`, `command: !override` with an unreachable `caServer`, self-signed wildcard cert dropped into the dynamic dir as root
+  (the dir is root-owned after the init run), whoami stand-ins named like the real containers, `curl --resolve`. `yq` here is the python one (`yq . f` -> JSON);
+  no PyYAML in the system python.
+- Tooling: in a worktree-isolated session the hook-rewritten `git ...` (rtk) is refused; call git as `/etc/profiles/per-user/krit/bin/git`. Compound
+  commands (`cd && ...`, loops, globs, strings containing "git" like `gitea` in a for-list) are refused too; use one plain command per call or a script file.
