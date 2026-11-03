@@ -8,12 +8,18 @@ services:
       USER_GID: "${PGID}"
       GITEA__server__ROOT_URL: "${GITEA_ROOT_URL}"
       GITEA__server__DOMAIN: "${GITEA_DOMAIN}"
-      GITEA__server__DISABLE_SSH: "true"
+      # Git over SSH is private only: published on the NAS as ${GITEA_SSH_HOST_PORT:-2222}
+      # (port 22 is the NAS's own sshd), reached at gitea-ssh.${DOMAIN}, which the LAN and
+      # tailnet resolvers point at the NAS. The UniFi gateway never forwards it to the internet.
+      GITEA__server__SSH_DOMAIN: "gitea-ssh.${DOMAIN}"
+      GITEA__server__SSH_PORT: "${GITEA_SSH_HOST_PORT:-2222}"
       GITEA__service__DISABLE_REGISTRATION: "true"
       GITEA__actions__ENABLED: "false"
       GITEA__security__REVERSE_PROXY_TRUSTED_PROXIES: "${GITEA_TRUSTED_PROXIES:-172.27.0.0/16,172.16.81.0/28}"
       GITEA__security__REVERSE_PROXY_LIMIT: "1"
     restart: unless-stopped
+    ports:
+      - "${GITEA_SSH_HOST_PORT:-2222}:22"
     volumes:
       - ${DOCKER_DATA_DIR}/gitea/gitea:/data
       - /etc/timezone:/etc/timezone:ro

@@ -27,6 +27,9 @@ services:
     # command: here is appended as extra dnsmasq CLI args, not a replacement.
     command:
       - "--address=/${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}"
+      # Git over SSH is not HTTP, so it bypasses the admin gateway: Gitea publishes it on
+      # the NAS itself, so this one name resolves to the NAS's own tailnet IP.
+      - "--address=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/${TAILNET_IP}"
       - "--log-facility=-"
       # Per-query logging, added 2026-08-23 during the family/friends ACL
       # rollout to diagnose a remote tailnet client's DNS queries never

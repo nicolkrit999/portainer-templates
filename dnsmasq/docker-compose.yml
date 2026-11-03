@@ -30,6 +30,9 @@ services:
       # (traefik-private-forwarder's macvlan LAN IP). DNS_TARGET_IP below is
       # only the address this resolver listens on.
       - "--address=/${DNS_WILDCARD_DOMAIN}/${DNS_PRIVATE_IP}"
+      # Git over SSH is not HTTP: Gitea publishes it on the NAS itself, so this one name
+      # resolves to the NAS's LAN IP instead of the private-tier forwarder.
+      - "--address=/gitea-ssh.${DNS_WILDCARD_DOMAIN}/${DNS_TARGET_IP}"
       - "--log-facility=-"
       - "--listen-address=${DNS_TARGET_IP}"
       # 2026-09-08: also bind the macvlan-host-shim IP directly - that

@@ -120,9 +120,10 @@ specific service.
 | `withoutbg` | withoutbg | private, tailnet-admin | no |
 | `ytptube` | ytptube | private, tailnet-admin | yes |
 
-`gitea` note: HTTP only. Git-over-SSH is disabled (`DISABLE_SSH`); the
-`gitea-ssh` and `ssh` tunnel routes were retired 2026-11-03. Collaborators use
-HTTPS with an access token.
+`gitea` note: HTTP through Traefik; Git over SSH is private only: published on the NAS
+as host port 2222 and reached at `gitea-ssh.<domain>` (a specific override in `dnsmasq`
+and `dnsmasq-tailnet`; the client's ssh config needs `Port 2222`). The old Cloudflare
+tunnel routes `gitea-ssh` and `ssh` were retired 2026-11-03.
 
 ## Direct LAN/Tailscale port table (bypasses Traefik entirely)
 
