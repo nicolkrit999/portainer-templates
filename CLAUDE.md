@@ -19,6 +19,8 @@ The three read-only agents fan out across the ~70 service dirs in their own cont
 
 **Orchestration:** Research → Plan → Implement → Review → Verify. Pass each subagent the objective (the *why*), not just a bare query. Evaluate each return and iterate at most 3 cycles; reviewers never edit - they hand findings back to the architect to apply.
 
+**Long multi-agent jobs** (currently the public-access rollout) keep their findings in files, not in prompts: see `.claude/rules/working-notes.md`. Brief subagents with the paths to read; they append findings there and reply in about 15 lines.
+
 ## Shared conventions (`.claude/rules/`)
 
 The canonical compose conventions live in `.claude/rules/` and are referenced by every agent: `secrets.md` (no hardcoded secrets, use `${VAR}`), `networking.md` (Cloudflare Tunnel block, `<svc>.${DOMAIN}` hostnames, connector handoff), `volumes.md` (`${VOLUME_CONFIG}` fast/SSD-class vs `${VOLUME_DATA}` bulk/HDD-class bind-mounts - parameterized, real paths in .env), `conventions.md` (2-space indent, no `version:`, quote-all-env incl. PUID/PGID, `TZ: "${TZ}"`, `${ADMIN_USER}`/`${PUID}`/`${PGID}`), `portainer-instance.md` (instance-specific operational rules - Portainer MCP tools and migration workflow). A non-blocking PostToolUse hook (`.claude/hooks/validate-compose.sh`) warns on `version:`, unquoted env values, and hardcoded-secret patterns when a `docker-compose.yml` is edited.
@@ -34,6 +36,7 @@ session only pays to read the full writeup when it's actually relevant:
 - **CPU scheduling priority pattern** → `gotchas/cpu-priority-tuning.md` - the `cpu_shares`/`cpus` convention from the 2026-09-07 repo-wide pass, plus its rollback tag (`v4.0.9-pre-performance-tweaks`).
 - **Jellyfin `LibraryMonitor` permission errors** → `gotchas/jellyfin-librarymonitor-quirk.md` - a specific folder's cosmetic watcher error was chased to exhaustion and is a confirmed dead end; don't re-diagnose it without new evidence.
 - **Cloudflare-only hostnames vs. wildcard DNS override** → `gotchas/cloudflare-only-hostnames-dns-override.md` - the `*.${DNS_WILDCARD_DOMAIN}` override in `dnsmasq`/`dnsmasq-tailnet` silently breaks hostnames that are Cloudflare-Tunnel-only (never Traefik-routed); each needs a `--server=/<host>.${DNS_WILDCARD_DOMAIN}/1.1.1.1` exclusion in BOTH files.
+- **Relative bind mounts under Portainer** → `gotchas/portainer-relative-bind-mounts.md` - a `./file` bind mount in a git stack resolves inside Portainer's container, so the NAS daemon creates an EMPTY DIRECTORY and the app silently runs without its config (broke PrivateBin 2026-11-03); mount from `${DOCKER_CONFIG_DIR}/portainer/compose/${PORTAINER_STACK_ID}/<dir>/<file>` instead. Repo-wide scan found no other affected stack.
 
 ## Token optimization (RTK)
 
