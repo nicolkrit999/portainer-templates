@@ -1,29 +1,43 @@
 services:
-  actualtap:
-    container_name: actualtap
-    image: mattyfaz/actualtap:latest
+  actualtap-krit:
+    container_name: actualtap-krit
+    image: mattyfaz/actualtap:v1.0.39
     restart: unless-stopped
-
-    network_mode: host
     environment:
-      - TZ=${TZ}
-      - ACTUAL_URL=${ACTUAL_URL}
-      - ACTUAL_PASSWORD=${ACTUAL_PASSWORD}
-      - ACTUAL_SYNC_ID=${ACTUAL_SYNC_ID}
-      - API_KEY=${API_KEY}
-      - ACTUAL_ENCRYPTION_PASSWORD=${ACTUAL_ENCRYPTION_PASSWORD}
-
+      TZ: "${TZ}"
+      ACTUAL_URL: "http://ActualBudget:5006"
+      ACTUAL_PASSWORD: "${ACTUAL_PASSWORD:?set ACTUAL_PASSWORD}"
+      ACTUAL_SYNC_ID: "${ACTUAL_SYNC_ID}"
+      API_KEY: "${API_KEY:?set API_KEY}"
+      ACTUAL_ENCRYPTION_PASSWORD: "${ACTUAL_ENCRYPTION_PASSWORD}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - traefik_proxy_network
+      - actual_backend_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.actual-tap.rule: "Host(`${ACTUAL_TAP_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.actual-tap.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.actual-tap.tls: "true"
-      traefik.http.routers.actual-tap.service: "actual-tap"
-      traefik.http.routers.actual-tap.middlewares: "hsts-headers@docker"
-      traefik.http.services.actual-tap.loadbalancer.server.url: "http://host.docker.internal:3001"
-      traefik.http.routers.actual-tap-private.rule: "Host(`${ACTUAL_TAP_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.actual-tap-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
-      traefik.http.routers.actual-tap-private.tls: "true"
-      traefik.http.routers.actual-tap-private.service: "actual-tap-private"
-      traefik.http.routers.actual-tap-private.middlewares: "hsts-headers@docker"
-      traefik.http.services.actual-tap-private.loadbalancer.server.url: "http://host.docker.internal:3001"
+      traefik.http.routers.actual-tap-krit-private.rule: "Host(`${ACTUAL_TAP_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-tap-krit-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.actual-tap-krit-private.tls: "true"
+      traefik.http.routers.actual-tap-krit-private.service: "actual-tap-krit-private"
+      traefik.http.routers.actual-tap-krit-private.middlewares: "hsts-headers@docker"
+      traefik.http.services.actual-tap-krit-private.loadbalancer.server.port: "3001"
+      traefik.http.routers.actual-tap-krit-tailnet.rule: "Host(`${ACTUAL_TAP_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-tap-krit-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.actual-tap-krit-tailnet.tls: "true"
+      traefik.http.routers.actual-tap-krit-tailnet.service: "actual-tap-krit-private"
+      traefik.http.routers.actual-tap-krit-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
+      traefik.docker.network: "traefik-proxy"
+
+networks:
+  traefik_proxy_network:
+    name: traefik-proxy
+    external: true
+  actual_backend_network:
+    name: actual-backend
+    external: true
