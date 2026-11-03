@@ -1,6 +1,6 @@
 services:
     server:
-        image: docker.gitea.com/gitea:latest
+        image: docker.gitea.com/gitea:28.3.0
         container_name: gitea
         cpu_shares: 2048
         environment:

@@ -8,7 +8,7 @@ services:
     command: "chmod 1777 /transcodes"
 
   jellyfin:
-    image: jellyfin/jellyfin:latest
+    image: jellyfin/jellyfin:12.4
     container_name: jellyfin
     cpu_shares: 2048
     cpus: 4.0
