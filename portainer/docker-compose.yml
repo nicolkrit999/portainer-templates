@@ -47,13 +47,9 @@ services:
       # reference-only), copy carefully - this file no longer carries the
       # cert-request labels at all, only the routing/TLS-selection ones.
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true

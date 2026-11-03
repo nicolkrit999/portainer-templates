@@ -44,7 +44,6 @@ services:
       - ${VOLUME_CONFIG}/tailscale-qbittorrent/state:/var/lib/tailscale
     networks:
       - traefik_proxy_network
-      - cloudflare_web_network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "tailscale", "status", "--json"]
@@ -108,7 +107,4 @@ services:
 networks:
   traefik_proxy_network:
     name: traefik-proxy
-    external: true
-  cloudflare_web_network:
-    name: cloudflare-web
     external: true

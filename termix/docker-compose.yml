@@ -9,7 +9,6 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/termix:/app/data:rw
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
@@ -33,9 +32,6 @@ services:
       start_period: 60s
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true

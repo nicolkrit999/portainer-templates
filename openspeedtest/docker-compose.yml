@@ -6,7 +6,6 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
 
     labels:
@@ -68,9 +67,6 @@ services:
         max-file: "3"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true

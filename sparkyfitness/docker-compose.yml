@@ -124,15 +124,11 @@ services:
       traefik.docker.network: "traefik-proxy"
     networks:
       - sparkyfitness_internal
-      - cloudflare_web_network
       - traefik_proxy_network
 
 networks:
   sparkyfitness_internal:
     name: sparkyfitness-internal
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true

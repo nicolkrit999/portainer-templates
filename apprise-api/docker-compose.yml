@@ -10,7 +10,6 @@ services:
       - ${DOCKER_CONFIG_DIR}/apprise/config:/config
     restart: unless-stopped
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
     ports:
       - 8010:8000
@@ -30,9 +29,6 @@ services:
       traefik.docker.network: "traefik-proxy"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true

@@ -10,7 +10,6 @@ services:
     ports:
       - "${DUPLICATI_HOST_PORT}:8200"
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
     user: "0:0"
     privileged: true
@@ -74,9 +73,6 @@ services:
       start_period: 30s
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true

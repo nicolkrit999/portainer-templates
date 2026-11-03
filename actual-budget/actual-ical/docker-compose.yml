@@ -16,7 +16,6 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/actualical:/app/.actual-cache
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
@@ -35,9 +34,6 @@ services:
       traefik.docker.network: "traefik-proxy"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true
