@@ -12,19 +12,19 @@ services:
     command:
       - /bin/sh
       - -c
-      - redis-server --requirepass ${PAPERLESS_REDIS_PASSWORD}
+      - redis-server --requirepass ${PAPERLESS_REDIS_PASSWORD:?PAPERLESS_REDIS_PASSWORD must be set}
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${PAPERLESS_REDIS_PASSWORD} ping || exit 1"]
+      test: ["CMD-SHELL", "redis-cli -a ${PAPERLESS_REDIS_PASSWORD:?PAPERLESS_REDIS_PASSWORD must be set} ping || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
     environment:
       TZ: "${TZ}"
     volumes:
-      - ${DOCKER_DATA_DIR}/paperlessngx/redis:/data:rw
+      - ${DOCKER_DATA_DIR:?DOCKER_DATA_DIR must be set}/paperlessngx/redis:/data:rw
     restart: unless-stopped
     networks:
-      - cloudflare_web_network
+      - paperlessngx_backend_network
 
   # -----------------------------------------------------------------------------
   # DATABASE (Postgres)
@@ -44,23 +44,29 @@ services:
       start_period: 60s
     environment:
       TZ: "${TZ}"
-      POSTGRES_DB: paperless
-      POSTGRES_USER: paperlessuser
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: "paperless"
+      POSTGRES_USER: "paperlessuser"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}"
+      PGPASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}"
     volumes:
-      - ${DOCKER_DATA_DIR}/paperlessngx/db:/var/lib/postgresql/data:rw
+      - ${DOCKER_DATA_DIR:?DOCKER_DATA_DIR must be set}/paperlessngx/db:/var/lib/postgresql/data:rw
     restart: unless-stopped
     networks:
-      - cloudflare_web_network
+      - paperlessngx_backend_network
 
   # -----------------------------------------------------------------------------
   # GOTENBERG-INIT (tmpfs permission fixup)
   # -----------------------------------------------------------------------------
   gotenberg-init:
-    image: "alpine:3.19"
+    image: "alpine:3.24"
     container_name: paperlessngx-gotenberg-init
     restart: "no"
+    network_mode: none
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     volumes:
       - paperlessngx_gotenberg_tmp:/tmp
     command: "chmod 1777 /tmp"
@@ -69,42 +75,35 @@ services:
   # GOTENBERG (PDF Engine)
   # -----------------------------------------------------------------------------
   gotenberg:
-    image: gotenberg/gotenberg:latest
+    image: gotenberg/gotenberg:8.39.0
     container_name: paperlessngx-gotenberg
     hostname: "${PAPERLESS_GOTENBERG_HOSTNAME}"
     security_opt:
       - no-new-privileges:true
     volumes:
-      # RAM-backed, disposable scratch dir - gotenberg's headless
-      # Chromium/LibreOffice conversion work happens in /tmp today with no
-      # volume covering it, so it lands on the container's disk-backed
-      # writable overlay layer. Moved into RAM. Bounded at 512MiB so it
-      # can't grow unbounded and pressure host memory. Backed by the named
-      # tmpfs volume below instead of an inline `type: tmpfs` mount with
-      # `mode: 1777`, because Docker applies that YAML integer mode as a
-      # raw decimal value instead of interpreting it as octal, producing
-      # an actual runtime mode of octal 3361 (root-owned, non-root user
-      # denied access) - confirmed live via docker exec/stat on the
-      # equivalent jellyfin mount. The gotenberg-init container chmods the
-      # volume to the real 1777 (world-writable + sticky) before gotenberg
-      # starts, so the non-root container user can write to it regardless
-      # of configured UID/GID. Contents never touch disk and are wiped on
-      # container stop/recreate.
+      # Named tmpfs volume, not an inline tmpfs mount: Docker reads a YAML mode as
+      # decimal, so `mode: 1777` would not become the real sticky 1777.
       - paperlessngx_gotenberg_tmp:/tmp
     restart: unless-stopped
     depends_on:
       gotenberg-init:
         condition: service_completed_successfully
     networks:
-      - cloudflare_web_network
+      - paperlessngx_backend_network
 
   # -----------------------------------------------------------------------------
   # TIKA-INIT (tmpfs permission fixup)
   # -----------------------------------------------------------------------------
   tika-init:
-    image: "alpine:3.19"
+    image: "alpine:3.24"
     container_name: paperlessngx-tika-init
     restart: "no"
+    network_mode: none
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     volumes:
       - paperlessngx_tika_tmp:/tmp
     command: "chmod 1777 /tmp"
@@ -113,40 +112,27 @@ services:
   # TIKA (Text Extraction)
   # -----------------------------------------------------------------------------
   tika:
-    image: apache/tika:latest
+    image: apache/tika:4.2.0
     container_name: paperlessngx-tika
     hostname: "${PAPERLESS_TIKA_HOSTNAME}"
     security_opt:
       - no-new-privileges:true
     volumes:
-      # RAM-backed, disposable scratch dir - Tika's text/metadata
-      # extraction work happens in /tmp today with no volume covering it,
-      # so it lands on the container's disk-backed writable overlay layer.
-      # Moved into RAM. Bounded at 512MiB so it can't grow unbounded and
-      # pressure host memory. Backed by the named tmpfs volume below
-      # instead of an inline `type: tmpfs` mount with `mode: 1777`,
-      # because Docker applies that YAML integer mode as a raw decimal
-      # value instead of interpreting it as octal, producing an actual
-      # runtime mode of octal 3361 (root-owned, non-root user denied
-      # access) - confirmed live via docker exec/stat on the equivalent
-      # jellyfin mount. The tika-init container chmods the volume to the
-      # real 1777 (world-writable + sticky) before Tika starts, so the
-      # non-root container user can write to it regardless of configured
-      # UID/GID. Contents never touch disk and are wiped on container
-      # stop/recreate.
+      # Named tmpfs volume, not an inline tmpfs mount: Docker reads a YAML mode as
+      # decimal, so `mode: 1777` would not become the real sticky 1777.
       - paperlessngx_tika_tmp:/tmp
     restart: unless-stopped
     depends_on:
       tika-init:
         condition: service_completed_successfully
     networks:
-      - cloudflare_web_network
+      - paperlessngx_backend_network
 
   # -----------------------------------------------------------------------------
   # PAPERLESS-NGX (Main App)
   # -----------------------------------------------------------------------------
   paperless:
-    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.4.1
     container_name: paperlessngx
     cpu_shares: 2048
     hostname: "${PAPERLESS_APP_HOSTNAME}"
@@ -158,36 +144,47 @@ services:
       timeout: 10s
       retries: 5
     environment:
-      PAPERLESS_SECRET_KEY: "${PAPERLESS_SECRET_KEY}"
+      PAPERLESS_SECRET_KEY: "${PAPERLESS_SECRET_KEY:?PAPERLESS_SECRET_KEY must be set}"
 
       # --- Connections ---
-      PAPERLESS_REDIS: redis://:${PAPERLESS_REDIS_PASSWORD}@paperlessngx-redis:6379
-      PAPERLESS_DBENGINE: postgresql
-      PAPERLESS_DBHOST: paperlessngx-db
-      PAPERLESS_DBNAME: paperless
-      PAPERLESS_DBUSER: paperlessuser
-      PAPERLESS_DBPASS: ${PAPERLESS_DBPASS}
+      PAPERLESS_REDIS: "redis://:${PAPERLESS_REDIS_PASSWORD:?PAPERLESS_REDIS_PASSWORD must be set}@paperlessngx-redis:6379"
+      PAPERLESS_DBENGINE: "postgresql"
+      PAPERLESS_DBHOST: "paperlessngx-db"
+      PAPERLESS_DBNAME: "paperless"
+      PAPERLESS_DBUSER: "paperlessuser"
+      PAPERLESS_DBPASS: "${PAPERLESS_DBPASS:?PAPERLESS_DBPASS must be set}"
 
       USERMAP_UID: "${PUID}"
       USERMAP_GID: "${PGID}"
 
       # --- Settings ---
       PAPERLESS_TIME_ZONE: "${TZ}"
-      PAPERLESS_URL: "${PAPERLESS_URL}"
-      PAPERLESS_CSRF_TRUSTED_ORIGINS: "${PAPERLESS_URL}"
+      PAPERLESS_URL: "https://${PAPERLESS_SUBDOMAIN:?PAPERLESS_SUBDOMAIN must be set}.${DOMAIN:?DOMAIN must be set}"
+      PAPERLESS_ALLOWED_HOSTS: "${PAPERLESS_SUBDOMAIN}.${DOMAIN}"
+      PAPERLESS_PROXY_SSL_HEADER: '["HTTP_X_FORWARDED_PROTO", "https"]'
+      PAPERLESS_ALLAUTH_TRUSTED_PROXY_COUNT: "1"
       PAPERLESS_ADMIN_USER: "${ADMIN_USER}"
-      PAPERLESS_ADMIN_PASSWORD: ${PAPERLESS_ADMIN_PASSWORD}
-      PAPERLESS_EMPTY_TRASH_DIR: ../trash
+      PAPERLESS_ADMIN_PASSWORD: "${PAPERLESS_ADMIN_PASSWORD:?PAPERLESS_ADMIN_PASSWORD must be set}"
+      PAPERLESS_EMPTY_TRASH_DIR: "../trash"
       PAPERLESS_FILENAME_FORMAT: '{{ created_year }}/{{ correspondent }}/{{ document_type }}/{{ title }}'
-      PAPERLESS_OCR_ROTATE_PAGES_THRESHOLD: 6
-      PAPERLESS_TASK_WORKERS: 1
-      PAPERLESS_OCR_LANGUAGE: ita+eng+deu+fra
-      PAPERLESS_OCR_LANGUAGES: ita fra
-      
+      PAPERLESS_OCR_ROTATE_PAGES_THRESHOLD: "6"
+      PAPERLESS_TASK_WORKERS: "1"
+      PAPERLESS_OCR_LANGUAGE: "ita+eng+deu+fra"
+      PAPERLESS_OCR_LANGUAGES: "ita fra"
+
+      # --- Sign-up, remote auth and SSRF hardening ---
+      PAPERLESS_ACCOUNT_ALLOW_SIGNUPS: "false"
+      PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS: "false"
+      PAPERLESS_SOCIAL_AUTO_SIGNUP: "false"
+      PAPERLESS_ENABLE_HTTP_REMOTE_USER: "false"
+      PAPERLESS_ENABLE_HTTP_REMOTE_USER_API: "false"
+      PAPERLESS_WEBHOOKS_ALLOW_INTERNAL_REQUESTS: "false"
+      PAPERLESS_EMAIL_ALLOW_INTERNAL_HOSTS: "false"
+
       # --- Tika/Gotenberg ---
-      PAPERLESS_TIKA_ENABLED: 1
-      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperlessngx-gotenberg:3000
-      PAPERLESS_TIKA_ENDPOINT: http://paperlessngx-tika:9998
+      PAPERLESS_TIKA_ENABLED: "1"
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: "http://paperlessngx-gotenberg:3000"
+      PAPERLESS_TIKA_ENDPOINT: "http://paperlessngx-tika:9998"
     labels:
       traefik.enable: "true"
       traefik.http.routers.paperless.rule: "Host(`${PAPERLESS_SUBDOMAIN}.${DOMAIN}`)"
@@ -203,11 +200,11 @@ services:
       traefik.http.services.paperless.loadbalancer.server.port: "8000"
       traefik.docker.network: "traefik-proxy"
     volumes:
-      - ${DOCKER_DATA_DIR}/paperlessngx/data:/usr/src/paperless/data:rw
-      - ${DOCKER_DATA_DIR}/paperlessngx/media:/usr/src/paperless/media:rw
-      - ${DOCKER_DATA_DIR}/paperlessngx/export:/usr/src/paperless/export:rw
-      - ${DOCKER_DATA_DIR}/paperlessngx/consume:/usr/src/paperless/consume:rw
-      - ${DOCKER_DATA_DIR}/paperlessngx/trash:/usr/src/paperless/trash:rw
+      - ${DOCKER_DATA_DIR:?DOCKER_DATA_DIR must be set}/paperlessngx/data:/usr/src/paperless/data:rw
+      - ${DOCKER_DATA_DIR:?DOCKER_DATA_DIR must be set}/paperlessngx/media:/usr/src/paperless/media:rw
+      - ${DOCKER_DATA_DIR:?DOCKER_DATA_DIR must be set}/paperlessngx/export:/usr/src/paperless/export:rw
+      - ${DOCKER_DATA_DIR:?DOCKER_DATA_DIR must be set}/paperlessngx/consume:/usr/src/paperless/consume:rw
+      - ${DOCKER_DATA_DIR:?DOCKER_DATA_DIR must be set}/paperlessngx/trash:/usr/src/paperless/trash:rw
     restart: unless-stopped
     depends_on:
       db:
@@ -215,8 +212,9 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - cloudflare_web_network
       - traefik_proxy_network
+      - public_paperless_network
+      - paperlessngx_backend_network
 
 volumes:
   paperlessngx_gotenberg_tmp:
@@ -231,9 +229,15 @@ volumes:
       o: "size=512m"
 
 networks:
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true
+  paperlessngx_backend_network:
+    name: paperlessngx-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${PAPERLESS_BACKEND_SUBNET:-172.16.90.16/28}"
   traefik_proxy_network:
     name: traefik-proxy
+    external: true
+  public_paperless_network:
+    name: public-paperless
     external: true
