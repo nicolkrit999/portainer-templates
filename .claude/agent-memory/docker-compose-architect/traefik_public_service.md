@@ -77,3 +77,22 @@ Real macvlan default-route behavior and static IP outside the network's `ip_rang
 client IPs, real ACME issuance, forwarded-header stripping from untrusted clients (documented, not tested),
 and what host-side addresses the proxy can reach on the macvlan segment (the macvlan-host-shim IP is a
 host-namespace address on the same segment; check after deploy).
+
+## Pocket-ID added as second public backend (2026-11-03, uncommitted at write time)
+- Router/service `pocket-id` -> `http://pocket-id:1411` in the init heredoc; required `POCKET_ID_SUBDOMAIN`;
+  new internal network `public-pocket-id` (key `public_pocket_id_network`) with explicit ipam subnet
+  `${PUBLIC_POCKET_ID_SUBNET:-172.16.77.0/28}` (172.16.0.0/16 is outside Docker's default pools, which are nearly
+  exhausted: only 192.168.224.0/20 and 192.168.240.0/20 were free at 2026-11-03). pocket-id joins it as external.
+- **Pocket-ID v1.16.0: `ALLOW_USER_SIGNUPS` alone is IGNORED** (tested locally with the exact image: env `open` without
+  `UI_CONFIG_DISABLED=true` still reported `disabled`; with it, `open`). The env var added to the compose is inert; the
+  admin-UI "User signups" setting is the real control. Never add UI_CONFIG_DISABLED=true casually: it moves ALL settings
+  to env/defaults. Check live value: `GET /api/application-configuration` (list of {key,type,value}) -> allowUserSignups.
+- Failure modes tested with stand-ins: Compose deploy with a missing external network, or a missing `:?` variable, fails
+  BEFORE touching running containers. traefik-public redeploy recreates the proxy container (~1 s gap, public path only).
+- Test-host artifact to remember: a laptop container inherits the host's DNS search domains; with a public wildcard record
+  an unresolvable backend name dials Cloudflare IPs and hangs 30 s (504). The NAS containers have NO search line
+  (verified via read-only `GET /containers/<n>/archive?path=/etc/resolv.conf`), so absent backends give a fast 502.
+  `dns_search: ["."]` fixes it on hosts that do inherit one (tested, not applied).
+- Pre-existing finding: live `grafana_default` (192.168.16.0/20) overlaps LAN VLANs 192.168.20.0/24 and 30.0/24.
+- immich_server resolver upstreams (read-only): host 127.0.0.1 first, then 9.9.9.9, 149.112.112.112, 62.2.17.60,
+  62.2.24.162 -> its OAuth back-channel to the issuer URL depends on what the NAS's local resolver returns.
