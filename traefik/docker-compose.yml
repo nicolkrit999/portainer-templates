@@ -27,25 +27,9 @@ services:
       # well-known ports; a conflicting app should move its own port instead
       # (done for easy-appointments' NGINX_PORT, moved to 8180, same day).
       - "--entryPoints.web.address=:80"
-      - "--entryPoints.web.http.redirections.entryPoint.to=${TRAEFIK_ENTRYPOINT_1}"
+      - "--entryPoints.web.http.redirections.entryPoint.to=:443"
       - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.address=:${TRAEFIK_PORT_1}"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.http.tls.certresolver=cf_dns"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.http.tls.domains[0].main=${DOMAIN}"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.http.tls.domains[0].sans=*.${DOMAIN}"
-      # Traefik v3 defaults readTimeout to 60s, which cuts large chunked uploads
-      # (e.g. Gokapi's 45 MB chunks) mid-body on slow remote links; disabled here.
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.transport.respondingTimeouts.readTimeout=0s"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.transport.respondingTimeouts.writeTimeout=0s"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_1}.transport.respondingTimeouts.idleTimeout=1h"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.address=:${TRAEFIK_PORT_2}"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.certresolver=cf_dns"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.domains[0].main=${DOMAIN}"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_2}.http.tls.domains[0].sans=*.${DOMAIN}"
-      # TRAEFIK_PORT_3's value (8444) stays a distinct internal-only port -
-      # this entrypoint's wildcard bind would otherwise collide with the
-      # family entrypoint's own wildcard :443 bind inside this container.
-      # Clean, no-port external access to the private tier (443 on its own
+      # Private tier, the default entrypoint. Clean, no-port access to it (443 on its own
       # dedicated IP) is handled entirely by the separate
       # `traefik-private-forwarder` service (a macvlan TCP-passthrough
       # sidecar forwarding to this container's :${TRAEFIK_PORT_3} over the
@@ -61,16 +45,6 @@ services:
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.readTimeout=0s"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.writeTimeout=0s"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.idleTimeout=1h"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.address=:${TRAEFIK_PORT_4}"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.http.tls.certresolver=cf_dns"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.http.tls.domains[0].main=${DOMAIN}"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.http.tls.domains[0].sans=*.${DOMAIN}"
-      # Traefik v3 defaults readTimeout to 60s, which cuts large chunked uploads
-      # (e.g. Gokapi's 45 MB chunks) mid-body on slow remote links; disabled here.
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.transport.respondingTimeouts.readTimeout=0s"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.transport.respondingTimeouts.writeTimeout=0s"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_4}.transport.respondingTimeouts.idleTimeout=1h"
-      - "--entryPoints.${TRAEFIK_ENTRYPOINT_5}.address=:${TRAEFIK_PORT_5}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_6}.address=:${TRAEFIK_PORT_6}"
       # Internal-only entrypoint dedicated to tailnet-sourced admin traffic,
       # reached exclusively via the traefik-tailnet-forwarder sidecar (see
@@ -78,7 +52,7 @@ services:
       # merged 2026-09-08 with tailscale-admin into one stack) over the
       # traefik-proxy network at this container's static
       # ${TRAEFIK_INTERNAL_IP}. No `ports:` host publish - same internal-only
-      # pattern as entrypoints 5 and 6.
+      # pattern as entrypoint 6.
       #
       # proxyProtocol.trustedIPs=${TAILSCALE_ADMIN_INTERNAL_IP}/32 trusts
       # PROXY-protocol headers only from the tailscale-admin sidecar's own
@@ -86,8 +60,7 @@ services:
       # (../tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml).
       # The tailnet forwarder (same merged directory) no longer runs
       # network_mode: host - that design was reverted after it conflicted
-      # with Traefik's own wildcard bind on the family entrypoint in the
-      # same host network namespace. It now runs as an ordinary
+      # with Traefik's own wildcard binds in the same host network namespace. It now runs as an ordinary
       # network_mode: container:tailscale-admin sidecar, so its outbound
       # connection to Traefik sources from tailscale-admin's own address on
       # traefik-proxy, not from the bridge gateway. Confirmed live via
@@ -136,10 +109,7 @@ services:
       - ${VOLUME_CONFIG}/traefik/acme.json:/letsencrypt/acme.json
     ports:
       - "80:80"
-      - "${TRAEFIK_PORT_1}:${TRAEFIK_PORT_1}"
-      - "${TRAEFIK_PORT_2}:${TRAEFIK_PORT_2}"
       - "${TRAEFIK_PORT_3}:${TRAEFIK_PORT_3}"
-      - "${TRAEFIK_PORT_4}:${TRAEFIK_PORT_4}"
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
@@ -154,7 +124,15 @@ services:
       traefik.enable: "true"
       traefik.http.routers.traefik-dashboard.rule: "Host(`traefik.${DOMAIN}`)"
       traefik.http.routers.traefik-dashboard.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      # Certificate anchor for the whole domain: one wildcard certificate
+      # (DNS-01, ${DOMAIN} plus *.${DOMAIN}) replaces the per-group SAN bundles.
+      # This is the ONLY router that may carry tls.certresolver/tls.domains;
+      # every other router uses a bare tls: "true" and picks the certificate
+      # from Traefik's store by SNI.
       traefik.http.routers.traefik-dashboard.tls: "true"
+      traefik.http.routers.traefik-dashboard.tls.certresolver: "cf_dns"
+      traefik.http.routers.traefik-dashboard.tls.domains[0].main: "${DOMAIN}"
+      traefik.http.routers.traefik-dashboard.tls.domains[0].sans: "*.${DOMAIN}"
       traefik.http.routers.traefik-dashboard.service: "api@internal"
       traefik.http.routers.traefik-dashboard.middlewares: "hsts-headers@docker,traefik-auth"
       traefik.http.middlewares.traefik-auth.basicauth.users: "${TRAEFIK_DASHBOARD_HTPASSWD}"
@@ -162,29 +140,19 @@ services:
       traefik.http.middlewares.hsts-headers.headers.stsIncludeSubdomains: "true"
       traefik.http.middlewares.hsts-headers.headers.stsPreload: "true"
       traefik.http.middlewares.hsts-headers.headers.forceSTSHeader: "true"
-      # Shared IP-allowlist middleware restricting access to the household
-      # admin's own known Tailscale device IPs only - NOT the full Tailscale
-      # CGNAT range (100.64.0.0/10), which would let ANY future tailnet
-      # identity (e.g. a family member's phone, once a family Tailscale
-      # grant exists) through automatically. This specific device list must
-      # be updated manually if a device is removed/re-added to the tailnet
-      # or its node key is reset - a rare, deliberate event, not something
-      # that happens silently. No ipStrategy override - matches the raw
-      # direct TCP RemoteAddr only, never X-Forwarded-For. Used to gate
-      # clean-URL tailnet access to private-tier-only services on the
-      # family entrypoint without touching that entrypoint's own binding or
-      # its existing routers at all.
+      # Shared IP-allowlist middleware restricting access to the owner's own
+      # known Tailscale device IPs only - NOT the full Tailscale CGNAT range
+      # (100.64.0.0/10), which would let ANY future tailnet identity through
+      # automatically. This device list must be updated manually if a device
+      # is removed/re-added to the tailnet or its node key is reset. No
+      # ipStrategy override - matches the raw direct TCP RemoteAddr only,
+      # never X-Forwarded-For. Gates the tailnet-admin entrypoint's routers.
       traefik.http.middlewares.tailnet-admin-only.ipallowlist.sourcerange: "${TAILNET_ADMIN_IPS}"
-      traefik.http.routers.traefik-dashboard-cf.rule: "Host(`traefik.${DOMAIN}`)"
-      traefik.http.routers.traefik-dashboard-cf.entrypoints: "${TRAEFIK_ENTRYPOINT_5}"
-      traefik.http.routers.traefik-dashboard-cf.service: "api@internal"
-      traefik.http.routers.traefik-dashboard-cf.middlewares: "hsts-headers@docker,traefik-auth"
-      # Step 0 pilot: moved off ${TRAEFIK_ENTRYPOINT_1} (the shared family
-      # entrypoint) onto the new dedicated ${TRAEFIK_ENTRYPOINT_7} tailnet
-      # entrypoint, reachable only via the traefik-tailnet-forwarder sidecar
-      # - this routes around the confirmed docker-proxy source-IP rewrite
-      # bug that made tailnet-admin-only reject legitimate Tailscale clients
-      # on every one of Traefik's published ports. Middleware chain and
+      # Tailnet router on the dedicated ${TRAEFIK_ENTRYPOINT_7} entrypoint,
+      # reachable only via the traefik-tailnet-forwarder sidecar - this routes
+      # around the confirmed docker-proxy source-IP rewrite bug that made
+      # tailnet-admin-only reject legitimate Tailscale clients on Traefik's
+      # published ports. Middleware chain and
       # ordering kept exactly as-is - hsts-headers@docker MUST stay first,
       # this repo has hit a middleware-ordering bug from reordering this
       # exact chain twice already.
@@ -195,13 +163,10 @@ services:
       traefik.http.routers.traefik-dashboard-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker,traefik-auth"
       traefik.docker.network: "traefik-proxy"
     networks:
-      # Static IP required so the host-networked traefik-tailnet-forwarder
-      # sidecar (network_mode: host is mutually exclusive with joining
-      # traefik-proxy by name/DNS) has a fixed address to target. The
-      # cloudflare_web_network entry stays a plain list entry, unchanged.
+      # Static IP required so the traefik-tailnet-forwarder sidecar has a
+      # fixed address to target.
       traefik_proxy_network:
         ipv4_address: "${TRAEFIK_INTERNAL_IP}"
-      cloudflare_web_network:
     depends_on:
       fix-permissions:
         condition: service_completed_successfully
@@ -223,6 +188,3 @@ networks:
   # anything declared in this file. Do not re-add an ipam block here.
   traefik_proxy_network:
     name: traefik-proxy
-  cloudflare_web_network:
-    name: cloudflare-web
-    external: true

@@ -53,24 +53,11 @@ services:
       - public_gokapi_network
     labels:
       traefik.enable: "true"
-      # Deliberately absent from dnsmasq-tailnet's tailnet-admin DNS
-      # override list: this is a multi-tier service, and listing it would
-      # send family/friends tailnet devices to the admin-only entrypoint (403).
       traefik.http.routers.gokapi.rule: "Host(`${GOKAPI_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.gokapi.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.gokapi.tls: "true"
       traefik.http.routers.gokapi.service: "gokapi"
       traefik.http.routers.gokapi.middlewares: "hsts-headers@docker"
-      traefik.http.routers.gokapi-family.rule: "Host(`${GOKAPI_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.gokapi-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.gokapi-family.tls: "true"
-      traefik.http.routers.gokapi-family.service: "gokapi"
-      traefik.http.routers.gokapi-family.middlewares: "hsts-headers@docker"
-      traefik.http.routers.gokapi-friends.rule: "Host(`${GOKAPI_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.gokapi-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
-      traefik.http.routers.gokapi-friends.tls: "true"
-      traefik.http.routers.gokapi-friends.service: "gokapi"
-      traefik.http.routers.gokapi-friends.middlewares: "hsts-headers@docker"
       traefik.http.routers.gokapi-tailnet.rule: "Host(`${GOKAPI_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.gokapi-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
       traefik.http.routers.gokapi-tailnet.tls: "true"

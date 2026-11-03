@@ -31,17 +31,6 @@ services:
       - public_mealie_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.mealie-family.rule: "Host(`${MEALIE_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.mealie-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.mealie-family.tls: "true"
-      traefik.http.routers.mealie-family.service: "mealie"
-      traefik.http.routers.mealie-family.middlewares: "hsts-headers@docker"
-      traefik.http.routers.mealie-guest.rule: "Host(`${MEALIE_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.mealie-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
-      traefik.http.routers.mealie-guest.tls: "true"
-      traefik.http.routers.mealie-guest.service: "mealie"
-      traefik.http.routers.mealie-guest.middlewares: "hsts-headers@docker"
-      traefik.http.services.mealie.loadbalancer.server.port: "9000"
       traefik.http.routers.mealie-private.rule: "Host(`${MEALIE_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.mealie-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.mealie-private.tls: "true"

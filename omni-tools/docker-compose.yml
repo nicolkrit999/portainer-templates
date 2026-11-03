@@ -9,12 +9,6 @@ services:
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.omni-tools.rule: "Host(`${OMNI_TOOLS_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.omni-tools.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.omni-tools.tls: "true"
-      traefik.http.routers.omni-tools.service: "omni-tools"
-      traefik.http.routers.omni-tools.middlewares: "hsts-headers@docker"
-      traefik.http.services.omni-tools.loadbalancer.server.port: "80"
       traefik.http.routers.omni-tools-private.rule: "Host(`${OMNI_TOOLS_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.omni-tools-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.omni-tools-private.tls: "true"

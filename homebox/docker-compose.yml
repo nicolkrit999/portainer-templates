@@ -22,12 +22,6 @@ services:
       TZ: "${TZ}"
     labels:
       traefik.enable: "true"
-      traefik.http.routers.homebox.rule: "Host(`${HOMEBOX_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.homebox.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.homebox.tls: "true"
-      traefik.http.routers.homebox.service: "homebox"
-      traefik.http.routers.homebox.middlewares: "hsts-headers@docker"
-      traefik.http.services.homebox.loadbalancer.server.port: "7745"
       traefik.http.routers.homebox-private.rule: "Host(`${HOMEBOX_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.homebox-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.homebox-private.tls: "true"

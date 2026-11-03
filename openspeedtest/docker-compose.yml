@@ -22,23 +22,8 @@ services:
       traefik.http.routers.openspeedtest.service: "openspeedtest"
       traefik.http.routers.openspeedtest.middlewares: "hsts-headers@docker"
 
-      traefik.http.routers.openspeedtest-family.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.openspeedtest-family.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.openspeedtest-family.tls: "true"
-      traefik.http.routers.openspeedtest-family.service: "openspeedtest"
-      traefik.http.routers.openspeedtest-family.middlewares: "hsts-headers@docker"
 
-      traefik.http.routers.openspeedtest-guest.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.openspeedtest-guest.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
-      traefik.http.routers.openspeedtest-guest.tls: "true"
-      traefik.http.routers.openspeedtest-guest.service: "openspeedtest"
-      traefik.http.routers.openspeedtest-guest.middlewares: "hsts-headers@docker"
 
-      traefik.http.routers.openspeedtest-friends.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.openspeedtest-friends.entrypoints: "${TRAEFIK_ENTRYPOINT_4}"
-      traefik.http.routers.openspeedtest-friends.tls: "true"
-      traefik.http.routers.openspeedtest-friends.service: "openspeedtest"
-      traefik.http.routers.openspeedtest-friends.middlewares: "hsts-headers@docker"
 
       traefik.http.routers.openspeedtest-tailnet.rule: "Host(`${OPENSPEEDTEST_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.openspeedtest-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"

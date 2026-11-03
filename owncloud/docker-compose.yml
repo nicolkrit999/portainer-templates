@@ -36,12 +36,6 @@ services:
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.owncloud.rule: "Host(`${OWNCLOUD_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.owncloud.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
-      traefik.http.routers.owncloud.tls: "true"
-      traefik.http.routers.owncloud.service: "owncloud"
-      traefik.http.routers.owncloud.middlewares: "hsts-headers@docker"
-      traefik.http.services.owncloud.loadbalancer.server.port: "8080"
       traefik.http.routers.owncloud-private.rule: "Host(`${OWNCLOUD_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.owncloud-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.owncloud-private.tls: "true"

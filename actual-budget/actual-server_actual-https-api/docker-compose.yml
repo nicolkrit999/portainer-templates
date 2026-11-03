@@ -36,20 +36,16 @@ services:
       # actual-ical/actual-tap/actual-api's own routers need ZERO label
       # changes to pick up this bundled cert - do not "clean up" this block
       # thinking it's redundant.
-      traefik.http.routers.actual-budget.tls.domains[0].main: "${ACTUAL_BUDGET_SUBDOMAIN}.${DOMAIN}"
-      traefik.http.routers.actual-budget.tls.domains[0].sans: "${ACTUAL_ICAL_SUBDOMAIN}.${DOMAIN},${ACTUAL_TAP_SUBDOMAIN}.${DOMAIN},${ACTUAL_API_SUBDOMAIN}.${DOMAIN}"
-      traefik.http.routers.actual-budget.rule: "Host(`${ACTUAL_BUDGET_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.actual-budget.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.actual-budget.tls: "true"
-      traefik.http.routers.actual-budget.tls.certresolver: "cf_dns"
-      traefik.http.routers.actual-budget.service: "actual-budget"
-      traefik.http.routers.actual-budget.middlewares: "hsts-headers@docker"
-      traefik.http.services.actual-budget.loadbalancer.server.port: "5006"
       traefik.http.routers.actual-budget-private.rule: "Host(`${ACTUAL_BUDGET_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.actual-budget-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.actual-budget-private.tls: "true"
       traefik.http.routers.actual-budget-private.service: "actual-budget-private"
       traefik.http.routers.actual-budget-private.middlewares: "hsts-headers@docker"
+      traefik.http.routers.actual-budget-tailnet.rule: "Host(`${ACTUAL_BUDGET_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-budget-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.actual-budget-tailnet.tls: "true"
+      traefik.http.routers.actual-budget-tailnet.service: "actual-budget-private"
+      traefik.http.routers.actual-budget-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.actual-budget-private.loadbalancer.server.port: "5006"
       traefik.docker.network: "traefik-proxy"
 

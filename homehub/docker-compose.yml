@@ -18,12 +18,6 @@ services:
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.homehub.rule: "Host(`${HOMEHUB_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.homehub.entrypoints: "${TRAEFIK_ENTRYPOINT_1}"
-      traefik.http.routers.homehub.tls: "true"
-      traefik.http.routers.homehub.service: "homehub"
-      traefik.http.routers.homehub.middlewares: "hsts-headers@docker"
-      traefik.http.services.homehub.loadbalancer.server.port: "5000"
       traefik.http.routers.homehub-private.rule: "Host(`${HOMEHUB_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.homehub-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.homehub-private.tls: "true"

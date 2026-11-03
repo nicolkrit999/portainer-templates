@@ -75,7 +75,7 @@ services:
     # The proxy verifies OIDC tokens by fetching the discovery document from the public issuer URL
     # (OC_URL), so the container must reach its own public hostname. This pins that name to the
     # public Traefik's fixed address on public-opencloud: the call stays inside the host, needs no
-    # public DNS, tunnel or router hairpin NAT, and the certificate is the publicly valid one.
+    # public DNS or router hairpin NAT, and the certificate is the publicly valid one.
     # Keep PUBLIC_OPENCLOUD_PROXY_IP equal to the value in the traefik-public stack.
     extra_hosts:
       - "${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}:${PUBLIC_OPENCLOUD_PROXY_IP:-172.16.86.2}"
@@ -84,11 +84,6 @@ services:
       - public_opencloud_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.opencloud.rule: "Host(`${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}`)"
-      traefik.http.routers.opencloud.entrypoints: "${TRAEFIK_ENTRYPOINT_2}"
-      traefik.http.routers.opencloud.tls: "true"
-      traefik.http.routers.opencloud.service: "opencloud-private"
-      traefik.http.routers.opencloud.middlewares: "hsts-headers@docker"
       traefik.http.routers.opencloud-private.rule: "Host(`${OPENCLOUD_SUBDOMAIN:-opencloud}.${DOMAIN}`)"
       traefik.http.routers.opencloud-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.opencloud-private.tls: "true"
