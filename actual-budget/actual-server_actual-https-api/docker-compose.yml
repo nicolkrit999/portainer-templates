@@ -53,9 +53,9 @@ services:
       traefik.http.services.actual-budget-private.loadbalancer.server.port: "5006"
       traefik.docker.network: "traefik-proxy"
 
-  actual_api:
+  actual_api_krit:
     image: jhonderson/actual-http-api:26.11.0
-    container_name: ActualAPI
+    container_name: ActualAPI-krit
     restart: always
     depends_on:
       actual_server:
@@ -81,17 +81,17 @@ services:
       - actual_backend_network
     labels:
       traefik.enable: "true"
-      traefik.http.routers.actual-api-private.rule: "Host(`${ACTUAL_API_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.actual-api-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
-      traefik.http.routers.actual-api-private.tls: "true"
-      traefik.http.routers.actual-api-private.service: "actual-api-private"
-      traefik.http.routers.actual-api-private.middlewares: "hsts-headers@docker"
-      traefik.http.services.actual-api-private.loadbalancer.server.port: "5007"
-      traefik.http.routers.actual-api-tailnet.rule: "Host(`${ACTUAL_API_SUBDOMAIN}.${DOMAIN}`)"
-      traefik.http.routers.actual-api-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
-      traefik.http.routers.actual-api-tailnet.tls: "true"
-      traefik.http.routers.actual-api-tailnet.service: "actual-api-private"
-      traefik.http.routers.actual-api-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
+      traefik.http.routers.actual-api-krit-private.rule: "Host(`${ACTUAL_API_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-api-krit-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
+      traefik.http.routers.actual-api-krit-private.tls: "true"
+      traefik.http.routers.actual-api-krit-private.service: "actual-api-krit-private"
+      traefik.http.routers.actual-api-krit-private.middlewares: "hsts-headers@docker"
+      traefik.http.services.actual-api-krit-private.loadbalancer.server.port: "5007"
+      traefik.http.routers.actual-api-krit-tailnet.rule: "Host(`${ACTUAL_API_SUBDOMAIN}.${DOMAIN}`)"
+      traefik.http.routers.actual-api-krit-tailnet.entrypoints: "${TRAEFIK_ENTRYPOINT_7}"
+      traefik.http.routers.actual-api-krit-tailnet.tls: "true"
+      traefik.http.routers.actual-api-krit-tailnet.service: "actual-api-krit-private"
+      traefik.http.routers.actual-api-krit-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.docker.network: "traefik-proxy"
 
 networks:
