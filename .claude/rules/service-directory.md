@@ -113,9 +113,9 @@ specific service.
 | `withoutbg` | withoutbg | private, tailnet-admin | no |
 | `ytptube` | ytptube | private, tailnet-admin | yes |
 
-`gitea` note: family/guest/private HTTP tiers only - `gitea-ssh`/`ssh` (git-over-SSH,
-Cloudflare Access) are a completely separate, Cloudflare-Tunnel-only path with
-no Traefik router at all, not listed here since they're not HTTP services.
+`gitea` note: HTTP only. Git-over-SSH is disabled (`DISABLE_SSH`); the
+`gitea-ssh` and `ssh` tunnel routes were retired 2026-11-03. Collaborators use
+HTTPS with an access token.
 
 ## Direct LAN/Tailscale port table (bypasses Traefik entirely)
 

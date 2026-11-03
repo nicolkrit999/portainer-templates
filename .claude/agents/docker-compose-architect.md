@@ -193,7 +193,7 @@ Use the container's service name (or `container_name`) as the hostname - that's 
 
 > Cloudflare Tunnel target: `http://host.docker.internal:<host_port>`
 
-Example: the NAS web UI (`nas.${DOMAIN}`) on host port 9443 → `https://host.docker.internal:9443`. Use the host-mapped port from the `ports:` block, not the internal container port.
+Example: a web UI published on host port 9443 → `https://host.docker.internal:9443`. Use the host-mapped port from the `ports:` block, not the internal container port.
 
 ---
 
