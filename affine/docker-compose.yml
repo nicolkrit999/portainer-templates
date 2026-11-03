@@ -17,8 +17,8 @@ services:
       retries: 3
       start_period: 60s
     volumes:
-      - /volume2/docker/affine/config:/root/.affine/config:rw
-      - /volume2/docker/affine/storage:/root/.affine/storage:rw
+      - ${VOLUME_CONFIG}/affine/config:/root/.affine/config:rw
+      - ${VOLUME_CONFIG}/affine/storage:/root/.affine/storage:rw
     environment:
       AFFINE_REVISION: "stable"
       AFFINE_INDEXER_ENABLED: "false"
@@ -50,8 +50,11 @@ services:
       traefik.http.routers.affine-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.affine.loadbalancer.server.port: "3010"
       traefik.docker.network: "traefik-proxy"
+    # `default` gives AFFiNE the outbound access it needs for SMTP; the database and
+    # cache are reachable only on the internal backend network.
     networks:
       - default
+      - affine_backend_network
       - traefik_proxy_network
     logging:
       options:
@@ -68,15 +71,15 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - /volume2/docker/affine/config:/root/.affine/config:rw
-      - /volume2/docker/affine/storage:/root/.affine/storage:rw
+      - ${VOLUME_CONFIG}/affine/config:/root/.affine/config:rw
+      - ${VOLUME_CONFIG}/affine/storage:/root/.affine/storage:rw
     environment:
       REDIS_SERVER_HOST: "redis"
       DATABASE_URL: "${AFFINE_DATABASE_URL}"
       AFFINE_INDEXER_ENABLED: "false"
       TZ: "${TZ}"
     networks:
-      - default
+      - affine_backend_network
     logging:
       options:
         max-size: "10m"
@@ -93,11 +96,11 @@ services:
       retries: 3
       start_period: 30s
     volumes:
-      - /volume2/docker/affine/redis:/data:rw
+      - ${VOLUME_CONFIG}/affine/redis:/data:rw
     environment:
       TZ: "${TZ}"
     networks:
-      - default
+      - affine_backend_network
     logging:
       options:
         max-size: "10m"
@@ -114,7 +117,7 @@ services:
       retries: 5
       start_period: 30s
     volumes:
-      - /volume1/Default-volume-1/0001_Docker/affine/db:/var/lib/postgresql/data:rw
+      - ${VOLUME_DATA}/affine/db:/var/lib/postgresql/data:rw
     environment:
       POSTGRES_USER: "${AFFINE_DB_USER}"
       POSTGRES_PASSWORD: "${AFFINE_DB_PASSWORD}"
@@ -122,13 +125,21 @@ services:
       POSTGRES_INITDB_ARGS: "--data-checksums"
       TZ: "${TZ}"
     networks:
-      - default
+      - affine_backend_network
     logging:
       options:
         max-size: "10m"
         max-file: "3"
 
 networks:
+  affine_backend_network:
+    name: affine-backend
+    internal: true
+    ipam:
+      config:
+        - subnet: "${AFFINE_BACKEND_SUBNET:-172.16.108.0/28}"
+          gateway: "${AFFINE_BACKEND_GATEWAY:-172.16.108.1}"
+          ip_range: "${AFFINE_BACKEND_IP_RANGE:-172.16.108.8/29}"
   traefik_proxy_network:
     name: traefik-proxy
     external: true
