@@ -16,7 +16,7 @@ The container joins the existing macvlan network `traefik-private-forwarder_trae
 - **Headers and TLS:** `public-secure-headers` (HSTS 1 year + subdomains + preload, nosniff, frame deny, `same-origin` referrer policy). TLS 1.2 minimum, AEAD cipher suites only. Request headers with aliasing names (`X_Foo`, `X.Foo`) are stripped.
 - **Timeouts:** read and write 86400s (24h), idle 180s. The read and write values are total per-request budgets, not inactivity timers; 24h covers about 100 GB at 10 Mbit/s in a single request. Slow-client limits come from the planned per-source controls below, not from these values. Resumable/chunked clients (Gokapi chunks, OpenCloud/TUS) remain the robust way to move very large files, because a dropped single-request upload restarts from zero.
 - **Logs:** JSON access log on stdout. Headers are dropped except `User-Agent`; query strings are dropped. The request path is kept on purpose and contains Immich share keys (`/share/<key>`), so treat the logs as sensitive. Docker rotation keeps ~30 MB, so ship the logs elsewhere if they are needed for forensics.
-- **Hardening:** non-root (UID 65532), read-only rootfs, `no-new-privileges`, all capabilities dropped (port 443 binds through the `net.ipv4.ip_unprivileged_port_start` sysctl), ping endpoint on loopback only, `public-apps` has no default route. Resource limits: `cpu_shares: 2048`, `cpus: 2.0`, `mem_limit: 512m`, `pids_limit: 512`, `nofile` 65536, `oom_score_adj: 500` (first to be sacrificed under memory pressure). The init container is digest-pinned, read-only, capability-limited and has no network.
+- **Hardening:** non-root (UID 65532), read-only rootfs, `no-new-privileges`, all capabilities dropped (port 443 binds through the `net.ipv4.ip_unprivileged_port_start` sysctl on `traefik-public-net`), ping endpoint on loopback only, the backend networks have no default route, and an [egress guard](#egress-guard) in the proxy's network namespace blocks new connections from the macvlan interface into private address space. Resource limits: `cpu_shares: 2048`, `cpus: 2.0`, `mem_limit: 512m`, `pids_limit: 512`, `nofile` 65536, `oom_score_adj: 500` (first to be sacrificed under memory pressure). The init container is digest-pinned, read-only, capability-limited and has no network.
 - **Restart policy:** `unless-stopped`, so a manual stop sticks.
 
 ## Networks
@@ -28,6 +28,24 @@ The container joins the existing macvlan network `traefik-private-forwarder_trae
 | `public-pocket-id` (created here, `internal: true`, explicit subnet) | Pocket-ID's backend network. Pocket-ID attaches to it as `external: true`, next to its existing networks. No default route, no egress. |
 
 Deliberately not on `cloudflare-web` or `traefik-proxy`, and there is no Cloudflare Tunnel handoff: the point of this stack is to bypass the tunnel.
+
+The networks and the address are attached to `traefik-public-net`, not to `traefik-public` itself: the proxy joins that container's network namespace (`network_mode: service:traefik-public-net`), which is what lets the guard below stay out of the proxy's reach.
+
+## Egress guard
+
+A compromised proxy process must not be able to open new connections to other devices through its macvlan interface. The UniFi gateway cannot filter that: macvlan siblings on the NAS exchange traffic inside the kernel and it never reaches the gateway. So the filter lives in the proxy's own network namespace.
+
+- **Who applies it:** `traefik-public-net` owns the namespace (networks, address, DNS, sysctls) and installs the rules at every start with `NET_ADMIN` and nothing else. `traefik-public` joins the namespace with no capabilities and a read-only filesystem, so it cannot change the rules, and it starts only after the holder is healthy.
+- **What it drops:** new connections out of the macvlan interface to `192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`, `169.254.0.0/16` and `100.64.0.0/10`. The interface is the one holding the default route, found at start, not hard-coded. Untouched: replies to inbound connections (conntrack `ESTABLISHED,RELATED`), the public internet (ACME, DNS), loopback and the other interfaces (the internal backend networks).
+- **Backend:** `iptables-nft` or `iptables-legacy`, whichever Docker itself uses for its embedded-DNS rules in this namespace (otherwise whichever works). The image is `registry.k8s.io/build-image/distroless-iptables`, digest-pinned, with no package installs at runtime.
+- **IPv4 only:** Docker leaves IPv4-only networks without IPv6. If the guarded interface ever has an IPv6 address the holder refuses to start, so the proxy does not start either.
+- **Failure behaviour:** closed. If the interface, the backend or the rules cannot be set, the holder exits non-zero and the proxy never starts. Restarting or recreating only the proxy keeps the rules. If `traefik-public-net` is restarted on its own, the proxy stays attached to the old namespace (no interfaces, no traffic) while still reporting healthy, because its health endpoint is on loopback: restart `traefik-public` afterwards. A redeploy that changes the holder's configuration recreates both.
+- **Verify after a deploy** (Portainer docker exec or a shell):
+  1. `docker logs traefik-public-net` ends with `egress-guard: backend=<iptables-nft|iptables-legacy> interface=<ethN> rules applied`, and the container is healthy.
+  2. `docker exec traefik-public-net <backend> -S OUTPUT` shows `-A OUTPUT -o <ethN> -j EGRESS_GUARD`; `<backend> -S EGRESS_GUARD` lists the `RETURN` for established traffic followed by five `DROP` rules.
+  3. `docker exec traefik-public nc -z -w2 <host> <port>` (exit status): a LAN host, the gateway and another macvlan IP must fail; a public address on 443, `acme-v02.api.letsencrypt.org` 443, `immich_server` 2283 and `pocket-id` 1411 must succeed.
+  4. The usual checks: the public routes answer through the forward, and `docker logs traefik-public` shows no ACME errors.
+- **Rollback:** revert the commit and redeploy. No host state is touched.
 
 ## Environment variables
 
@@ -75,8 +93,9 @@ To delete the stack entirely, first revert the `public-apps` network entries in 
 ## Operating rules
 
 - **Never add `TRAEFIK_PUBLIC_IP` to `MACVLAN_ATTACHED_IPS` in `../macvlan-host-shim/`.** That list creates host-side routes to the listed macvlan IPs and would remove the host/macvlan isolation this stack relies on, giving a compromised proxy a path to the NAS host.
+- **Keep the egress guard's allowances narrow.** Any new need to reach a private address from the proxy goes through the backend networks (an `internal: true` network per backend), never by loosening the guard on the macvlan interface.
 - **Remove the `public-test` router** (and `PUBLIC_TEST_SUBDOMAIN`) from the init command once the Immich cutover is verified.
-- **One dedicated backend network per backend.** `public-apps` is Immich's and `public-pocket-id` is Pocket-ID's. For each additional public service, create its own `internal: true` network in this stack with an explicit subnet outside Docker's default address pools (those pools are nearly exhausted, and an explicit subnet cannot collide with an auto-allocated one), declare it external in that service's stack and add it to the `traefik-public` service's networks. Never put several backends on one shared network.
+- **One dedicated backend network per backend.** `public-apps` is Immich's and `public-pocket-id` is Pocket-ID's. For each additional public service, create its own `internal: true` network in this stack with an explicit subnet outside Docker's default address pools (those pools are nearly exhausted, and an explicit subnet cannot collide with an auto-allocated one), declare it external in that service's stack and add it to the `traefik-public-net` service's networks. Never put several backends on one shared network.
 - **Adding a public service:** add a router (and a service block if the backend differs) to the heredoc in `traefik-public-init`'s command, attach the backend as above, and create the DNS-only record. Each new hostname requests its own certificate.
 
 ## Planned hardening
@@ -86,6 +105,6 @@ Before widening exposure beyond the first service:
 - Per-source connection cap (CrowdSec or an nftables `ct count` rule) and a country allow-list on the gateway; rate limiting and forward-auth once real client IPs are confirmed in the access log, since they can break Immich bulk uploads and the mobile apps.
 - Watch the UniFi gateway's conntrack table under load.
 - Alert on certificate expiry (renewal failures are otherwise silent until a certificate lapses).
-- **Move the container into a DMZ network on the NAS's second 2.5G port before widening the forward beyond a test source IP.** Probed from inside the container (2026-11-03): the `macvlan-host-shim` (`.95`) and the NAS host (`.98`) answer on none of the tested ports, but the AdGuard macvlan IP answers on :53 and :80, the private-tier forwarder on :443 and the gateway on :22 and :443. Macvlan siblings talk inside the NAS, so the UniFi firewall never sees that traffic and cannot block it. A DMZ network puts the traffic through the gateway, where a zone rule can.
+- Optional later upgrade: attach the container to a DMZ network on the NAS's second port. The [egress guard](#egress-guard) already contains the proxy without it; a DMZ would additionally route that traffic through the gateway, where a zone rule can see and filter it, and make the guard a second layer instead of the only one.
 
 Before real services move over, narrow the DNS-01 credential. The Cloudflare token can edit every record in the zone. Option: delegate `_acme-challenge.<host>` by CNAME to a dedicated acme-dns zone so this host holds no Cloudflare token at all. TLS-ALPN-01 and HTTP-01 are not alternatives while a country allow-list on the gateway blocks Let's Encrypt's validators.
