@@ -1,0 +1,3 @@
+FROM nginx:1.30.6-alpine3.24
+
+COPY default.conf.template /etc/nginx/templates/default.conf.template

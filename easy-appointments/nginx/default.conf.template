@@ -1,0 +1,32 @@
+server {
+    listen 80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 80;
+    server_name ${EASY_APPOINTMENTS_SUBDOMAIN}.${DOMAIN};
+
+    server_tokens off;
+    client_max_body_size 10m;
+    root /var/www/html;
+
+    location ^~ /assets/ {
+        try_files $uri =404;
+    }
+
+    location ~ ^/index\.php(/|$) {
+        fastcgi_pass php-fpm:9000;
+        fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_buffers 16 16k;
+        fastcgi_buffer_size 32k;
+    }
+
+    location / {
+        rewrite ^ /index.php last;
+    }
+}
