@@ -12,7 +12,7 @@ services:
     command: "chown root:root /fix/acme.json && chmod 600 /fix/acme.json && echo done"
 
   traefik:
-    image: traefik:v3.7.11
+    image: traefik:v3.7.17
     cpu_shares: 4096
     container_name: traefik
     restart: always
@@ -26,13 +26,13 @@ services:
       # connection-refused instead of a clean redirect to HTTPS. Confirmed
       # root cause of a "could not connect to server" report, 2026-08-22.
       # Port 80 must stay free for Traefik specifically - infra services
-      # (Traefik, dnsmasq, Cloudflare) take precedence over app composes for
+      # (Traefik, dnsmasq) take precedence over app composes for
       # well-known ports; a conflicting app should move its own port instead
       # (done for easy-appointments' NGINX_PORT, moved to 8180, same day).
       - "--entryPoints.web.address=:80"
       - "--entryPoints.web.http.redirections.entryPoint.to=:443"
       - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
-      # Private tier, the default entrypoint. Clean, no-port access to it (443 on its own
+      # Private (LAN) entrypoint, the default. Clean, no-port access to it (443 on its own
       # dedicated IP) is handled entirely by the separate
       # `traefik-private-forwarder` service (a macvlan TCP-passthrough
       # sidecar forwarding to this container's :${TRAEFIK_PORT_3} over the
@@ -44,10 +44,12 @@ services:
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.http.tls.domains[0].main=${DOMAIN}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.http.tls.domains[0].sans=*.${DOMAIN}"
       # Traefik v3 defaults readTimeout to 60s, which cuts single-request large
-      # uploads (e.g. WebDAV PUT) mid-body; disabled on the tailnet-only tiers.
+      # uploads (e.g. WebDAV PUT) mid-body; disabled on entrypoints 3 and 7
+      # (the owner-only LAN and tailnet paths).
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.readTimeout=0s"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.writeTimeout=0s"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_3}.transport.respondingTimeouts.idleTimeout=1h"
+      # Internal-only ping/healthcheck entrypoint (see --ping.entryPoint below).
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_6}.address=:${TRAEFIK_PORT_6}"
       # Internal-only entrypoint dedicated to tailnet-sourced admin traffic,
       # reached exclusively via the traefik-tailnet-forwarder sidecar (see
@@ -61,24 +63,20 @@ services:
       # PROXY-protocol headers only from the tailscale-admin sidecar's own
       # static IP on the traefik-proxy network
       # (../tailscale-admin_traefik-tailnet-forwarder/docker-compose.yml).
-      # The tailnet forwarder (same merged directory) no longer runs
-      # network_mode: host - that design was reverted after it conflicted
-      # with Traefik's own wildcard binds in the same host network namespace. It now runs as an ordinary
+      # The tailnet forwarder runs as an ordinary
       # network_mode: container:tailscale-admin sidecar, so its outbound
       # connection to Traefik sources from tailscale-admin's own address on
-      # traefik-proxy, not from the bridge gateway. Confirmed live via
-      # `docker inspect` before this fix: tailscale-admin's Docker-assigned
-      # IP was 172.27.0.49, a dynamic address - it is now pinned static (see
-      # that compose file's own ipv4_address) precisely so this trustedIPs
-      # value never silently goes stale on a container recreate. This is a
-      # DIFFERENT, intentional, PROXY-protocol-verified trust boundary from
-      # the original bug (docker-proxy silently rewriting real tailnet
-      # client IPs to a Docker gateway address before Traefik ever saw
-      # them, defeating the tailnet-admin-only ipallowlist). Here the real
-      # client IP is never inferred from the raw TCP source at all - it
-      # travels inside the PROXY protocol header injected by haproxy's
-      # send-proxy-v2 directive, and Traefik only trusts that header when
-      # it arrives from this one known, static sidecar address.
+      # traefik-proxy, not from the bridge gateway. That address is pinned
+      # static (see that compose file's own ipv4_address) precisely so this
+      # trustedIPs value never silently goes stale on a container recreate.
+      # This is a PROXY-protocol-verified trust boundary, unlike the original
+      # bug (docker-proxy silently rewriting real tailnet client IPs to a
+      # Docker gateway address before Traefik ever saw them, defeating the
+      # tailnet-admin-only ipallowlist): the real client IP is never inferred
+      # from the raw TCP source - it travels inside the PROXY protocol header
+      # injected by haproxy's send-proxy-v2 directive, and Traefik only
+      # trusts that header when it arrives from this one known sidecar
+      # address.
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.address=:${TRAEFIK_PORT_7}"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.certresolver=cf_dns"
       - "--entryPoints.${TRAEFIK_ENTRYPOINT_7}.http.tls.domains[0].main=${DOMAIN}"
@@ -128,7 +126,7 @@ services:
       traefik.http.routers.traefik-dashboard.rule: "Host(`traefik.${DOMAIN}`)"
       traefik.http.routers.traefik-dashboard.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       # Certificate anchor for the whole domain: one wildcard certificate
-      # (DNS-01, ${DOMAIN} plus *.${DOMAIN}) replaces the per-group SAN bundles.
+      # (DNS-01, ${DOMAIN} plus *.${DOMAIN}).
       # This is the ONLY router that may carry tls.certresolver/tls.domains;
       # every other router uses a bare tls: "true" and picks the certificate
       # from Traefik's store by SNI.
@@ -155,8 +153,8 @@ services:
       # reachable only via the traefik-tailnet-forwarder sidecar - this routes
       # around the confirmed docker-proxy source-IP rewrite bug that made
       # tailnet-admin-only reject legitimate Tailscale clients on Traefik's
-      # published ports. Middleware chain and
-      # ordering kept exactly as-is - hsts-headers@docker MUST stay first,
+      # published ports. Middleware chain order is deliberate -
+      # hsts-headers@docker MUST stay first,
       # this repo has hit a middleware-ordering bug from reordering this
       # exact chain twice already.
       traefik.http.routers.traefik-dashboard-tailnet.rule: "Host(`traefik.${DOMAIN}`)"
@@ -176,7 +174,7 @@ services:
 
 networks:
   # Deliberately NO explicit `ipam:` block here, even though Traefik's own
-  # service below requests a static ipv4_address on this network - adding
+  # service above requests a static ipv4_address on this network - adding
   # one caused a real incident (2026-08-22): Compose treats an added ipam
   # block as a network config change and tries to REMOVE + recreate the
   # network to apply it, even when the declared subnet exactly matches the

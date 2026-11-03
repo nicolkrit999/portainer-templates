@@ -21,9 +21,7 @@ services:
     restart: "no"
     command: sh -c "mkdir -p /data && chown -R 999:999 /data && chmod -R 755 /data"
     volumes:
-      # hi_events (underscore) - see note above. Assumes the NAS folder has
-      # already been renamed from the old "hi.events" (dotted) to
-      # "hi_events" (underscore) before this stack's first deployment.
+      # hi_events (underscore) - see note above.
       - ${VOLUME_CONFIG}/hi_events/data/redis:/data
 
   # One-shot: fixes perms on the public uploads dir before all-in-one starts.
@@ -33,9 +31,7 @@ services:
     restart: "no"
     command: sh -c "mkdir -p /app/backend/storage/app/public && chmod 775 /app/backend/storage/app/public"
     volumes:
-      # hi_events (underscore) - see note above. Assumes the NAS folder has
-      # already been renamed from the old "hi.events" (dotted) to
-      # "hi_events" (underscore) before this stack's first deployment.
+      # hi_events (underscore) - see note above.
       - ${VOLUME_CONFIG}/hi_events/uploads:/app/backend/storage/app/public
 
   postgres:
@@ -115,8 +111,8 @@ services:
       APP_SAAS_MODE_ENABLED: "${APP_SAAS_MODE_ENABLED}"
       APP_SAAS_STRIPE_APPLICATION_FEE_PERCENT: "${APP_SAAS_STRIPE_APPLICATION_FEE_PERCENT}"
       APP_SAAS_STRIPE_APPLICATION_FEE_FIXED: "${APP_SAAS_STRIPE_APPLICATION_FEE_FIXED}"
-      APP_EMAIL_LOGO_URL: "${APP_EMAIL_LOGO_URL}"
-      APP_EMAIL_LOGO_LINK_URL: "${APP_EMAIL_LOGO_LINK_URL}"
+      APP_EMAIL_LOGO_URL: "${APP_EMAIL_LOGO_URL:-}"
+      APP_EMAIL_LOGO_LINK_URL: "${APP_EMAIL_LOGO_LINK_URL:-}"
       MAIL_MAILER: "${MAIL_MAILER}"
       MAIL_DRIVER: "${MAIL_DRIVER}"
       MAIL_HOST: "${MAIL_HOST}"

@@ -6,6 +6,7 @@ services:
     environment:
       - PGID=121 # docker id, needed to allow update
       - PUID=10
+      - TZ=${TZ}
       # Required even for local-only management (no separate tugtainer-agent
       # container) - the main app talks to its own internal agent process on
       # 127.0.0.1:8001 and refuses unsigned requests without this set.

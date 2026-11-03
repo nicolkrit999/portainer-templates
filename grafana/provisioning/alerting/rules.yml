@@ -14,16 +14,10 @@ apiVersion: 1
 #     heuristic.
 # ============================================================================
 #
-# NOTE on datasourceUid below: grafana/provisioning/datasources/prometheus.yml
-# does not currently pin an explicit `uid:` on the Prometheus datasource, so
-# Grafana auto-assigns one - and that auto-assigned value is not guaranteed
-# stable across container restarts (confirmed Grafana behavior when `uid` is
-# omitted from a provisioned datasource). This rule assumes the datasource
-# will be pinned to `uid: prometheus` in that file. That one-line addition
-# to prometheus.yml was intentionally NOT made here per the instruction to
-# leave the datasource file untouched - it needs to be applied (with the
-# user's confirmation) before this rule will reliably resolve to the right
-# datasource across restarts.
+# NOTE on datasourceUid below: the rules reference the Prometheus datasource by
+# `uid: prometheus`, which grafana/provisioning/datasources/prometheus.yml pins
+# explicitly (without a pinned uid Grafana auto-assigns one that is not stable
+# across restarts).
 
 groups:
   - orgId: 1
