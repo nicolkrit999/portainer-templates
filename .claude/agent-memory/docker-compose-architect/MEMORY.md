@@ -22,3 +22,4 @@
 - [Batch 2 public wiring (opencloud, trek, hi-events)](batch2-opencloud-trek-hi-events-public-wiring.md) - proxy-header ownership, root-entrypoint TREK, auto-migrating Hi.Events, basic auth vs app tokens, tunnel caveat
 
 - [Easy!Appointments public wiring](easy-appointments-public-wiring.md) - dev-layout rebuild, zip gaps, PROXY_IPS, php2shell, fixed-.2 IPAM hazard, local test recipe
+- [Public proxy batch lessons](reference_public-proxy-batch-lessons.md) - ip_range+gateway quirk, Traefik path-block limits, CodeIgniter `?/` bypass, local test recipe
