@@ -1,71 +1,20 @@
 services:
   # TAILNET-FACING SIBLING of ../dnsmasq/docker-compose.yml - same image, same
-  # network_mode: host pattern, same overall purpose (wildcard DNS override
-  # for the household's split-DNS), but this instance exists to route around
-  # a confirmed hairpin-NAT bug rather than to serve LAN clients.
+  # network_mode: host pattern. It answers DNS for devices on the tailnet.
   #
-  # Root cause (confirmed via SSH diagnosis 2026-08-22): any device connected
-  # over Tailscale gets DNS answers pointing at the NAS's LAN IP, same as
-  # everyone else - but the NAS's own host network stack cannot hairpin back
-  # to its own LAN IP on Traefik's published port (curl to the LAN IP from
-  # the NAS itself times out; curl to 127.0.0.1 with the same Host header
-  # works fine). Tailscale's subnet-router forwarding hits this exact same
-  # hairpin limitation when relaying tailnet traffic back out to the LAN IP.
-  # Traefik itself is not the problem - its entrypoints already bind broadly
-  # and would happily accept a connection arriving directly on the tailnet
-  # interface, no forwarding hop involved.
+  # Every hostname under the domain resolves to the admin node's tailnet IP
+  # (${TAILSCALE_ADMIN_IP}, the merged ../tailscale-admin_traefik-tailnet-forwarder/
+  # stack), which fronts Traefik's tailnet-admin entrypoint (TRAEFIK_ENTRYPOINT_7)
+  # behind the tailnet-admin-only allowlist. Traffic arrives directly on the
+  # tailnet interface, so the NAS never has to hairpin back to its own LAN IP
+  # (the original reason this separate instance exists). ${TAILNET_IP}, the
+  # primary node's tailnet IP, is only the address this resolver listens on.
   #
-  # Fix: answer DNS with the NAS's own tailnet IP instead of its LAN IP for
-  # any Tailscale-connected client. Traffic then arrives directly on
-  # tailscale0 and hits Traefik's broad port binding with no hairpin hop at
-  # all. This is a separate, independent dnsmasq instance (not a change to
-  # the original) so it can bind specifically to the tailnet IP without
-  # touching or depending on the LAN-facing one - both already run
-  # network_mode: host on the NAS, so a second instance is safe.
+  # Deliberately NOT attached to traefik-proxy: this is a raw DNS (port 53)
+  # service, not HTTP, and is not meant to be reachable through the proxy.
   #
-  # PARTIALLY SUPERSEDED 2026-08-22: the note above ("every hostname resolves
-  # to the same tailnet IP") no longer holds for admin-gated hostnames. A
-  # second, independent Tailscale identity (tailscale-admin, merged 2026-09-08
-  # into ../tailscale-admin_traefik-tailnet-forwarder/ alongside its forwarder -
-  # see that file's top-of-file comment for why - tailnet IP
-  # ${TAILSCALE_ADMIN_IP}) now fronts admin-only-gated services via its own
-  # forwarder + Traefik entrypoint path (same merged directory,
-  # TRAEFIK_ENTRYPOINT_7 in ../traefik/docker-compose.yml). Those hostnames
-  # must resolve to the admin node's tailnet IP instead of the primary node's
-  # ${TAILNET_IP}, so they need their own more-specific --address= rule below,
-  # alongside (not replacing) the wildcard rule. dnsmasq resolves --address
-  # domain matching the same way it does for --server: most-specific
-  # (longest/exact) match wins, and matching is done on complete labels - see
-  # the dnsmasq man page's --server section ("More specific domains take
-  # precedence over less specific domains... Matching of domains is normally
-  # done on complete labels"). A rule for exactly "traefik.${DNS_WILDCARD_DOMAIN}" is
-  # strictly more specific than the wildcard rule for "${DNS_WILDCARD_DOMAIN}", so it wins
-  # ONLY for queries matching that exact label sequence - every other
-  # subdomain (all ~76 others) still falls through to the wildcard rule,
-  # completely unchanged, because they don't match the exact-hostname rule at
-  # all.
-  #
-  # Currently only traefik.${DNS_WILDCARD_DOMAIN} (Traefik's own dashboard, the pilot
-  # service for this admin-gated path) uses this override. Scaling to more
-  # admin-gated hostnames later: dnsmasq's --address syntax natively supports
-  # multiple domains in one directive - "-A, --address=/<domain>[/<domain>...]/
-  # [<ipaddr>]" - so add more "/hostname.${DNS_WILDCARD_DOMAIN}" segments to the SAME rule
-  # below (e.g. "--address=/traefik.${DNS_WILDCARD_DOMAIN}/host2.${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}")
-  # rather than adding a new rule per hostname. A separate rule per hostname
-  # would also work (matching is independent per rule) but one shared rule
-  # keeps all admin-gated hostnames declared in a single, easy-to-audit place
-  # as the private-tier rollout scales toward 54 services.
-  #
-  # Deliberately NOT attached to cloudflare-web or traefik-proxy: this is a
-  # raw DNS (port 53) service, not HTTP, and is not meant to be reachable
-  # through either tunnel/proxy.
-  #
-  # restart: always - the original dnsmasq was itself upgraded from "no" to
-  # always once the household came to depend on it for split-DNS ("must come
-  # back automatically after a host reboot or crash"). This sibling exists to
-  # fix Tailscale reachability for every device, not a one-off experiment, so
-  # it gets the same always-on treatment from the start rather than starting
-  # as a manual stopgap and needing a second upgrade later.
+  # restart: always - the household's tailnet DNS depends on it; it must come
+  # back automatically after a host reboot or crash.
   dnsmasq-tailnet:
     image: 4km3/dnsmasq:2.90-r3
     container_name: dnsmasq-tailnet
@@ -77,21 +26,7 @@ services:
     # ENTRYPOINT of this image is already ["/usr/sbin/dnsmasq", "--keep-in-foreground"];
     # command: here is appended as extra dnsmasq CLI args, not a replacement.
     command:
-      - "--address=/${DNS_WILDCARD_DOMAIN}/${TAILNET_IP}"
-      # More-specific override for admin-gated hostnames routed through the
-      # tailscale-admin/traefik-tailnet-forwarder path instead of the primary
-      # tailnet node - see the top-of-file comment block for the precedence
-      # explanation and the scaling note (add more "/hostname.${DNS_WILDCARD_DOMAIN}"
-      # segments here as more admin-gated services onboard).
-      #
-      # Scaled 2026-08-23 to cover the full private-tier-only rollout (55
-      # services + the pre-existing "traefik" pilot = 56 hostnames total).
-      # Literal hostname segments here match each service's own
-      # ${..._SUBDOMAIN} default, not necessarily its directory name - two
-      # confirmed mismatches: "claude" is holyclaude's real hostname (not
-      # "holyclaude"), and "soketi-coolify" is coolify-realtime's real
-      # hostname (not "coolify-realtime").
-      - "--address=/traefik.${DNS_WILDCARD_DOMAIN}/adguard.${DNS_WILDCARD_DOMAIN}/affine.${DNS_WILDCARD_DOMAIN}/apprise-api.${DNS_WILDCARD_DOMAIN}/appuntamenti-baikal.${DNS_WILDCARD_DOMAIN}/appuntamenti-pma.${DNS_WILDCARD_DOMAIN}/appuntamenti-swagger.${DNS_WILDCARD_DOMAIN}/audiobookshelf.${DNS_WILDCARD_DOMAIN}/beszel.${DNS_WILDCARD_DOMAIN}/blender.${DNS_WILDCARD_DOMAIN}/bytestash.${DNS_WILDCARD_DOMAIN}/cardyo.${DNS_WILDCARD_DOMAIN}/mailpit.${DNS_WILDCARD_DOMAIN}/phpldapadmin.${DNS_WILDCARD_DOMAIN}/change-detection.${DNS_WILDCARD_DOMAIN}/convertx.${DNS_WILDCARD_DOMAIN}/coolify.${DNS_WILDCARD_DOMAIN}/soketi-coolify.${DNS_WILDCARD_DOMAIN}/datetime.${DNS_WILDCARD_DOMAIN}/dockpeek.${DNS_WILDCARD_DOMAIN}/draw-io.${DNS_WILDCARD_DOMAIN}/duplicati.${DNS_WILDCARD_DOMAIN}/excalidraw.${DNS_WILDCARD_DOMAIN}/filebrowser.${DNS_WILDCARD_DOMAIN}/fossflow.${DNS_WILDCARD_DOMAIN}/glance.${DNS_WILDCARD_DOMAIN}/glances.${DNS_WILDCARD_DOMAIN}/gocron.${DNS_WILDCARD_DOMAIN}/gotify.${DNS_WILDCARD_DOMAIN}/grafana.${DNS_WILDCARD_DOMAIN}/harborguard.${DNS_WILDCARD_DOMAIN}/claude.${DNS_WILDCARD_DOMAIN}/home-assistant.${DNS_WILDCARD_DOMAIN}/it-tools.${DNS_WILDCARD_DOMAIN}/radarr.${DNS_WILDCARD_DOMAIN}/sonarr.${DNS_WILDCARD_DOMAIN}/kavita.${DNS_WILDCARD_DOMAIN}/lifeglance.${DNS_WILDCARD_DOMAIN}/linkwarden.${DNS_WILDCARD_DOMAIN}/moocup.${DNS_WILDCARD_DOMAIN}/n8n.${DNS_WILDCARD_DOMAIN}/opencloud.${DNS_WILDCARD_DOMAIN}/opennotebook.${DNS_WILDCARD_DOMAIN}/opennotebook-api.${DNS_WILDCARD_DOMAIN}/openresume.${DNS_WILDCARD_DOMAIN}/owncloud.${DNS_WILDCARD_DOMAIN}/paperlessngx.${DNS_WILDCARD_DOMAIN}/pocket-id.${DNS_WILDCARD_DOMAIN}/portainer.${DNS_WILDCARD_DOMAIN}/privatebin.${DNS_WILDCARD_DOMAIN}/qbit-torrent.${DNS_WILDCARD_DOMAIN}/qbit-torrent-tailscale.${DNS_WILDCARD_DOMAIN}/snapotter.${DNS_WILDCARD_DOMAIN}/snappyemail.${DNS_WILDCARD_DOMAIN}/sosse.${DNS_WILDCARD_DOMAIN}/sparkyfitness.${DNS_WILDCARD_DOMAIN}/stirling-pdf.${DNS_WILDCARD_DOMAIN}/termix.${DNS_WILDCARD_DOMAIN}/tugtainer.${DNS_WILDCARD_DOMAIN}/upsnap.${DNS_WILDCARD_DOMAIN}/uptime-kuma.${DNS_WILDCARD_DOMAIN}/web-check.${DNS_WILDCARD_DOMAIN}/withoutbg.${DNS_WILDCARD_DOMAIN}/ytptube.${DNS_WILDCARD_DOMAIN}/budget-api.${DNS_WILDCARD_DOMAIN}/budget-ical.${DNS_WILDCARD_DOMAIN}/budget-tap.${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}"
+      - "--address=/${DNS_WILDCARD_DOMAIN}/${TAILSCALE_ADMIN_IP}"
       - "--log-facility=-"
       # Per-query logging, added 2026-08-23 during the family/friends ACL
       # rollout to diagnose a remote tailnet client's DNS queries never
