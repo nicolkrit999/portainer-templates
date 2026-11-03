@@ -3,6 +3,13 @@ description: How the core/setup infrastructure stacks (Traefik, both forwarders,
 paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 ---
 
+> **OBSOLETE PARTS (2026-11-03), rewrite pending:** the family, guest, friends and
+> `cloudflared` entrypoints (1, 2, 4, 5), the Cloudflare Tunnel section and every statement
+> that tailnet names fall through to the family tier are no longer true. Current model: LAN
+> names go to the private tier (entrypoint 3) via `traefik-private-forwarder`, tailnet names
+> go to the tailnet-admin gateway (entrypoint 7), public access is `traefik-public`. See
+> `.claude/rules/networking.md` and `traefik/README.md` for the up-to-date tables.
+
 # Core infrastructure topology
 
 ## Two different kinds of edit to these files - only one needs extra caution

@@ -3,6 +3,13 @@ description: Reference directory of every service in this repo - which access ti
 paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
 ---
 
+> **OBSOLETE PARTS (2026-11-03), rewrite pending:** the tier columns (family, guest, friends,
+> internal-cloudflared-only) describe routers that were removed. Every service now has exactly a
+> private and a tailnet router; public ones are routed by `traefik-public`. Hostnames and the
+> "deployed" column are still accurate; `audiobookshelf` and the 20 names without a router
+> (blender, cardyo, datetime, dockpeek, excalidraw, filebrowser, fossflow, gocron, moocup,
+> openresume, owncloud, plex, snappyemail, sosse, upsnap, withoutbg, ...) are not deployed.
+
 # Service directory
 
 This file is generated from the actual compose files and live Portainer env

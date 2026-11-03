@@ -58,21 +58,6 @@ services:
       - /dev/dri:/dev/dri
     labels:
       traefik.enable: "true"
-      # --- SAN-bundle cert (group "media", 1 of 6 repo-wide groups) ---
-      # Bundles this router's cert to also cover the other media-stack
-      # hostnames (immich/foto, radarr, sonarr, plex, navidrome, kavita,
-      # audiobookshelf, ytptube, qbit-torrent) as SANs on ONE certificate,
-      # to stay under Let's Encrypt's 50-certs/168h rate limit (this repo
-      # hit it requesting a near-separate cert per router across ~77
-      # hostnames). This is the CORRECT mechanism: per-router
-      # `tls.domains[]` labels on a single anchor router. Do NOT reintroduce
-      # resolver-level CLI flags on Traefik's own container
-      # (`--certificatesresolvers.cf_dns.acme.domains[N].main=...`) - that
-      # crashed Traefik outright with `field not found, node: domains` and
-      # was reverted. Traefik's cert store is keyed globally by hostname, so
-      # every other bundled service's own router needs ZERO label changes to
-      # pick up this bundled cert - do not "clean up" this block thinking
-      # it's redundant.
       traefik.http.routers.jellyfin-private.rule: "Host(`${JELLYFIN_SUBDOMAIN}.${DOMAIN}`)"
       traefik.http.routers.jellyfin-private.entrypoints: "${TRAEFIK_ENTRYPOINT_3}"
       traefik.http.routers.jellyfin-private.tls: "true"

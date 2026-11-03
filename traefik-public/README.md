@@ -15,7 +15,7 @@ The container joins the existing macvlan network `traefik-private-forwarder_trae
 
   | Subdomain variable | Backend |
   |---|---|
-  | `PUBLIC_TEST_SUBDOMAIN`, `IMMICH_SUBDOMAIN` | `http://immich_server:2283` |
+  | `IMMICH_SUBDOMAIN` | `http://immich_server:2283` |
   | `POCKET_ID_SUBDOMAIN` | `http://pocket-id:1411` |
   | `JELLYFIN_SUBDOMAIN` | `http://jellyfin:8096` |
   | `NAVIDROME_SUBDOMAIN` | `http://navidrome:4533` |
@@ -140,7 +140,6 @@ All are required except `TZ` and the optional `PUBLIC_*_SUBNET`, `PUBLIC_*_GATEW
 | `ACME_EMAIL` | Let's Encrypt contact address. |
 | `CF_DNS_API_TOKEN_PUBLIC` | Dedicated Cloudflare token `traefik-public-dns01` (Zone.DNS:Edit + Zone.Zone:Read, single zone). Never the core Traefik's token. |
 | `TRAEFIK_PUBLIC_IP` | Free static LAN IP for the macvlan interface; the UniFi forward targets it. |
-| `PUBLIC_TEST_SUBDOMAIN` | Hostname segment of the test router. |
 | `IMMICH_SUBDOMAIN` | Hostname segment of the Immich router; same value as the immich stack. |
 | `POCKET_ID_SUBDOMAIN` | Hostname segment of the Pocket-ID router; same value as the pocket-id stack, and the host of Pocket-ID's `APP_URL`. |
 | `JELLYFIN_SUBDOMAIN` | Hostname segment of the Jellyfin router; same value as the jellyfin stack. |
@@ -238,7 +237,6 @@ To delete the stack entirely, first revert the `public-*` network entries in eac
 
 - **Never add `TRAEFIK_PUBLIC_IP` to `MACVLAN_ATTACHED_IPS` in `../macvlan-host-shim/`.** That list creates host-side routes to the listed macvlan IPs and would remove the host/macvlan isolation this stack relies on, giving a compromised proxy a path to the NAS host.
 - **Keep the egress guard's allowances narrow.** Any new need to reach a private address from the proxy goes through the backend networks (an `internal: true` network per backend), never by loosening the guard on the macvlan interface.
-- **Remove the `public-test` router** (and `PUBLIC_TEST_SUBDOMAIN`) from the init command once the Immich cutover is verified.
 - **One dedicated backend network per backend.** `public-apps` is Immich's, `public-pocket-id` is Pocket-ID's and `public-<app>` belongs to the application of that name. For each additional public service, create its own `internal: true` network in this stack with an explicit subnet outside Docker's default address pools (those pools are nearly exhausted, and an explicit subnet cannot collide with an auto-allocated one), an explicit `gateway` (the first address) and an `ip_range` in the upper half of the `/28` (so a backend can never take the proxy's fixed `.2` first), declare it external in that service's stack and add it to the `traefik-public-net` service's networks with `ipv4_address` set to `.2`. Never put several backends on one shared network.
 - **Adding a public service:** add a router (and a service block if the backend differs) to the heredoc in `traefik-public-init`'s command, attach the backend as above, and create the DNS-only record. The router's `middlewares` list must be `public-strip-client-headers` followed by `public-secure-headers` (or `public-secure-headers-app-framing` for an application that frames its own origin and sends its own frame policy); a router without the first one passes forged client-IP and identity headers through to the backend. To hide a path, add `&& !Path(...)` / `&& !PathPrefix(...)` terms to the router rule (whole segments, so `/api` does not catch `/api_settings`) and re-test the dot-segment, encoded and query-string variants against the real application. Each new hostname requests its own certificate.
 

@@ -18,7 +18,7 @@ services:
             retries: 5
             start_period: 30s
         networks:
-            - cloudflare-web
+            - ghost_backend_network
 
     ghost:
         image: ghost:6-alpine
@@ -47,7 +47,7 @@ services:
         volumes:
             - "${DOCKER_DATA_DIR}/ghost/content:/var/lib/ghost/content"
         networks:
-            - cloudflare-web
+            - ghost_backend_network
             - traefik_proxy_network
         labels:
             traefik.enable: "true"
@@ -65,8 +65,14 @@ services:
             traefik.docker.network: "traefik-proxy"
 
 networks:
-    cloudflare-web:
-        external: true
+    ghost_backend_network:
+        name: ghost-backend
+        internal: true
+        ipam:
+            config:
+                - subnet: "${GHOST_BACKEND_SUBNET:-172.16.107.0/28}"
+                  gateway: "${GHOST_BACKEND_GATEWAY:-172.16.107.1}"
+                  ip_range: "${GHOST_BACKEND_IP_RANGE:-172.16.107.8/29}"
     traefik_proxy_network:
         name: traefik-proxy
         external: true

@@ -57,7 +57,6 @@ services:
     ports:
       - "${STIRLING_PDF_HOST_PORT}:8080"
     networks:
-      - cloudflare_web_services
       - traefik_proxy_network
     labels:
       traefik.enable: "true"
@@ -82,9 +81,6 @@ volumes:
       o: "size=1g"
 
 networks:
-  cloudflare_web_services:
-    name: cloudflare-web
-    external: true
   traefik_proxy_network:
     name: traefik-proxy
     external: true
