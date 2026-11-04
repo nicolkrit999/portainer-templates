@@ -1,6 +1,6 @@
 services:
   grafana-init:
-    image: alpine
+    image: alpine:3.24
     # One-shot file fix, needs no network. Without this Compose creates an empty implicit
     # `default` network for it on every deploy (<stack>_default).
     network_mode: none
@@ -30,7 +30,7 @@ services:
     command: sh -c "chown -R 472:472 /data && chmod -R 0700 /data && sed 's|__DISCORD_ALERT_WEBHOOK_URL__|'\"$$DISCORD_ALERT_WEBHOOK_URL\"'|' /data/provisioning/alerting/contactpoints.yml.template > /data/provisioning/alerting/contactpoints.yml && chown 472:472 /data/provisioning/alerting/contactpoints.yml && chmod 0700 /data/provisioning/alerting/contactpoints.yml"
 
   grafana:
-    image: grafana/grafana-enterprise:13.2.1
+    image: grafana/grafana-enterprise:latest
     container_name: grafana
     cpu_shares: 2048
     restart: always

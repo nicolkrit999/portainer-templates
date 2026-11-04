@@ -1,6 +1,6 @@
 services:
   prometheus-init:
-    image: alpine
+    image: alpine:3.24
     # One-shot file fix, needs no network. Without this Compose creates an empty implicit
     # `default` network for it on every deploy (<stack>_default).
     network_mode: none
@@ -12,7 +12,7 @@ services:
     command: chown -R 65534:65534 /prometheus
 
   prometheus:
-    image: prom/prometheus:v3.14.0
+    image: prom/prometheus:v3
     container_name: prometheus
     cpu_shares: 2048
     restart: always

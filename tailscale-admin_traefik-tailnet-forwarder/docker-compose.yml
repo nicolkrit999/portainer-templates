@@ -179,7 +179,7 @@ services:
   # Has no Traefik router labels of its own (pure infrastructure, not a routed
   # application).
   haproxy-config-init:
-    image: alpine:latest
+    image: alpine:3.24
     container_name: traefik-tailnet-forwarder-init
     restart: "no"
     environment:
@@ -245,7 +245,7 @@ services:
   # needs read-write docker.sock access). Built instead as a custom
   # `command:` on an OFFICIAL Docker image, no Dockerfile/custom image - the
   # exact same pattern this file already uses for haproxy-config-init above
-  # (official alpine:latest + a shell command, no custom build), consistent
+  # (official alpine image + a shell command, no custom build), consistent
   # with this repo's "no build steps" convention.
   #
   # Deliberately NOT added to any other service's depends_on and does not

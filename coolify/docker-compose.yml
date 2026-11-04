@@ -1,6 +1,6 @@
 services:
   coolify-init:
-    image: "alpine:3.19"
+    image: "alpine:3.24"
     # One-shot file fix, needs no network. Without this Compose creates an empty implicit
     # `default` network for it on every deploy (<stack>_default).
     network_mode: none
@@ -133,7 +133,7 @@ services:
         max-file: "3"
 
   coolify-realtime:
-    image: "ghcr.io/coollabsio/coolify-realtime:1.0.16"
+    image: "ghcr.io/coollabsio/coolify-realtime:1.0.20"
     container_name: coolify-realtime
     restart: unless-stopped
     extra_hosts:

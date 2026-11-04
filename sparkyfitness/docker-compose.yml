@@ -4,7 +4,7 @@ services:
   # so a fresh bind-mounted host directory (owned by root) blocks it from
   # creating its data subdirectory. Chown once, then exit.
   sparkyfitness-db-init:
-    image: alpine:3.22
+    image: alpine:3.24
     container_name: sparkyfitness-db-init
     command: "chown -R 70:70 /data"
     volumes:

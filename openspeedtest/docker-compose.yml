@@ -1,6 +1,6 @@
 services:
   openspeedtest:
-    image: openspeedtest/latest:v2.0.6
+    image: openspeedtest/latest:latest
     container_name: OpenSpeedTest
     restart: on-failure:5
     security_opt:

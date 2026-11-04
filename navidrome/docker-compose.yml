@@ -1,7 +1,7 @@
 services:
   navidrome:
     container_name: navidrome
-    image: deluan/navidrome:0.64.2
+    image: deluan/navidrome:latest
     user: "${PUID}:${PGID}"
     mem_limit: 6g
     cpu_shares: 2048

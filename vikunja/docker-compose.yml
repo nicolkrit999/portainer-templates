@@ -1,6 +1,6 @@
 services:
   fix-permissions:
-    image: alpine:latest
+    image: alpine:3.24
     container_name: Vikunja-DB-init
     user: root
     restart: "no"

@@ -1,6 +1,6 @@
 services:
   n8n-db-init:
-    image: alpine
+    image: alpine:3.24
     # One-shot file fix, needs no network. Without this Compose creates an empty implicit
     # `default` network for it on every deploy (<stack>_default).
     network_mode: none
@@ -12,7 +12,7 @@ services:
     command: chown -R 999:999 /var/lib/postgresql
 
   n8n-data-init:
-    image: alpine
+    image: alpine:3.24
     # One-shot file fix, needs no network. Without this Compose creates an empty implicit
     # `default` network for it on every deploy (<stack>_default).
     network_mode: none

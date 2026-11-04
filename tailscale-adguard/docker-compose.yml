@@ -58,7 +58,7 @@ services:
   # see ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md for the root
   # cause and validation results.
   dnsdist-config-init:
-    image: alpine:latest
+    image: alpine:3.24
     # One-shot file fix, needs no network. Without this Compose creates an empty implicit
     # `default` network for it on every deploy (<stack>_default).
     network_mode: none
@@ -81,7 +81,7 @@ services:
   # (socat) - see the incident doc for why that distinction is the whole
   # point of this change.
   dns-relay:
-    image: powerdns/dnsdist-20:2.0.9
+    image: powerdns/dnsdist-20:2.0.11
     container_name: tailscale-adguard-dns-relay
     network_mode: service:tailscale-adguard
     depends_on:

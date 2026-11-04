@@ -1,6 +1,6 @@
 services:
   opencloud:
-    image: "${OC_DOCKER_IMAGE:-opencloudeu/opencloud-rolling}:${OC_DOCKER_TAG:-8.0.1}"
+    image: "${OC_DOCKER_IMAGE:-opencloudeu/opencloud-rolling}:${OC_DOCKER_TAG:-8.1.0}"
     container_name: "opencloud"
     # University file storage - important but not core infra, matches this
     # repo's "high but not highest" tier (same as vikunja/paperlessngx/homebox).

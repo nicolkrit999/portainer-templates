@@ -1,6 +1,6 @@
 services:
   kavita:
-    image: jvmilazz0/kavita:0.9.1
+    image: jvmilazz0/kavita:latest
     container_name: kavita
     volumes:
       - ${DOCKER_DATA_DIR}/kavita/manga:/manga

@@ -132,7 +132,7 @@ services:
   # PAPERLESS-NGX (Main App)
   # -----------------------------------------------------------------------------
   paperless:
-    image: ghcr.io/paperless-ngx/paperless-ngx:3.4.1
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.4.2
     container_name: paperlessngx
     cpu_shares: 2048
     hostname: "${PAPERLESS_APP_HOSTNAME}"

@@ -30,6 +30,12 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
   specific version tag/digest only when a service is genuinely
   stability-critical (e.g. a database where an unplanned upgrade could break
   compatibility or require a manual migration) or the user asks for it.
+  Databases and caches follow their major line (`postgres:17`), never
+  `:latest`, because a major upgrade needs a dump and restore. One-shot init
+  containers use `alpine:3.24` (a minor line, never untagged or `:latest`).
+- **Tugtainer toggles** follow the tag: exact or line-pinned containers get
+  check on and update off, `:latest` containers get both on, init containers
+  get both off.
 - **Logging limits** for long-running services to prevent disk exhaustion:
   ```yaml
   logging:

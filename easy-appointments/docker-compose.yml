@@ -1,6 +1,6 @@
 services:
   permissions-init:
-    image: alpine:3.24.3
+    image: alpine:3.24
     container_name: easy-appointments-permissions-init
     restart: "no"
     network_mode: none

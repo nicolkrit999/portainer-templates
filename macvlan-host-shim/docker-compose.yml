@@ -10,7 +10,7 @@ services:
   # ../dnsmasq/docker-compose.yml. (The socat relay that used to run here was
   # removed 2026-09-08, see ../adguard/INCIDENT-2026-09-08-dns-relay-outage.md.)
   macvlan-host-shim:
-    image: alpine:latest
+    image: alpine:3.24
     container_name: macvlan-host-shim
     network_mode: host
     cap_add:

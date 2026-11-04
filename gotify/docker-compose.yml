@@ -1,6 +1,6 @@
 services:
   gotify-init:
-    image: alpine:latest
+    image: alpine:3.24
     container_name: gotify-init
     user: "0:0"
     command: sh -c "chown -R ${PUID}:${PGID} /app/data && chmod -R 750 /app/data"

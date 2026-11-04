@@ -1,6 +1,6 @@
 services:
   unpoller:
-    image: ghcr.io/unpoller/unpoller:v5.2.2
+    image: ghcr.io/unpoller/unpoller:latest
     container_name: unpoller
     cpus: 4.0
     restart: always

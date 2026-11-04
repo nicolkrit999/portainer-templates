@@ -1,7 +1,7 @@
 apiVersion: 1
 
 # Grafana's alerting-provisioning env-var interpolation is broken/unsupported
-# in this deployed image (grafana/grafana-enterprise:13.2.1) - all three
+# in Grafana Enterprise 13.2.1 (the image now follows :latest) - all three
 # documented syntaxes (${VAR}/secureSettings/$VAR) fail identically with
 # "could not find webhook url property in settings" at startup. Matches
 # unresolved upstream issues grafana/grafana#54984 and #56437. Workaround:

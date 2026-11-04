@@ -1,6 +1,6 @@
 services:
   bytestash:
-    image: ghcr.io/jordan-dalby/bytestash:1.6.1
+    image: ghcr.io/jordan-dalby/bytestash:latest
     container_name: bytestash
     restart: unless-stopped
     healthcheck:

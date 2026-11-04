@@ -1,6 +1,6 @@
 services:
   mailpit:
-    image: 'axllent/mailpit:v1.7'
+    image: 'axllent/mailpit:v1.33.0'
     hostname: mailpit
     ports:
       - "8025:8025"  # Mailpit UI

@@ -23,7 +23,7 @@ services:
   # IP, not a routed application - Traefik on the other end of the forward
   # already owns routing/TLS for whatever it forwards to).
   traefik-private-forwarder:
-    image: alpine/socat:1.8.0.3
+    image: alpine/socat:1.8.1.3
     container_name: traefik-private-forwarder
     cpu_shares: 4096
     command: "TCP-LISTEN:443,fork,reuseaddr TCP:traefik:${TRAEFIK_PORT_3}"

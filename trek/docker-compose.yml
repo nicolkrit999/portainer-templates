@@ -1,6 +1,6 @@
 services:
   trek:
-    image: mauriceboe/trek:5.1.0
+    image: mauriceboe/trek:latest
     container_name: trek
     restart: unless-stopped
     healthcheck:
