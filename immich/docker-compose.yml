@@ -78,6 +78,7 @@ services:
       - REDIS_HOSTNAME=immich_redis
       - MPLCONFIGDIR=/cache/matplotlib
       - HF_HOME=/cache
+      - ORT_DISABLE_TELEMETRY=1
     volumes:
       - ${DOCKER_DATA_DIR}/immich/model-cache:/cache
       - "${UPLOAD_LOCATION}:/data"
