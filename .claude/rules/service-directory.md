@@ -114,7 +114,6 @@ still follow the two-router rule).
 | `surmai` | `viaggi` | private, tailnet | - | yes |  |
 | `tailscale-adguard` | - | none | - | yes | host-networked, no router |
 | `tailscale-admin_traefik-tailnet-forwarder` | - | none | - | yes | tailnet-admin gateway, no router |
-| `tailscale-qbittorrent` | `qbit-torrent-tailscale` | private, tailnet | - | no | qBittorrent behind its own Tailscale sidecar |
 | `tailscale` | - | none | - | yes | host-networked, no router |
 | `termix` | `termix` | private, tailnet | - | yes |  |
 | `traefik-private-forwarder` | - | none | - | yes | private forwarder (macvlan), no router |

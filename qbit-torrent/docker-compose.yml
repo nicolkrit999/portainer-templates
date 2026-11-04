@@ -1,13 +1,5 @@
-# Non-VPN qBittorrent instance (network_mode: host, no Mullvad routing),
-# hostname qbit-torrent.${DOMAIN}. Deliberately kept alongside
-# ../tailscale-qbittorrent/ (the Mullvad-exit-node-routed instance,
-# hostname qbit-torrent-tailscale.${DOMAIN}, container qbit-torrent-tailscale)
-# as of 2026-09-24's restructuring - separate container names, separate
-# Traefik router names, separate ${VOLUME_CONFIG}/${VOLUME_DATA} subpaths,
-# separate hostnames, so BOTH can be deployed at the same time without any
-# collision, letting you freely switch which one is your active torrent
-# client. See .claude/agent-memory/docker-compose-architect/
-# tailscale_qbittorrent_naming_split.md for the full record of that split.
+# qBittorrent without a VPN (network_mode: host), hostname qbit-torrent.${DOMAIN}.
+# The Mullvad-routed variant (tailscale-qbittorrent) was removed on 2026-11-04.
 services:
   qbittorrent:
     container_name: qbit-torrent

@@ -15,13 +15,12 @@ Tailscale needs direct control of a TUN device and host-level routing to act as 
 
 ## Related stacks
 
-This repo has **four independent Tailscale identities**, each solving a different problem - don't confuse them:
+This repo has **three independent Tailscale identities**, each solving a different problem - don't confuse them:
 
 | Stack | Purpose | Networking |
 |---|---|---|
 | `tailscale` (this one) | Primary node, LAN subnet router | `network_mode: host` |
 | `../tailscale-admin_traefik-tailnet-forwarder/` | Fronts the tailnet path (Traefik entrypoint 7, `tailnet-admin`) with PROXY-protocol source-IP preservation | Ordinary Docker networking, own namespace |
 | `../tailscale-adguard/` | Gives AdGuard its own tailnet IP so devices using a Tailscale exit node still resolve DNS through AdGuard | Ordinary Docker networking, own namespace |
-| `../tailscale-qbittorrent/` | Dedicated identity that routes qBittorrent's torrent traffic through a Mullvad exit node | Ordinary Docker networking, qBittorrent joins its namespace |
 
 Read `.claude/rules/core-infra-topology.md` before any structural change here (network mode, image, capabilities) - this is core infra with repo-wide blast radius.

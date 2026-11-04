@@ -23,5 +23,3 @@ Lessons for creating and modifying compose files under the current access model 
 - [sparkyfitness service](sparkyfitness_service.md) - db-init chown, Postgres 18 mount quirk, no server healthcheck
 - [grafana service](grafana_service.md) - UID 472 and grafana-init chown, provisioning layout, Discord contact point rendering
 - [monitoring stack (unpoller + prometheus)](monitoring_stack_service.md) - shared monitoring-net, prometheus init chown, unpoller InfluxDB/healthcheck lesson
-- [tailscale-qbittorrent service](tailscale_qbittorrent_service.md) - qBittorrent behind a dedicated Tailscale + Mullvad exit-node sidecar
-- [qbit-torrent vs tailscale-qbittorrent naming](tailscale_qbittorrent_naming_split.md) - the rollback reference and the live sidecar stack keep fully distinct identities
