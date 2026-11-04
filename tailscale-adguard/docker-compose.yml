@@ -59,6 +59,9 @@ services:
   # cause and validation results.
   dnsdist-config-init:
     image: alpine:latest
+    # One-shot file fix, needs no network. Without this Compose creates an empty implicit
+    # `default` network for it on every deploy (<stack>_default).
+    network_mode: none
     container_name: tailscale-adguard-dnsdist-config-init
     restart: "no"
     environment:

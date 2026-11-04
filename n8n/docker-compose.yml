@@ -1,6 +1,9 @@
 services:
   n8n-db-init:
     image: alpine
+    # One-shot file fix, needs no network. Without this Compose creates an empty implicit
+    # `default` network for it on every deploy (<stack>_default).
+    network_mode: none
     container_name: n8n-db-init
     restart: "no"
     user: "0"
@@ -10,6 +13,9 @@ services:
 
   n8n-data-init:
     image: alpine
+    # One-shot file fix, needs no network. Without this Compose creates an empty implicit
+    # `default` network for it on every deploy (<stack>_default).
+    network_mode: none
     container_name: n8n-data-init
     restart: "no"
     user: "0"

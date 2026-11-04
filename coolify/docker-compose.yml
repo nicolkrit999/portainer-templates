@@ -1,6 +1,9 @@
 services:
   coolify-init:
     image: "alpine:3.19"
+    # One-shot file fix, needs no network. Without this Compose creates an empty implicit
+    # `default` network for it on every deploy (<stack>_default).
+    network_mode: none
     container_name: coolify-init
     restart: "no"
     volumes:
