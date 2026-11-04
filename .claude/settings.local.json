@@ -4,7 +4,10 @@
       "Bash(/bin/ls /home/krit/github-repos/personal/portainer-templates/)",
       "Read(//home/krit/Downloads/**)",
       "Bash(ssh-keygen:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Read(**/.env.example)",
+      "Edit(**/.env.example)",
+      "Write(**/.env.example)"
     ]
   },
   "enabledMcpjsonServers": [
