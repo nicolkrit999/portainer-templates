@@ -35,7 +35,9 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
   containers use `alpine:3.24` (a minor line, never untagged or `:latest`).
 - **Tugtainer toggles** follow the tag: exact or line-pinned containers get
   check on and update off, `:latest` containers get both on, init containers
-  get both off.
+  get both off. Init containers and locally built images also carry the
+  `dev.quenary.tugtainer.auto_check`/`auto_update` (`"false"`) and `protected`
+  (`"true"`) labels so the UI toggles are locked off.
 - **Logging limits** for long-running services to prevent disk exhaustion:
   ```yaml
   logging:

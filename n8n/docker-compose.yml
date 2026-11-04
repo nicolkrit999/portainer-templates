@@ -10,6 +10,10 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/n8n/db:/var/lib/postgresql
     command: chown -R 999:999 /var/lib/postgresql
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   n8n-data-init:
     image: alpine:3.24
@@ -22,6 +26,10 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/n8n/data:/home/node/.n8n
     command: chown -R 1000:1000 /home/node/.n8n
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   n8n-db:
     image: postgres:18

@@ -9,6 +9,10 @@ services:
     volumes:
       - stirlingpdf_tmp:/tmp
     command: "chmod 1777 /tmp"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   stirling-pdf:
     container_name: stirling-pdf

@@ -12,6 +12,10 @@ services:
       # "correct" this to hi-events; that would point at a different,
       # non-existent folder and orphan the live data.
       - ${VOLUME_DATA}/hi_events/postgres:/var/lib/postgresql
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   # One-shot: fixes ownership/perms on the redis data dir before the real
   # redis service starts.
@@ -23,6 +27,10 @@ services:
     volumes:
       # hi_events (underscore) - see note above.
       - ${VOLUME_CONFIG}/hi_events/data/redis:/data
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   # One-shot: fixes perms on the public uploads dir before all-in-one starts.
   all-in-one-permissions-init:
@@ -33,6 +41,10 @@ services:
     volumes:
       # hi_events (underscore) - see note above.
       - ${VOLUME_CONFIG}/hi_events/uploads:/app/backend/storage/app/public
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   postgres:
     # Pinned to major version 18, NOT :latest - live on-disk data is

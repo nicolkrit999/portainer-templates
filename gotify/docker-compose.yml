@@ -8,6 +8,10 @@ services:
       - ${DOCKER_DATA_DIR}/gotify/data:/app/data
     restart: "no"
     network_mode: none
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   server:
     container_name: gotify

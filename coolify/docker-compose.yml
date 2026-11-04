@@ -9,6 +9,10 @@ services:
     volumes:
       - "${COOLIFY_DATA_ROOT}/ssh:/ssh"
     command: "sh -c 'chown -R 9999:9999 /ssh && chmod -R 700 /ssh'"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   coolify:
     image: "ghcr.io/coollabsio/coolify:${COOLIFY_VERSION:-latest}"

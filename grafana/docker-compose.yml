@@ -28,6 +28,10 @@ services:
     # left it root-owned and unreadable by grafana's uid 472 (confirmed
     # real bug the first time this ran).
     command: sh -c "chown -R 472:472 /data && chmod -R 0700 /data && sed 's|__DISCORD_ALERT_WEBHOOK_URL__|'\"$$DISCORD_ALERT_WEBHOOK_URL\"'|' /data/provisioning/alerting/contactpoints.yml.template > /data/provisioning/alerting/contactpoints.yml && chown 472:472 /data/provisioning/alerting/contactpoints.yml && chmod 0700 /data/provisioning/alerting/contactpoints.yml"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   grafana:
     image: grafana/grafana-enterprise:latest

@@ -10,6 +10,10 @@ services:
     volumes:
       - ${VOLUME_CONFIG}/traefik/acme.json:/fix/acme.json
     command: "chown root:root /fix/acme.json && chmod 600 /fix/acme.json && echo done"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   traefik:
     image: traefik:v3.7.17

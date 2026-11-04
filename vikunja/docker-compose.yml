@@ -7,6 +7,10 @@ services:
     volumes:
       - ${DOCKER_CONFIG_DIR}/vikunja/db:/fix/db
     command: "chown -R 999:10 /fix/db && chmod 770 /fix/db && if [ -d /fix/db/18 ]; then chown -R 999:999 /fix/db/18 && chmod 700 /fix/db/18; fi && echo done"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   db:
     image: postgres:18

@@ -43,6 +43,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
 networks:
   traefik_proxy_network:

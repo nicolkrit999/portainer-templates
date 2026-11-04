@@ -10,6 +10,10 @@ services:
     volumes:
       - ${VOLUME_CONFIG}/prometheus:/prometheus
     command: chown -R 65534:65534 /prometheus
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   prometheus:
     image: prom/prometheus:v3

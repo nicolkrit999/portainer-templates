@@ -54,6 +54,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   # automatic re-login sidecar - security boundary documented in README "Automatic re-login"
   icorsi-auth:
@@ -98,6 +102,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
 networks:
   traefik_proxy_network:

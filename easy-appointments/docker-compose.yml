@@ -7,6 +7,10 @@ services:
     volumes:
       - '${DOCKER_CONFIG_DIR}/easyappointments-app:/app'
     command: ["sh", "-c", "chown -R 33:33 /app/storage && chmod -R u=rwX,g=rX,o= /app/storage && chown 0:33 /app/config.php /app/application/config/email.php && chmod 640 /app/config.php /app/application/config/email.php && echo permissions-init complete"]
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   php-fpm:
     build: ./php-fpm
@@ -46,6 +50,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   nginx:
     build: ./nginx
@@ -99,6 +107,9 @@ services:
       traefik.http.routers.easy-appointments-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.easy-appointments-private.loadbalancer.server.port: "80"
       traefik.docker.network: "traefik-proxy"
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   mysql:
     image: 'mysql:8.4.13'
@@ -187,6 +198,9 @@ services:
       traefik.http.routers.easy-appointments-swagger-tailnet.middlewares: "hsts-headers@docker,tailnet-admin-only@docker"
       traefik.http.services.easy-appointments-swagger.loadbalancer.server.port: "8080"
       traefik.docker.network: "traefik-proxy"
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
 networks:
   easy_appointments_backend_network:

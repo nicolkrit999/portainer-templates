@@ -12,6 +12,10 @@ services:
     networks:
       - sparkyfitness_internal
     restart: "no"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   sparkyfitness-db:
     image: postgres:18.3-alpine

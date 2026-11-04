@@ -192,6 +192,10 @@ services:
       - "sh"
       - "-c"
       - "mkdir -p /target && cat > /target/haproxy.cfg << EOF\nglobal\n    log stdout format raw local0\n\ndefaults\n    mode tcp\n    timeout connect 5s\n    timeout client 1h\n    timeout server 1h\n    log global\n\nfrontend tailnet_admin_in\n    bind $TAILSCALE_IP:443\n    default_backend traefik_admin\n\nbackend traefik_admin\n    server traefik $TRAEFIK_INTERNAL_IP:$TRAEFIK_PORT_7 send-proxy-v2\n\nfrontend tailnet_web_in\n    bind $TAILSCALE_IP:80\n    default_backend traefik_web\n\nbackend traefik_web\n    server traefik $TRAEFIK_INTERNAL_IP:80\nEOF\nchmod 644 /target/haproxy.cfg; cat /target/haproxy.cfg"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   traefik-tailnet-forwarder:
     image: haproxy:alpine

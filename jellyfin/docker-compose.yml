@@ -9,6 +9,10 @@ services:
     volumes:
       - jellyfin_transcodes:/transcodes
     command: "chmod 1777 /transcodes"
+    labels:
+      dev.quenary.tugtainer.auto_check: "false"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
 
   jellyfin:
     image: jellyfin/jellyfin:12.4.20261026-211555
