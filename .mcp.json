@@ -7,6 +7,22 @@
         "-c",
         "PORTAINER_URL=https://portainer.nicolkrit.ch PORTAINER_TLS_VERIFY=0 PORTAINER_API_KEY=$(cat /run/secrets/claude_mcp_portainer_token) PORTAINER_EXPOSE_ENV_VALUES=1 exec uvx --from 'mcp-portainer~=2.42.0' mcp-portainer"
       ]
+    },
+    "beszel": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "BESZEL_URL=https://beszel.nicolkrit.ch BESZEL_EMAIL=\"$(cat /run/secrets/claude_mcp_beszel_email)\" BESZEL_PASSWORD=\"$(cat /run/secrets/claude_mcp_beszel_password)\" exec npx -y beszel-mcp"
+      ]
+    },
+    "uptime-kuma": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "UPTIME_KUMA_URL=https://uptime-kuma.nicolkrit.ch UPTIME_KUMA_USERNAME=\"$(cat /run/secrets/claude_mcp_uptime_kuma_username)\" UPTIME_KUMA_PASSWORD=\"$(cat /run/secrets/claude_mcp_uptime_kuma_password)\" exec npx -y @davidfuchs/mcp-uptime-kuma@latest"
+      ]
     }
   }
 }
