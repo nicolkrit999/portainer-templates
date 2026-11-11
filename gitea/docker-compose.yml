@@ -17,7 +17,7 @@ services:
       GITEA__server__SSH_DOMAIN: "gitea-ssh.${DOMAIN}"
       GITEA__server__SSH_PORT: "${GITEA_SSH_HOST_PORT:-2222}"
       GITEA__service__DISABLE_REGISTRATION: "true"
-      GITEA__actions__ENABLED: "false"
+      GITEA__actions__ENABLED: "true"
       GITEA__security__REVERSE_PROXY_TRUSTED_PROXIES: "${GITEA_TRUSTED_PROXIES:-172.27.0.0/16,172.16.81.0/28}"
       GITEA__security__REVERSE_PROXY_LIMIT: "1"
     restart: unless-stopped
@@ -30,6 +30,7 @@ services:
     networks:
       - traefik_proxy_network
       - public_gitea_network
+      - gitea_backend_network
     labels:
       traefik.enable: "true"
       traefik.http.routers.gitea-private.rule: "Host(`${GITEA_SUBDOMAIN}.${DOMAIN}`)"
@@ -51,6 +52,34 @@ services:
       retries: 3
       start_period: 40s
 
+  act_runner:
+    image: gitea/act_runner:0.6.1
+    container_name: gitea-act-runner
+    cpus: 2.0
+    environment:
+      TZ: "${TZ}"
+      # Internal address of the Gitea container, not through Traefik.
+      GITEA_INSTANCE_URL: "http://gitea:3000"
+      GITEA_RUNNER_REGISTRATION_TOKEN: "${GITEA_RUNNER_REGISTRATION_TOKEN}"
+      GITEA_RUNNER_NAME: "${GITEA_RUNNER_NAME:-nas-runner}"
+      GITEA_RUNNER_LABELS: "ubuntu-latest:docker://gitea/runner-images:ubuntu-latest,ubuntu-22.04:docker://gitea/runner-images:ubuntu-22.04"
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    volumes:
+      - ${DOCKER_DATA_DIR}/gitea/runner:/data
+      # Gives workflow jobs control of the host Docker daemon (root-equivalent); only run trusted workflows.
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - gitea_backend_network
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f act_runner || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 networks:
   traefik_proxy_network:
     name: traefik-proxy
@@ -59,3 +88,11 @@ networks:
   public_gitea_network:
     name: public-gitea
     external: true
+  # Stack-private network for gitea and its runner (172.16.109.0/28 allocated for this stack).
+  gitea_backend_network:
+    name: gitea-backend
+    ipam:
+      config:
+        - subnet: "${GITEA_BACKEND_SUBNET:-172.16.109.0/28}"
+          gateway: "${GITEA_BACKEND_GATEWAY:-172.16.109.1}"
+          ip_range: "${GITEA_BACKEND_IP_RANGE:-172.16.109.8/29}"
