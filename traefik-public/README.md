@@ -28,7 +28,7 @@ The container joins the existing macvlan network `traefik-private-forwarder_trae
   | `OPENCLOUD_SUBDOMAIN` | `http://opencloud:9200` (app-framing header profile) |
   | `HI_EVENTS_SUBDOMAIN` | `http://all-in-one:80` |
   | `EASY_APPOINTMENTS_SUBDOMAIN` | `http://easy-appointments-nginx:80` (Host header passed unchanged, REST API prefixes answer 404) |
-  | `TREK_SUBDOMAIN` | `http://trek:3000` (app-framing header profile) |
+  | `TREK_SUBDOMAIN` | `http://trek:3000` (app-framing header profile; `/mcp`, `/oauth` and the OAuth discovery documents under `/.well-known/` answer 404, the MCP addon works only over LAN and tailnet) |
   | `PAPERLESS_SUBDOMAIN` | `http://paperlessngx:8000` (app-framing header profile, `/api/schema...` and `/api/remote_version/` answer 404; WebSocket `/ws/status/`) |
   | `LINKWARDEN_SUBDOMAIN` | `http://linkwarden:3000` (app-framing header profile) |
   | `ACTUAL_BUDGET_SUBDOMAIN` | `http://ActualBudget:5006` (the Actual server; its own COOP/COEP headers pass through) |
