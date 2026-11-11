@@ -31,6 +31,86 @@
         "-c",
         "B=$(command -v google-chrome-stable || command -v brave || true); if [ -n \"$B\" ]; then exec npx -y @playwright/mcp --browser chromium --executable-path \"$B\" --user-data-dir \"$HOME/.claude/playwright-profile\" --output-dir \"$HOME/.cache/playwright-mcp\"; else exec npx -y @playwright/mcp --browser firefox --user-data-dir \"$HOME/.claude/playwright-profile\" --output-dir \"$HOME/.cache/playwright-mcp\"; fi"
       ]
+    },
+    "gitea": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "GITEA_HOST=https://gitea.nicolkrit.ch GITEA_ACCESS_TOKEN=\"$(cat /run/secrets/claude_mcp_gitea_api_key)\" GITEA_TOOLS=get_gitea_mcp_server_version,get_me,get_user_orgs,search_users,search_org_teams,search_repos,search_issues,notification_read,notification_write,label_read,label_write,milestone_read,milestone_write,wiki_read,wiki_write,timetracking_read,timetracking_write,package_read,project_read,project_write,list_issues,issue_read,issue_write,list_pull_requests,pull_request_read,pull_request_write,pull_request_review_write,actions_config_read,actions_run_read,actions_run_write,repo_read,get_repository_tree,get_file_contents,get_dir_contents,create_or_update_file,delete_file,branch_read,branch_write,tag_read,tag_write,commit_read,commit_write,release_read,release_write exec docker run -i --rm -e GITEA_HOST -e GITEA_ACCESS_TOKEN -e GITEA_TOOLS docker.gitea.com/gitea-mcp-server:1.13.0"
+      ]
+    },
+    "immich": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "IMMICH_BASE_URL=https://foto.nicolkrit.ch IMMICH_API_KEY=\"$(cat /run/secrets/claude_mcp_immich_api_key)\" exec docker run -i --rm -e IMMICH_BASE_URL -e IMMICH_API_KEY ghcr.io/barryw/immichmcp:v3.3.5 --stdio"
+      ]
+    },
+    "jellyfin": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "JELLYFIN_URL=https://jellyfin.nicolkrit.ch JELLYFIN_API_KEY=\"$(cat /run/secrets/claude_mcp_jellyfin_api_key)\" exec npx -y @jaredtrent/jellyfin-mcp@2026.1015.1 --disable-destructive"
+      ]
+    },
+    "paperless-ngx": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "PAPERLESS_BASE_URL=https://paperlessngx.nicolkrit.ch PAPERLESS_API_TOKEN=\"$(cat /run/secrets/claude_mcp_paperless_api_token)\" exec docker run -i --rm -e PAPERLESS_BASE_URL -e PAPERLESS_API_TOKEN ghcr.io/barryw/paperlessmcp:v0.7.0 --stdio"
+      ]
+    },
+    "tailscale": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "TAILSCALE_OAUTH_CLIENT_ID=\"$(cat /run/secrets/claude_mcp_tailscale_oauth_client_id)\" TAILSCALE_OAUTH_CLIENT_SECRET=\"$(cat /run/secrets/claude_mcp_tailscale_oauth_client_secret)\" TAILSCALE_ALLOWED_TOOL_RISK=write exec npx -y @hexsleeves/tailscale-mcp-server@1.3.4"
+      ]
+    },
+    "unifi": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "UNIFI_NETWORK_HOST=192.168.1.1 UNIFI_NETWORK_USERNAME=\"$(cat /run/secrets/claude_mcp_unifi_username)\" UNIFI_NETWORK_PASSWORD_FILE=/run/secrets/claude_mcp_unifi_password UNIFI_NETWORK_SSL_FINGERPRINT=C9:2A:92:55:63:03:57:4A:C6:3F:6C:5D:0E:40:C1:1A:12:13:79:AB:D2:E4:22:93:3D:F2:07:B7:F3:A8:B1:39 UNIFI_TOOL_PERMISSION_MODE=confirm UNIFI_POLICY_NETWORK_DEVICES_CREATE=false UNIFI_POLICY_NETWORK_DEVICES_UPDATE=false UNIFI_POLICY_NETWORK_SWITCH_CREATE=false UNIFI_POLICY_NETWORK_SWITCH_UPDATE=false UNIFI_POLICY_NETWORK_SWITCH_DELETE=false exec uvx unifi-network-mcp==0.45.0"
+      ]
+    },
+    "homebox": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "HOMEBOX_URL=https://homebox.nicolkrit.ch HOMEBOX_TOKEN=\"$(cat /run/secrets/claude_mcp_homebox_api_key)\" exec uvx homebox-mcp==1.5.1"
+      ]
+    },
+    "adguard-home": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "ADGUARD_URL=https://adguard.nicolkrit.ch ADGUARD_USERNAME=\"$(cat /run/secrets/claude_mcp_adguard_home_username)\" ADGUARD_PASSWORD=\"$(cat /run/secrets/claude_mcp_adguard_home_password)\" ADGUARD_TOOL_BLACKLIST=global_set_protection,global_begin_update,dns_set_config,access_set_list,install_apply_config,tls_set_config,dhcp_set_config,dhcp_add_static_lease,dhcp_remove_static_lease,dhcp_update_static_lease,dhcp_reset,dhcp_reset_leases,querylog_clear,stats_reset exec npx -y @samik081/mcp-adguard-home@0.10.1"
+      ]
+    },
+    "opencloud": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "OPENCLOUD_URL=https://opencloud.nicolkrit.ch OPENCLOUD_USER=krit OPENCLOUD_APP_TOKEN=\"$(cat /run/secrets/claude_mcp_opencloud_app_token)\" exec docker run -i --rm -e OPENCLOUD_URL -e OPENCLOUD_USER -e OPENCLOUD_APP_TOKEN opencloudeu/opencloud-mcp@sha256:4036092d3dafd23478bb1e7c41d2e7f7dba9f524b4080310150caf951249b49d --toolsets spaces,files,search,versions,sharing,people,tags,activity,apps"
+      ]
+    },
+    "trek": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "exec npx -y mcp-remote https://trek.nicolkrit.ch/mcp"
+      ]
     }
   }
 }
