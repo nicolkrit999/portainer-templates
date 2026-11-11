@@ -60,6 +60,8 @@ services:
      SYSTEM_MAXFILESIZE: 5000
      METRICS_ENABLED: true
      SYSTEM_GOOGLEVISIBILITY: false
+     MCP_ENABLED: "true"
+     MCP_AUTH_MODE: "apikey"
     restart: unless-stopped
     ports:
       - "${STIRLING_PDF_HOST_PORT}:8080"

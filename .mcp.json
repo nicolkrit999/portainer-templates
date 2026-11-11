@@ -111,6 +111,30 @@
         "-c",
         "exec npx -y mcp-remote https://trek.nicolkrit.ch/mcp"
       ]
+    },
+    "mealie": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "MEALIE_BASE_URL=https://ricette.nicolkrit.ch MEALIE_API_KEY=\"$(cat /run/secrets/claude_mcp_mealie_api_key)\" exec uvx --from git+https://github.com/rldiao/mealie-mcp-server@86ebf379536cf2b3a07c2007798db02894c51f21 mealie-mcp-server"
+      ]
+    },
+    "navidrome": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "NAVIDROME_URL=https://navidrome.nicolkrit.ch NAVIDROME_USERNAME=\"$(cat /run/secrets/claude_mcp_navidrome_username)\" NAVIDROME_PASSWORD=\"$(cat /run/secrets/claude_mcp_navidrome_password)\" exec npx -y navidrome-mcp@3.0.0"
+      ]
+    },
+    "stirling-pdf": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "exec npx -y mcp-remote https://stirling-pdf.nicolkrit.ch/mcp --header \"X-API-KEY: $(cat /run/secrets/claude_mcp_stirling_pdf_api_key)\""
+      ]
     }
   }
 }
