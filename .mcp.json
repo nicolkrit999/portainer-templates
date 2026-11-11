@@ -23,6 +23,14 @@
         "-c",
         "UPTIME_KUMA_URL=https://uptime-kuma.nicolkrit.ch UPTIME_KUMA_USERNAME=\"$(cat /run/secrets/claude_mcp_uptime_kuma_username)\" UPTIME_KUMA_PASSWORD=\"$(cat /run/secrets/claude_mcp_uptime_kuma_password)\" exec npx -y @davidfuchs/mcp-uptime-kuma@latest"
       ]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "B=$(command -v google-chrome-stable || command -v brave || true); if [ -n \"$B\" ]; then exec npx -y @playwright/mcp --browser chromium --executable-path \"$B\" --user-data-dir \"$HOME/.claude/playwright-profile\" --output-dir \"$HOME/.cache/playwright-mcp\"; else exec npx -y @playwright/mcp --browser firefox --user-data-dir \"$HOME/.claude/playwright-profile\" --output-dir \"$HOME/.cache/playwright-mcp\"; fi"
+      ]
     }
   }
 }
