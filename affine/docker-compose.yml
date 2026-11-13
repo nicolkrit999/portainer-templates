@@ -121,7 +121,7 @@ services:
       retries: 5
       start_period: 30s
     volumes:
-      - ${VOLUME_DATA}/affine/db:/var/lib/postgresql/data:rw
+      - ${VOLUME_CONFIG}/affine/db:/var/lib/postgresql/data:rw
     environment:
       POSTGRES_USER: "${AFFINE_DB_USER}"
       POSTGRES_PASSWORD: "${AFFINE_DB_PASSWORD}"
