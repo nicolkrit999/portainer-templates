@@ -14,6 +14,7 @@ services:
       - IMMICH_HOST=0.0.0.0
       - HOST=0.0.0.0
       - NODE_ENV=production
+      - TZ=${TZ}
       - PUBLIC_IMMICH_SERVER_URL=${PUBLIC_IMMICH_SERVER_URL}
 
       - DB_HOSTNAME=database
@@ -79,6 +80,7 @@ services:
       - MPLCONFIGDIR=/cache/matplotlib
       - HF_HOME=/cache
       - ORT_DISABLE_TELEMETRY=1
+      - TZ=${TZ}
     volumes:
       - ${DOCKER_DATA_DIR}/immich/model-cache:/cache
       - "${UPLOAD_LOCATION}:/data"
@@ -96,6 +98,8 @@ services:
   redis:
     container_name: immich_redis
     image: docker.io/valkey/valkey:8-bookworm@sha256:fea8b3e67b15729d4bb70589eb03367bab9ad1ee89c876f54327fc7c6e618571
+    environment:
+      - TZ=${TZ}
     volumes:
       - ${DOCKER_CONFIG_DIR}/immich/redis:/data
     restart: always
@@ -116,6 +120,7 @@ services:
       - POSTGRES_USER=immich
       - POSTGRES_DB=immich
       - POSTGRES_INITDB_ARGS=--data-checksums
+      - TZ=${TZ}
     volumes:
       - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
     shm_size: 128mb
