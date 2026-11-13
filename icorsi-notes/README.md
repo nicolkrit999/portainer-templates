@@ -87,7 +87,7 @@ bot either skips (complete) or continues from the checkpoint (partial).
 ## Controlling when it runs
 
 ### Active-hours window (`ACTIVE_HOURS`)
-The bot only makes Claude calls within a configured time window (default `00:00-03:00` local
+The bot only makes Claude calls within a configured time window (default `01:00-03:00` local
 time). This avoids consuming your Claude Max subscription during hours you use it yourself.
 Set to empty to run at any time.
 
@@ -192,7 +192,7 @@ Billing safety above), so set it to `false` in the stack env and `rm /data/HALT`
 | `DISCORD_WEBHOOK_URL` | - | Optional Discord webhook for per-pass summaries |
 | `NOTES_INTERVAL_SECONDS` | `21600` | How often to check for new material (6 h) |
 | `LIMIT_BACKOFF_SECONDS` | `3600` | Sleep after hitting the Max plan rate-limit (1 h) |
-| `ACTIVE_HOURS` | `00:00-03:00` | Window when Claude calls are allowed; empty = always |
+| `ACTIVE_HOURS` | `01:00-03:00` | Window when Claude calls are allowed; empty = always |
 | `MIN_TASK_WINDOW_SECONDS` | `1800` | Minimum window remaining to start a new course |
 | `WINDOW_GRACE_MINUTES` | `10` | Grace period for writes before hard kill at window end |
 | `RUN_ON_START` | `true` | Run a pass immediately on container start |
