@@ -11,6 +11,9 @@ services:
       STORAGE_MODE: "local"
     volumes:
       - ${DOCKER_DATA_DIR}/snapotter:/data:rw
+      - ${DOCKER_CONFIG_DIR}/snapotter/logs:/data/logs:rw
+      - ${DOCKER_CONFIG_DIR}/snapotter/redis:/data/redis:rw
+      - ${DOCKER_CONFIG_DIR}/snapotter/postgres:/data/postgres:rw
     labels:
       traefik.enable: "true"
       traefik.http.routers.snapotter.rule: "Host(`${SNAPOTTER_SUBDOMAIN}.${DOMAIN}`)"
