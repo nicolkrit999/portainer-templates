@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - TZ=${TZ}
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
@@ -87,6 +88,7 @@ services:
       - POSTGRES_PASSWORD=securepass
       - POSTGRES_DB=harborguard
       - PGDATA=/var/lib/postgresql/data/pgdata
+      - TZ=${TZ}
     volumes:
       - ${DOCKER_CONFIG_DIR}/harborguard/db:/var/lib/postgresql/data
     networks:

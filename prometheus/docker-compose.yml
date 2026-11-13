@@ -33,6 +33,8 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=30d"
+    environment:
+      TZ: "${TZ}"
     volumes:
       - ${VOLUME_CONFIG}/prometheus:/prometheus
       # The container reads this host copy, not ./prometheus.yml from the repo:
