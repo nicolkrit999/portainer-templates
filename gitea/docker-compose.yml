@@ -20,6 +20,18 @@ services:
       GITEA__actions__ENABLED: "true"
       GITEA__security__REVERSE_PROXY_TRUSTED_PROXIES: "${GITEA_TRUSTED_PROXIES:-172.27.0.0/16,172.16.81.0/28}"
       GITEA__security__REVERSE_PROXY_LIMIT: "1"
+      # Built-in cron tasks run outside the HDD quiet window (20:00-01:00). `.` in the section
+      # name is encoded as _0X2E_.
+      GITEA__cron_0X2E_repo_health_check__SCHEDULE: "0 2 * * 3"
+      GITEA__cron_0X2E_check_repo_stats__SCHEDULE: "0 1 * * *"
+      GITEA__cron_0X2E_archive_cleanup__SCHEDULE: "0 1 * * *"
+      GITEA__cron_0X2E_sync_external_users__SCHEDULE: "0 1 * * *"
+      GITEA__cron_0X2E_deleted_branches_cleanup__SCHEDULE: "0 1 * * *"
+      GITEA__cron_0X2E_update_migration_poster_id__SCHEDULE: "0 1 * * *"
+      GITEA__cron_0X2E_cleanup_hook_task_table__SCHEDULE: "0 1 * * *"
+      GITEA__cron_0X2E_cleanup_packages__SCHEDULE: "0 1 * * *"
+      GITEA__cron_0X2E_cleanup_actions__SCHEDULE: "0 1 * * *"
+      GITEA__cron_0X2E_cleanup_action_runs__SCHEDULE: "0 1 * * *"
     restart: unless-stopped
     ports:
       - "${GITEA_SSH_HOST_PORT:-2222}:22"
