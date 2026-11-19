@@ -37,7 +37,9 @@ paths: ["**/docker-compose.yml", "**/docker-compose.yaml"]
   check on and update off, `:latest` containers get both on, init containers
   get both off. Init containers and locally built images also carry the
   `dev.quenary.tugtainer.auto_check`/`auto_update` (`"false"`) and `protected`
-  (`"true"`) labels so the UI toggles are locked off.
+  (`"true"`) labels so the UI toggles are locked off. A pinned container can
+  be locked the same way with `auto_check` `"true"`, `auto_update` `"false"`,
+  `protected` `"true"` (`actual-budget-prometheus-exporter`).
 - **Logging limits** for long-running services to prevent disk exhaustion:
   ```yaml
   logging:

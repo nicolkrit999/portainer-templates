@@ -23,6 +23,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # Exact-pinned image: Tugtainer checks for updates but never applies them,
+    # and `protected` locks those toggles in the UI.
+    labels:
+      dev.quenary.tugtainer.auto_check: "true"
+      dev.quenary.tugtainer.auto_update: "false"
+      dev.quenary.tugtainer.protected: "true"
     networks:
       - actual_backend_network
       - monitoring_network
