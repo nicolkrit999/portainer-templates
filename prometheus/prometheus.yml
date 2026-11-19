@@ -7,3 +7,9 @@ scrape_configs:
     static_configs:
       - targets: ['unpoller:9130']
     metrics_path: '/metrics'
+  - job_name: 'actual-budget'
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    static_configs:
+      - targets: ['actual-budget-prometheus-exporter:3001']
+    metrics_path: '/metrics'
