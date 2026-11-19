@@ -16,3 +16,16 @@ providers:
       # the deployment README note / chat handoff for exact steps.
       path: /etc/grafana/provisioning/dashboards/json
       foldersFromFilesStructure: false
+
+  - name: actual-budget
+    orgId: 1
+    folder: "Actual Budget"
+    type: file
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      # Separate directory from the unpoller provider's path above, so a file
+      # here is not also picked up by the UniFi folder (providers read their
+      # path recursively).
+      path: /etc/grafana/provisioning/dashboards/actual-budget
+      foldersFromFilesStructure: false

@@ -17,5 +17,5 @@ A `budget` dropdown picks between the budgets (the `budget` label is the
 - Balance panels divide by 100: the exporter reports amounts in minor units.
 
 ## Provisioning
-Lives next to the UniFi dashboards in `${VOLUME_CONFIG}/grafana/provisioning/dashboards/json/`
+Lives in `${VOLUME_CONFIG}/grafana/provisioning/dashboards/actual-budget/` (its own provider and "Actual Budget" folder, see `provisioning/dashboards/default.yml`)
 (host copy, copied by hand from the stack checkout after a push to `main`).
