@@ -35,7 +35,7 @@ still follow the two-router rule).
 
 | Service (directory) | Hostname(s) | Routers | Public | Deployed | Notes |
 |---|---|---|---|---|---|
-| `actual-budget-prometheus-exporter` | - | none | - | no (pending first deploy) | internal-only; scraped by Prometheus over `monitoring-net` |
+| `actual-budget-prometheus-exporter` | - | none | - | yes | internal-only; scraped by Prometheus over `monitoring-net` |
 | `actual-budget/actual-ical` | `budget-ical` | private, tailnet | - | yes |  |
 | `actual-budget/actual-server_actual-https-api` | `budget`, `budget-api` | private, tailnet | `budget` only | yes | only `budget` is public; `budget-api` is private only |
 | `actual-budget/actual-tap` | `budget-tap` | private, tailnet | - | yes |  |
