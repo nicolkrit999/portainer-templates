@@ -14,6 +14,11 @@ A `budget` dropdown picks between the budgets (the `budget` label is the
 - `${DS_PROMETHEUS}` (11 places) hardcoded to the provisioned datasource uid
   `prometheus`, and the `__inputs` block removed (file provisioning cannot ask for it).
 - `id` reset to null so Grafana assigns it.
+- Currency symbols: the stock dashboard hardcoded USD. Total Balance now picks the
+  unit per budget via field overrides on the budget label (`CHF` -> CHF, `Euro` -> EUR);
+  if a budget is renamed or another currency is added, edit those overrides in the JSON.
+  Balance per account shows plain numbers (its series are account names, so it cannot
+  switch unit per budget) and carries the budget name in its title instead.
 - Balance panels divide by 100: the exporter reports amounts in minor units.
 
 ## Provisioning

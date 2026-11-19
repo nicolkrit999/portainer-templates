@@ -70,9 +70,34 @@
               }
             ]
           },
-          "unit": "currencyUSD"
+          "unit": "none"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CHF"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyCHF"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Euro"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyEUR"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 5,
@@ -106,7 +131,8 @@
           "expr": "actual_budget_balance{budget=\"$budget\"} / 100",
           "instant": false,
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{budget}}"
         }
       ],
       "title": "Total Balance",
@@ -328,7 +354,7 @@
           },
           "decimals": 3,
           "mappings": [],
-          "unit": "currencyUSD"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -379,7 +405,7 @@
           "refId": "A"
         }
       ],
-      "title": "Balance per account",
+      "title": "Balance per account ($budget)",
       "type": "piechart"
     }
   ],
