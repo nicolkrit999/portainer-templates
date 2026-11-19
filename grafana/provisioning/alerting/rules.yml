@@ -22,7 +22,7 @@ apiVersion: 1
 groups:
   - orgId: 1
     name: unifi-network-health
-    folder: "UniFi / unpoller"
+    folder: "UniFi-unpoller"
     interval: 1m
     rules:
       - uid: unpoller-high-port-error-rate
