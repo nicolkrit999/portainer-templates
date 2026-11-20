@@ -35,7 +35,7 @@ metadata:
 - Live plain env values (e.g. `*_SUBDOMAIN`) are readable with `StackInspect` and a narrow `select` such as `Env[?contains(name,'SUBDOMAIN')]`; never an unprojected call, and never print secrets.
 
 ## Pocket-ID
-Pocket-ID v1.16.0: `ALLOW_USER_SIGNUPS` alone is IGNORED (tested with the exact image; it needs `UI_CONFIG_DISABLED=true`, which moves ALL settings to env/defaults, so never add that casually). The admin-UI "User signups" setting is the real control; check the live value via `GET /api/application-configuration` (`allowUserSignups` must be `disabled` before its public record goes live).
+Pocket-ID v1.16.0 (tested 2026-11-03; the repo now pins `v2.19.2`, so re-test before relying on this): `ALLOW_USER_SIGNUPS` alone is IGNORED (it needs `UI_CONFIG_DISABLED=true`, which moves ALL settings to env/defaults, so never add that casually; the repo sets neither). The admin-UI "User signups" setting is the real control; check the live value via `GET /api/application-configuration` (`allowUserSignups` must be `disabled` before its public record goes live).
 
 ## Test-environment traps
 - A laptop container inherits the host's DNS search domains; with a public wildcard record an unresolvable backend name dials Cloudflare IPs and hangs ~30 s (504). NAS containers have no search line (checked read-only via `GET /containers/<n>/archive?path=/etc/resolv.conf`), so absent backends give a fast 502. `dns_search: ["."]` fixes it where needed (tested, not applied).

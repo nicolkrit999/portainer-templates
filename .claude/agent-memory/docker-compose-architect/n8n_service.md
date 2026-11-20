@@ -10,7 +10,8 @@ metadata:
 Pattern (reuse for any `EACCES` / permission crash loop on a bind mount):
 ```yaml
 <service>-init:
-  image: alpine
+  image: alpine:3.24
+  network_mode: none
   container_name: <service>-init
   restart: "no"
   user: "0"
@@ -22,7 +23,7 @@ The real service then has `depends_on: <service>-init: condition: service_comple
 
 - `n8n-db-init` chowns `${DOCKER_CONFIG_DIR}/n8n/db` to `999:999` before `n8n-db` (`postgres:18`).
 - `n8n-data-init` chowns `${DOCKER_CONFIG_DIR}/n8n/data` to `1000:1000` before `n8n`; added 2026-07-01 for the `EACCES: permission denied, open '/home/node/.n8n/config'` crash loop.
-- **depends_on nuance:** `n8n-db`'s healthcheck block is commented out, so `n8n` depends on it with `condition: service_started` (`service_healthy` would never resolve). When converting list-form `depends_on` to map-form, keep the old entry's semantics (`service_started`), and check whether a healthcheck is actually enabled before choosing `service_healthy`.
+- **depends_on nuance:** `n8n-db` now has an enabled healthcheck, so `n8n` depends on it with `condition: service_healthy`. Before choosing `service_healthy` always check a healthcheck is actually enabled (with it commented out, `service_healthy` never resolves and `service_started` is the right condition); when converting list-form `depends_on` to map-form keep the old entry's semantics.
 - **Networks:** `n8n-db` is only on `n8n_backend_network` (`n8n-backend`, `internal: true`, 172.16.104.0/28, env-overridable); `n8n` is on that plus `traefik-proxy`. Standard private + `-tailnet` routers.
 - The stack uses `${DOCKER_CONFIG_DIR}` for its paths (not `${VOLUME_CONFIG}`); keep whichever the stack's Portainer env defines.
 - Redeploying n8n via `StackGitRedeploy` without the full env blanks `N8N_ENCRYPTION_KEY`/`POSTGRES_PASSWORD` (incident 2026-08-22, rule in `.claude/rules/portainer-instance.md`).

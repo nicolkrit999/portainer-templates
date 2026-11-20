@@ -7,7 +7,7 @@ metadata:
 
 `traefik-private-forwarder/docker-compose.yml` (+ `README.md`, authoritative). It is the LAN path: `dnsmasq` answers every `*.${DOMAIN}` name with this container's macvlan IP `${TRAEFIK_PRIVATE_IP}` (`.99` on this LAN), and it forwards raw TCP to Traefik's private entrypoint. See `.claude/rules/core-infra-topology.md` for the whole picture.
 
-- **Image/command:** `alpine/socat:1.8.0.3`; the image's entrypoint is `socat`, so `command:` is just `TCP-LISTEN:443,fork,reuseaddr TCP:traefik:${TRAEFIK_PORT_3}`. Pure TCP/SNI passthrough: Traefik keeps all TLS and certificate work.
+- **Image/command:** `alpine/socat:1.8.1.3`; the image's entrypoint is `socat`, so `command:` is just `TCP-LISTEN:443,fork,reuseaddr TCP:traefik:${TRAEFIK_PORT_3}`. Pure TCP/SNI passthrough: Traefik keeps all TLS and certificate work.
 - **Why a separate macvlan container:** a wildcard bind and a specific-IP bind cannot coexist in one network namespace, so Traefik's own container is not given a second IP.
 - **Networks:** `traefik_forwarder_net` (macvlan, `parent: ${LAN_INTERFACE}`, which must be `bridge0` on this NAS: `.claude/rules/gotchas/macvlan-parent-bridge0.md`; subnet/gateway from `${LAN_SUBNET}`/`${LAN_GATEWAY}`; `ip_range` is the single address) and `traefik-proxy` (to reach `traefik:${TRAEFIK_PORT_3}` by name). Compose names the macvlan network `traefik-private-forwarder_traefik_forwarder_net`; `traefik-public` and any other stack needing its own LAN IP join it as `external: true` (Docker allows one macvlan network per parent/subnet).
 - **No Traefik labels** on itself (infrastructure exposing an IP, not a routed app); LAN only.

@@ -18,3 +18,5 @@ Stack layout, data paths and runbook: `easy-appointments/README.md`; evidence: `
 
 **Why:** release-zip and CodeIgniter quirks are invisible in the compose file.
 **How to apply:** read this before upgrading Easy!Appointments or touching its nginx/php-fpm/proxy rules.
+
+**Local files:** the `~/momentary/...` paths named here may be missing. Check the folder exists first; if it is missing, ask the user to copy it.
