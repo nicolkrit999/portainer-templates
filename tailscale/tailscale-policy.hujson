@@ -1,0 +1,40 @@
+// Tailnet policy - owner only
+{
+    "tagOwners": {},
+
+    "grants": [
+        // Peer relay: tailnet members may use nicol-nas as a Tailscale peer relay
+        {
+            "src": ["autogroup:member"],
+            "dst": ["100.101.189.91"],
+            "app": {"tailscale.com/cap/relay": []},
+        },
+
+        // The owner's own devices reach everything
+        {
+            "src": ["autogroup:admin"],
+            "dst": ["*"],
+            "ip":  ["*"],
+        },
+    ],
+
+    // Tailscale SSH: members may SSH into their own devices (check mode). Unchanged.
+    "ssh": [
+        {
+            "action": "check",
+            "src":    ["autogroup:member"],
+            "dst":    ["autogroup:self"],
+            "users":  ["autogroup:nonroot", "root"],
+        },
+    ],
+
+    "nodeAttrs": [
+        // Funnel: no entry on purpose. Without a nodeAttr granting "funnel", nobody can use it.
+        // Mullvad exit-node usage.
+        {"target": ["100.83.39.18"], "attr": ["mullvad"]},
+        {"target": ["100.68.73.30"], "attr": ["mullvad"]},
+        {"target": ["100.73.36.110"], "attr": ["mullvad"]},
+        {"target": ["100.84.2.45"], "attr": ["mullvad"]},
+        {"target": ["100.102.62.76"], "attr": ["mullvad"]},
+    ],
+}
